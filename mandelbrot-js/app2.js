@@ -17,7 +17,7 @@
   var c2;
   var c0;
   var xm = 0, ym = 0;
-  var stepsValues = [255, 500, 1000, 2000];
+  var stepsValues = [255, 500, 1000, 2000, 4000, 8000];
   var stepsValuesIdx = 1;
   var steps = stepsValues[0];
   var running = false;
