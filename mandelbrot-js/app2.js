@@ -79,8 +79,6 @@
     stopCalculations();
     drawCount++;
 
-    status(c0 ? "Julia Set" : "Mandelbrot Set");
-
     var parts = [];
 
     var tileSize = 128;
@@ -295,12 +293,14 @@
     drawSet(c1, c2, ctx);
   }
 
-  function status(message) {
+  function status() {
     document.getElementById("div").innerHTML = 
-        "Steps: " + steps
-      + "<br />TileRender: " + Math.round(averageTileCalcTime) + "ms"
-      + "<br />" + message;
+        "<b>" + (c0 ? "Julia Set" : "Mandelbrot Set") + "</b>"
+        + "<br />Steps: " + steps
+      + "<br />TileRender: " + Math.round(averageTileCalcTime) + "ms";
   }
+
+  setInterval(status, 1000);
 
   function updateProgressIndicator() {
     document.getElementById("progress").style.display = running ? "block" : "none";
