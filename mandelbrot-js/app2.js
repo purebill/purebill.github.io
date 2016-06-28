@@ -35,7 +35,7 @@
 
     c.width  = window.innerWidth;
     c.height = window.innerHeight;
-    ctx = c.getContext("2d");
+    ctx = c.getContext("2d", {alpha: false});
 
     width = c.width;
     height = c.height;
@@ -89,20 +89,6 @@
         parts.push([[x, y], [x2, y2]]);
       }
     }
-    /*var FACTOR = 10;
-
-    var xParts = Math.floor(width / FACTOR);
-    var yParts = Math.floor(height / FACTOR);
-
-    for (var xPart = 0; xPart < FACTOR; xPart++) {
-      for (var yPart = 0; yPart < FACTOR; yPart++) {
-        var x1 = xPart * xParts;
-        var y1 = yPart * yParts;
-        var x2 = x1 + xParts - 1;
-        var y2 = y1 + yParts - 1;
-        parts.push([[x1, y1], [x2, y2]]);
-      }
-    }*/
 
     // reorder the parts by the distance from the current mouse pointer
     parts.sort(function (a, b) {
@@ -145,6 +131,21 @@
         });
       });
     }
+  }
+
+  function renderFavicon(sourceContext) {
+    var w = 64;
+    var h = 64;
+
+    var canvas = document.createElement('canvas');
+    canvas.width = w;
+    canvas.height = h;
+    var ctx = canvas.getContext('2d');
+    ctx.drawImage(sourceContext, 0, 0, width, height, 0, 0, w, h);
+
+    var link = document.getElementById('favicon');
+    link.href = canvas.toDataURL("image/x-icon");
+    document.getElementsByTagName('head')[0].appendChild(link);
   }
 
   function saveState() {
@@ -304,6 +305,9 @@
 
   function updateProgressIndicator() {
     document.getElementById("progress").style.display = running ? "block" : "none";
+    if (!running) {
+      renderFavicon(canvas);
+    }
   }
 
   window.onresize = function (e) {
