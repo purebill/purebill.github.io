@@ -31,6 +31,10 @@ Complex.prototype.toString = function(first_argument) {
   return "(re: " + this.re + ", im: " + this.im + ")";
 };
 
+Complex.prototype.serialize = function() {
+  return {re: this.re, im: this.im};
+};
+
 Complex.fromImage = function (x, y, c1, c2, width, height) {
   var re1 = c1.re, re2 = c2.re;
   var im1 = c1.im, im2 = c2.im;
@@ -41,4 +45,8 @@ Complex.fromImage = function (x, y, c1, c2, width, height) {
   var ay = (im1 - by) / (height - 1);
 
   return new Complex(ax * x + bx, ay * y + by);
+};
+
+Complex.fromSerialized = function (serialized) {
+  return new Complex(serialized.re, serialized.im);
 };

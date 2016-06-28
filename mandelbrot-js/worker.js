@@ -16,7 +16,7 @@ function computeImage(x1, y1, x2, y2, steps) {
     for (var y = y1; y <= y2; y++) {
       var c = Complex.fromImage(x, y, c1, c2, width, height);
       var d = 255 - m(c, steps) / steps * 255;
-      var color = Color.fromHsv(d/255, 1, d/255);
+      var color = Color.fromHsv(Math.floor(d/10)*10/255, 1-Math.floor(d/10)*10/255, 1);
 
       xi = x - x1;
       yi = y - y1;

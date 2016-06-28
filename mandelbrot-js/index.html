@@ -7,10 +7,10 @@
       margin: 0px;
     }
 
-    #div {
+    #status {
       position: fixed;
       width: 100px;
-      height: 50px;
+      height: 100px;
       border: 1px solid #ffffff; 
       left: 10px; 
       top: 10px;
@@ -18,6 +18,7 @@
       color: #000000;
       font: arial;
       padding: 3px;
+      font-size: 12px;
 
       opacity:0.4;
       transition:opacity 0.5s linear;
@@ -31,13 +32,32 @@
                                       not supported by any browser */      
     }
 
-    #div:hover {
+    #status:hover {
       opacity: 1;
     }
+
+    .progress {
+      background: #ffffff;
+      animation: blinker 0.5s cubic-bezier(.5, 0, 1, 1) infinite alternate;
+      color: #ff0000;
+      font-weight: bold;
+      position: fixed;
+      left: 50%;
+      top: 10px;
+      padding: 5px;
+    }
+    @keyframes blinker {  
+      from { opacity: 1; }
+      to { opacity: 0; }
+    }
+
   </style>
 </head>
 <body>
-  <div id="div">Preved!</div>
+  <div class="progress" id="progress">Working...</div>
+  <div id="status">
+    <div id="div"></div>
+  </div>
   <canvas id="canvas"></canvas>
 
   <script type="text/javascript" src="workerp.js"></script>

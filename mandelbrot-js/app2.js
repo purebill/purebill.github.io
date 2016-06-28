@@ -16,17 +16,23 @@
   var c1;
   var c2;
   var c0;
-  var zoom = 1;
   var xm = 0, ym = 0;
-  var stepsValues = [255, 10, 50, 500, 1000];
+  var stepsValues = [255, 500, 1000, 2000];
   var stepsValuesIdx = 1;
   var steps = stepsValues[0];
   var running = false;
+  var averageTileCalcTime = 100;
+  var drawCount = 0;
   
-  init();
+  init(true);
 
-  function init() {
+  function init(firstTime) {
     var c = document.getElementById("canvas");
+    if (!firstTime) {
+      prevWidth = c.width;
+      prevHiehgt = c.height;
+    }
+
     c.width  = window.innerWidth;
     c.height = window.innerHeight;
     ctx = c.getContext("2d");
@@ -34,37 +40,62 @@
     width = c.width;
     height = c.height;
 
+    if (firstTime) {
+      loadState();
+      prevWidth = c.width;
+      prevHiehgt = c.height;
+    }
+
     var re1, re2, im1, im2;
     var f = width / height;
-    if (f >= 1) {
-      im1 = -2;
-      im2 = 2;
-      re1 = im1 * f;
-      re2 = im2 * f;
+    if (c1 && c2) {
+      var center = new Complex((c1.re + c2.re)/2, (c1.im + c2.im)/2);
+      re1 = (c1.re - center.re) * width / prevWidth + center.re;
+      im1 = (c1.im - center.im) * height / prevHiehgt + center.im;
+      re2 = (c2.re - center.re) * width / prevWidth + center.re;
+      im2 = (c2.im - center.im) * height / prevHiehgt + center.im;
     } else {
-      re1 = -2;
-      re2 =  2;
-      im1 = re1 / f;
-      im2 = re2 / f;
+      if (f >= 1) {
+        im1 = -2;
+        im2 = 2;
+        re1 = im1 * f;
+        re2 = im2 * f;
+      } else {
+        re1 = -2;
+        re2 =  2;
+        im1 = re1 / f;
+        im2 = re2 / f;
+      }
     }
 
     c1 = new Complex(re1, im1);
     c2 = new Complex(re2, im2);
-    c0;
-    zoom = 1;
     
     drawSet(c1, c2, ctx);
   }
 
   function drawSet(c1, c2, ctx) {
+    saveState();
     stopCalculations();
+    drawCount++;
 
     status(c0 ? "Julia Set" : "Mandelbrot Set");
 
     var parts = [];
-    var FACTOR = 10;
+
+    var tileSize = 128;
+    for (var x = 0; x < width; x += tileSize) {
+      for (var y = 0; y < height; y += tileSize) {
+        var x2 = Math.min(x + tileSize - 1, width - 1);
+        var y2 = Math.min(y + tileSize -1, height -1);
+        parts.push([[x, y], [x2, y2]]);
+      }
+    }
+    /*var FACTOR = 10;
+
     var xParts = Math.floor(width / FACTOR);
     var yParts = Math.floor(height / FACTOR);
+
     for (var xPart = 0; xPart < FACTOR; xPart++) {
       for (var yPart = 0; yPart < FACTOR; yPart++) {
         var x1 = xPart * xParts;
@@ -73,7 +104,7 @@
         var y2 = y1 + yParts - 1;
         parts.push([[x1, y1], [x2, y2]]);
       }
-    }
+    }*/
 
     // reorder the parts by the distance from the current mouse pointer
     parts.sort(function (a, b) {
@@ -89,12 +120,15 @@
     });
 
     running = true;
+    updateProgressIndicator();
     parts.forEach(function (part) {
       computePart(part[0][0], part[0][1], part[1][0], part[1][1]);
     });
 
     var partsFinished = 0;
     function computePart(x1, y1, x2, y2) {
+      var startTime = new Date();
+
       worker().call({
         x1: x1, y1: y1, 
         x2: x2, y2: y2, 
@@ -104,19 +138,61 @@
       .then(function (imd) {
         partsFinished++;
         running = partsFinished < parts.length;
+        updateProgressIndicator();
         var width = x2 - x1 + 1;
         var height =  y2 - y1 + 1;
         var bp = createImageBitmap(imd, 0, 0, width, height).then(function (image) {
           ctx.drawImage(image, x1, y1);
+          averageTileCalcTime = (averageTileCalcTime + (new Date()).getTime() - startTime.getTime()) / 2;
         });
       });
     }
+  }
+
+  function saveState() {
+    document.location.hash = btoa(JSON.stringify({
+      center: {
+        re: (c1.re + c2.re)/2,
+        im: (c1.im + c2.im)/2
+      },
+      dist: c2.re - c1.re,
+      stepsValuesIdx: stepsValuesIdx,
+      c0: c0 && c0.serialize()
+    }));
+  }
+
+  function loadState() {
+    try {
+      var state = JSON.parse(atob(document.location.hash.substr(1)));
+      var center = state.center;
+      var w = state.dist/2;
+      var h = state.dist * height / width / 2;
+      var re1 = center.re - w;
+      var im1 = center.im - h;
+      var re2 = center.re + w;
+      var im2 = center.im + h;
+
+      c1 = new Complex(re1, im1);
+      c2 = new Complex(re2, im2);
+
+      stepsValuesIdx = state.stepsValuesIdx;
+      steps = stepsValues[stepsValuesIdx % stepsValues.length];
+
+      if (state.c0) {
+        c0 = Complex.fromSerialized(state.c0);
+      }
+
+      return true;
+    } catch (e) {}
+
+    return false;
   }
 
   function stopCalculations() {
     if (running) {
       workers.forEach(function (w) { w.reset(); });
       running = false;
+      return;
     }
   }
 
@@ -127,7 +203,7 @@
     y1 = e.offsetY;
   };
 
-  var debouncedDrawSet = debounce(drawSet, 100, 100);
+  var debouncedDrawSet = debounce(drawSet, 100);
   window.onmousemove = function(e) {
     xm = e.offsetX;
     ym = e.offsetY;
@@ -152,32 +228,21 @@
     }
   };
 
-  function debounce(func, wait, forceRun) {
-    var timeout;
-    var forceRunTimeout;
+  function debounce(func, swallowInterval) {
+    var swallowTimeout;
 
     return function() {
       var context = this, args = arguments;
 
       var later = function() {
-        if (timeout) {
-          clearTimeout(timeout);
-          timeout = null;
-        }
-        if (forceRunTimeout) {
-          clearTimeout(forceRunTimeout);
-          forceRunTimeout = null;
-        }
+        clearTimeout(swallowTimeout);
+        swallowTimeout = null;
 
         func.apply(context, args);
-        console.debug("CALL");
       };
 
-      clearTimeout(timeout);
-
-      timeout = setTimeout(later, wait);
-      if (!forceRunTimeout) {
-        forceRunTimeout = setTimeout(later, forceRun);
+      if (!swallowTimeout) {
+        swallowTimeout = setTimeout(later, swallowInterval);
       }
     };
   };
@@ -206,12 +271,10 @@
       // zoom in
       c1New = new Complex((c1.re - xc) / 2 + xc, (c1.im - yc) / 2 + yc);
       c2New = new Complex((c2.re - xc) / 2 + xc, (c2.im - yc) / 2 + yc);
-      zoom *= 2;
     } else {
       // zoom out
       c1New = new Complex((c1.re - xc) * 2 + xc, (c1.im - yc) * 2 + yc);
       c2New = new Complex((c2.re - xc) * 2 + xc, (c2.im - yc) * 2 + yc);
-      zoom /= 2;
     }
 
     c1 = c1New;
@@ -233,9 +296,14 @@
   }
 
   function status(message) {
-    document.getElementById("div").innerHTML = "Details: " + steps + "<br />"
-      + "Zoom: " + zoom 
+    document.getElementById("div").innerHTML = 
+        "Steps: " + steps
+      + "<br />TileRender: " + Math.round(averageTileCalcTime) + "ms"
       + "<br />" + message;
+  }
+
+  function updateProgressIndicator() {
+    document.getElementById("progress").style.display = running ? "block" : "none";
   }
 
   window.onresize = function (e) {
@@ -244,10 +312,11 @@
 
   window.onkeyup = function (e) {
     if (e.keyCode == 27) {
-      c0 = undefined;
+      c0 = c1 = c2 = undefined;
       init();
     } else if (e.key == "d") {
-      steps = stepsValues[stepsValuesIdx++ % stepsValues.length];
+      stepsValuesIdx++
+      steps = stepsValues[stepsValuesIdx % stepsValues.length];
       drawSet(c1, c2, ctx);
     }
   }
