@@ -125,7 +125,7 @@
         updateProgressIndicator();
         var width = x2 - x1 + 1;
         var height =  y2 - y1 + 1;
-        
+
         ctx.putImageData(imd, x1, y1);
         averageTileCalcTime = (averageTileCalcTime + (new Date()).getTime() - startTime.getTime()) / 2;
         /*var bp = createImageBitmap(imd, 0, 0, width, height).then(function (image) {
@@ -317,14 +317,15 @@
     init();
   }
 
-  window.onkeyup = function (e) {
+  window.onkeypress = function (e) {
+    var ch = String.fromCharCode(e.charCode);
     if (e.keyCode == 27) {
       c0 = c1 = c2 = undefined;
       init();
-    } else if (e.key == "d") {
+    } else if (ch == "d") {
       stepsValuesIdx++
       steps = stepsValues[stepsValuesIdx % stepsValues.length];
       drawSet(c1, c2, ctx);
-    }
+    }    
   }
 })();
