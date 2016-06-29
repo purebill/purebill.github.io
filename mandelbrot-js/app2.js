@@ -318,11 +318,12 @@
   }
 
   window.onkeypress = function (e) {
+    console.debug(e);
     var ch = String.fromCharCode(e.charCode);
     if (e.keyCode == 27) {
       c0 = c1 = c2 = undefined;
       init();
-    } else if (ch == "d") {
+    } else if (ch == "d" && !e.altKey && !e.ctrlKey) {
       stepsValuesIdx++
       steps = stepsValues[stepsValuesIdx % stepsValues.length];
       drawSet(c1, c2, ctx);
