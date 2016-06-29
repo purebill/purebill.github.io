@@ -152,7 +152,7 @@
   }
 
   function saveState() {
-    document.location.hash = btoa(JSON.stringify({
+    var newState = btoa(JSON.stringify({
       center: {
         re: (c1.re + c2.re)/2,
         im: (c1.im + c2.im)/2
@@ -161,6 +161,10 @@
       stepsValuesIdx: stepsValuesIdx,
       c0: c0 && c0.serialize()
     }));
+
+    if (document.location.hash != newState) {
+      document.location.hash = newState;
+    }
   }
 
   function loadState() {
@@ -331,5 +335,10 @@
       steps = stepsValues[stepsValuesIdx % stepsValues.length];
       drawSet(c1, c2, ctx);
     }    
+  };
+
+  window.onpopstate = function (e) {
+    loadState();
+    drawSet(c1, c2, ctx);
   };
 })();
