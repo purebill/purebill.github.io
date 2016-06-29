@@ -125,10 +125,13 @@
         updateProgressIndicator();
         var width = x2 - x1 + 1;
         var height =  y2 - y1 + 1;
-        var bp = createImageBitmap(imd, 0, 0, width, height).then(function (image) {
+        
+        ctx.putImageData(imd, x1, y1);
+        averageTileCalcTime = (averageTileCalcTime + (new Date()).getTime() - startTime.getTime()) / 2;
+        /*var bp = createImageBitmap(imd, 0, 0, width, height).then(function (image) {
           ctx.drawImage(image, x1, y1);
           averageTileCalcTime = (averageTileCalcTime + (new Date()).getTime() - startTime.getTime()) / 2;
-        });
+        });*/
       });
     }
   }
