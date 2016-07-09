@@ -1,3 +1,8 @@
+/**
+ * Creates a worker on the caller's side.
+ *
+ * @param scriptSource the *.js file with the worker's code.
+ */
 function Workerp(scriptSource) {
     this.scriptSource = scriptSource;
     this._init();
@@ -27,6 +32,11 @@ Workerp.prototype._init = function () {
     };
 }
 
+/**
+ * Submit a job to the worker with the params.
+ * 
+ * Returns a promise that will be resolved while the job been done by the worker.
+ */
 Workerp.prototype.call = function (params) {
     var self = this;
     return new Promise(function (resolve, reject) {
@@ -45,6 +55,14 @@ Workerp.prototype.call = function (params) {
     });
 }
 
+/**
+ * Register a worker message handler calback on the worker side.
+ * Like this:
+ * 
+ * Workerp.message(function (params) {
+ *   return Promise.resolve(doWorkerJob(params));
+ * });
+ */
 Workerp.message = function (callback) {
     onmessage = function (e) {
         if (!e.data.callId) {

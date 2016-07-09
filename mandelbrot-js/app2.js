@@ -18,12 +18,15 @@
   var c0;
   var xm = 0, ym = 0;
   var stepsValues = [255, 500, 1000, 2000, 4000, 8000];
-  var stepsValuesIdx = 1;
+  var stepsValuesIdx = 0;
   var steps = stepsValues[0];
   var running = false;
   var averageTileCalcTime = 100;
   var drawCount = 0;
-  
+  var palete;
+  var rebuildPalete = buildFractalPalete;
+  //var rebuildPalete = buildPalete;
+
   init(true);
 
   function init(firstTime) {
@@ -70,7 +73,9 @@
 
     c1 = new Complex(re1, im1);
     c2 = new Complex(re2, im2);
-    
+
+    palete = rebuildPalete(steps);
+
     drawSet(c1, c2, ctx);
   }
 
@@ -79,58 +84,107 @@
     stopCalculations();
     drawCount++;
 
-    var parts = [];
+    Promise.all(workers.map(function (worker) {
+      return worker.call({
+        palete: palete
+      })
+    })).then(function () {
+      var parts = [];
 
-    var tileSize = 128;
-    for (var x = 0; x < width; x += tileSize) {
-      for (var y = 0; y < height; y += tileSize) {
-        var x2 = Math.min(x + tileSize - 1, width - 1);
-        var y2 = Math.min(y + tileSize -1, height -1);
-        parts.push([[x, y], [x2, y2]]);
+      var tileSize = 128;
+      for (var x = 0; x < width; x += tileSize) {
+        for (var y = 0; y < height; y += tileSize) {
+          var x2 = Math.min(x + tileSize - 1, width - 1);
+          var y2 = Math.min(y + tileSize -1, height -1);
+          parts.push([[x, y], [x2, y2]]);
+        }
       }
-    }
 
-    // reorder the parts by the distance from the current mouse pointer
-    parts.sort(function (a, b) {
-      var xa = (a[0][0] + a[1][0]) / 2;
-      var ya = (a[0][1] + a[1][1]) / 2;
-      var distA = (xm - xa)*(xm - xa) + (ym - ya)*(ym - ya);
+      // reorder the parts by the distance from the current mouse pointer
+      parts.sort(function (a, b) {
+        var xa = (a[0][0] + a[1][0]) / 2;
+        var ya = (a[0][1] + a[1][1]) / 2;
+        var distA = (xm - xa)*(xm - xa) + (ym - ya)*(ym - ya);
 
-      var xb = (b[0][0] + b[1][0]) / 2;
-      var yb = (b[0][1] + b[1][1]) / 2;
-      var distB = (xm - xb)*(xm - xb) + (ym - yb)*(ym - yb);
+        var xb = (b[0][0] + b[1][0]) / 2;
+        var yb = (b[0][1] + b[1][1]) / 2;
+        var distB = (xm - xb)*(xm - xb) + (ym - yb)*(ym - yb);
 
-      return distA < distB ? -1 : distA == distB ? 0 : 1;
-    });
-
-    running = true;
-    updateProgressIndicator();
-    parts.forEach(function (part) {
-      computePart(part[0][0], part[0][1], part[1][0], part[1][1]);
-    });
-
-    var partsFinished = 0;
-    function computePart(x1, y1, x2, y2) {
-      var startTime = new Date();
-
-      worker().call({
-        x1: x1, y1: y1, 
-        x2: x2, y2: y2, 
-        width: width, height: height, 
-        c1: c1, c2: c2, c0: c0,
-        steps: steps})
-      .then(function (imd) {
-        partsFinished++;
-        running = partsFinished < parts.length;
-        updateProgressIndicator();
-        var width = x2 - x1 + 1;
-        var height =  y2 - y1 + 1;
-        var bp = createImageBitmap(imd, 0, 0, width, height).then(function (image) {
-          ctx.drawImage(image, x1, y1);
-          averageTileCalcTime = (averageTileCalcTime + (new Date()).getTime() - startTime.getTime()) / 2;
-        });
+        return distA < distB ? -1 : distA == distB ? 0 : 1;
       });
+
+      running = true;
+      updateProgressIndicator();
+      parts.forEach(function (part) {
+        computePart(part[0][0], part[0][1], part[1][0], part[1][1]);
+      });
+
+      var partsFinished = 0;
+      function computePart(x1, y1, x2, y2) {
+        var startTime = new Date();
+
+        worker().call({
+          x1: x1, y1: y1, 
+          x2: x2, y2: y2, 
+          width: width, height: height, 
+          c1: c1, c2: c2, c0: c0,
+          steps: steps})
+        .then(function (imd) {
+          partsFinished++;
+          running = partsFinished < parts.length;
+          updateProgressIndicator();
+          var width = x2 - x1 + 1;
+          var height =  y2 - y1 + 1;
+
+          ctx.putImageData(imd, x1, y1);
+          averageTileCalcTime = (averageTileCalcTime + (new Date()).getTime() - startTime.getTime()) / 2;
+          /*var bp = createImageBitmap(imd, 0, 0, width, height).then(function (image) {
+            ctx.drawImage(image, x1, y1);
+            averageTileCalcTime = (averageTileCalcTime + (new Date()).getTime() - startTime.getTime()) / 2;
+          });*/
+        });
+      }      
+    });
+  }
+
+  function buildPalete(steps) {
+    colors = [];
+    for (var s = 0; s <= steps; s++) {
+      var d = 255 - s / steps * 255;
+
+      //var color = Color.fromHsv(Math.floor(d/10)*10/255, 1-Math.floor(d/10)*10/255, 1);
+      colors[s] = Color.fromHsv(Math.floor(d/10)*10/255, 1-Math.floor(d/10)*10/255, 1);
     }
+    return colors;
+  }
+
+  function buildFractalPalete(steps) {
+    var colors = [];
+    
+    colors[0] = new Color(255, 255, 255);
+    colors[steps] = new Color(0, 0, 0);
+
+    var buildFractalPaleteR = function (i1, i2, level) {
+      if (i2 - i1 < 2) return;
+
+      var rand = rand = (2*Math.random() - 1) * 255 / level;
+      var r = Math.round( (colors[i1].r + colors[i2].r) / 2 + rand );
+
+      rand = (2*Math.random() - 1) * 255 / level;
+      var g = Math.round( (colors[i1].g + colors[i2].g) / 2 + rand );
+
+      rand = rand = (2*Math.random() - 1) * 255 / level;
+      var b = Math.round( (colors[i1].b + colors[i2].b) / 2 + rand );
+
+      var imid = Math.round( (i1 + i2)/2 );
+      colors[imid] = new Color(r, g, b);
+
+      buildFractalPaleteR(i1, imid, level * 1.7);
+      buildFractalPaleteR(imid, i2, level * 1.7);
+    }
+
+    buildFractalPaleteR(0, steps, 1);
+    return colors;
   }
 
   function renderFavicon(sourceContext) {
@@ -149,7 +203,7 @@
   }
 
   function saveState() {
-    document.location.hash = btoa(JSON.stringify({
+    var newState = btoa(JSON.stringify({
       center: {
         re: (c1.re + c2.re)/2,
         im: (c1.im + c2.im)/2
@@ -158,6 +212,10 @@
       stepsValuesIdx: stepsValuesIdx,
       c0: c0 && c0.serialize()
     }));
+
+    if (document.location.hash != newState) {
+      document.location.hash = newState;
+    }
   }
 
   function loadState() {
@@ -295,9 +353,11 @@
   }
 
   function status() {
+    var zoom = Math.round(Math.log2(1/Math.abs(c1.re - c2.re)));
     document.getElementById("div").innerHTML = 
         "<b>" + (c0 ? "Julia Set" : "Mandelbrot Set") + "</b>"
-        + "<br />Steps: " + steps
+      + "<br />Zoom: " + zoom
+      + "<br />Steps: " + steps
       + "<br />TileRender: " + Math.round(averageTileCalcTime) + "ms";
   }
 
@@ -316,12 +376,72 @@
 
   window.onkeyup = function (e) {
     if (e.keyCode == 27) {
-      c0 = c1 = c2 = undefined;
-      init();
-    } else if (e.key == "d") {
-      stepsValuesIdx++
-      steps = stepsValues[stepsValuesIdx % stepsValues.length];
-      drawSet(c1, c2, ctx);
+      reset();
     }
   }
+
+  window.onkeypress = function (e) {
+    var ch = String.fromCharCode(e.charCode);
+    if (ch == "d" && !e.altKey && !e.ctrlKey) {
+      cycleDetails();
+    }    
+  };
+
+  function reset() {
+    c0 = c1 = c2 = undefined;
+    init();
+  }
+
+  function cycleDetails() {
+    stepsValuesIdx++
+    steps = stepsValues[stepsValuesIdx % stepsValues.length];
+    palete = rebuildPalete(steps);
+    drawSet(c1, c2, ctx);
+  }
+
+  window.onpopstate = function (e) {
+    loadState();
+    drawSet(c1, c2, ctx);
+  };
+
+  var hammertime = new Hammer(canvas, {});
+  hammertime.get('pinch').set({ enable: true });
+  hammertime.get('rotate').set({ enable: true });
+
+  /*hammertime.on('rotateend', function (e) {
+    onmousewheel({
+      offsetX: e.center.x,
+      offsetY: e.center.y,
+      detail: e.rotation
+    });
+  });*/
+
+  hammertime.on('pinchend', function (e) {
+    onmousewheel({
+      offsetX: e.center.x,
+      offsetY: e.center.y,
+      detail: e.scale > 1 ? -1 : 1
+    });
+  });
+
+  hammertime.on('panstart', function (e) {
+    window.onmousedown({
+      offsetX: e.center.x,
+      offsetY: e.center.y
+    });
+  });
+
+  hammertime.on('panmove', function(e) {
+    window.onmousemove({
+      offsetX: e.center.x,
+      offsetY: e.center.y
+    });
+  });
+
+  hammertime.on('panend', function (e) {
+    window.onmouseup({
+      offsetX: e.center.x,
+      offsetY: e.center.y
+    });
+  });
 })();

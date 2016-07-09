@@ -24,14 +24,17 @@
 
       opacity:0.4;
       transition:opacity 0.5s linear;
+    }
 
-      -webkit-touch-callout: none; /* iOS Safari */
-      -webkit-user-select: none;   /* Chrome/Safari/Opera */
-      -khtml-user-select: none;    /* Konqueror */
-      -moz-user-select: none;      /* Firefox */
-      -ms-user-select: none;       /* Internet Explorer/Edge */
-      user-select: none;           /* Non-prefixed version, currently
-                                      not supported by any browser */      
+    .noselection {
+      -webkit-touch-callout: none;
+      -webkit-user-select: none;
+      -khtml-user-select: none;
+      -moz-user-select: none;
+      -ms-user-select: none;
+      user-select: none;
+      
+      cursor: default;
     }
 
     #status:hover {
@@ -56,16 +59,19 @@
   </style>
 </head>
 <body>
-  <div class="progress" id="progress">Working...</div>
-  <div id="status">
-    <div id="div"></div>
+  <div class="progress noselection" id="progress">Working...</div>
+  <div id="status" class="noselection">
+    <div id="div" class="noselection"></div>
   </div>
-  <canvas id="canvas"></canvas>
+  <canvas id="canvas" class="noselection"></canvas>
+
+  <script type="text/javascript" src="http://hammerjs.github.io/dist/hammer.min.js"></script>
 
   <script type="text/javascript" src="workerp.js"></script>
   <script type="text/javascript" src="color.js"></script>
   <script type="text/javascript" src="complex.js"></script>
-  <script type="text/javascript" src="plain.js"></script>
+  <script type="text/javascript" src="matrix.js"></script>
   <script type="text/javascript" src="app2.js"></script>
+  <!-- <script type="text/javascript" src="iter.js"></script> -->
 </body>
 </html>
