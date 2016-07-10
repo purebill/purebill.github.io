@@ -148,12 +148,24 @@
   }
 
   function buildPalete(steps) {
+    var zoom = Math.round(Math.log2(1/Math.abs(c1.re - c2.re)));
+    zoom = zoom < 1 ? 1 : zoom;
+    var k = 1 - Math.pow(2, -zoom);
+    console.debug(k);
     colors = [];
     for (var s = 0; s <= steps; s++) {
-      var d = 255 - s / steps * 255;
+      var d = 1 - s / steps;
 
       //var color = Color.fromHsv(Math.floor(d/10)*10/255, 1-Math.floor(d/10)*10/255, 1);
-      colors[s] = Color.fromHsv(Math.floor(d/10)*10/255, 1-Math.floor(d/10)*10/255, 1);
+      //colors[s] = Color.fromHsv(1, d/255, 1 - d/255);
+
+      var vlog = Math.log2(d + 1);
+      var vexp = Math.pow(zoom*5 + 1, d) / (zoom*5 + 1);
+      var v = vlog*k + vexp * (1 - k);
+      //var v = 255 * d;
+      //colors[s] = {r: 255*v, g: 255*v, b: 255*v};
+
+      colors[s] = Color.fromHsv(d, v, v);
     }
     return colors;
   }
@@ -254,10 +266,20 @@
   }
 
   var moving = false;
+  var juliaMoving = false;
   window.onmousedown = function(e) {
-    moving = true;
-    x1 = e.offsetX;
-    y1 = e.offsetY;
+    if (moving || juliaMoving) return;
+    if (e.shiftKey) {
+      console.debug("Julia moving");
+      juliaMoving = true;
+      moving = false;
+    } else {
+      console.debug("Moving");
+      juliaMoving = false;
+      moving = true;
+      x1 = e.offsetX;
+      y1 = e.offsetY;
+    }
   };
 
   var debouncedDrawSet = debounce(drawSet, 100);
@@ -282,6 +304,9 @@
       y1 = y2;
 
       debouncedDrawSet(c1, c2, ctx);
+    } else if (juliaMoving) {
+      c0 = Complex.fromImage(xm, ym, c1, c2, width, height);
+      debouncedDrawSet(c1, c2, ctx);
     }
   };
 
@@ -304,9 +329,10 @@
     };
   };
 
-  var ignoreMouseUp = false;
   window.onmouseup = function(e) {
     moving = false;
+    juliaMoving = false;
+    console.debug("Moving OFF");
   };
 
   var mousewheelevt = (/Firefox/i.test(navigator.userAgent))
@@ -337,6 +363,7 @@
     c1 = c1New;
     c2 = c2New;
 
+    palete = rebuildPalete(steps);
     drawSet(c1, c2, ctx);
 
     return false;
@@ -407,14 +434,6 @@
   var hammertime = new Hammer(canvas, {});
   hammertime.get('pinch').set({ enable: true });
   hammertime.get('rotate').set({ enable: true });
-
-  /*hammertime.on('rotateend', function (e) {
-    onmousewheel({
-      offsetX: e.center.x,
-      offsetY: e.center.y,
-      detail: e.rotation
-    });
-  });*/
 
   hammertime.on('pinchend', function (e) {
     onmousewheel({
