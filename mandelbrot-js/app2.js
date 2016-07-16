@@ -24,6 +24,7 @@
   var averageTileCalcTime = 100;
   var drawCount = 0;
   var palete;
+  var random = new Random();
   var rebuildPalete = buildFractalPalete;
   //var rebuildPalete = buildPalete;
 
@@ -151,7 +152,6 @@
     var zoom = Math.round(Math.log2(1/Math.abs(c1.re - c2.re)));
     zoom = zoom < 1 ? 1 : zoom;
     var k = 1 - Math.pow(2, -zoom);
-    console.debug(k);
     colors = [];
     for (var s = 0; s <= steps; s++) {
       var d = 1 - s / steps;
@@ -179,13 +179,13 @@
     var buildFractalPaleteR = function (i1, i2, level) {
       if (i2 - i1 < 2) return;
 
-      var rand = rand = (2*Math.random() - 1) * 255 / level;
+      var rand = rand = (2*random.nextFloat(0, 1) - 1) * 255 / level;
       var r = Math.round( (colors[i1].r + colors[i2].r) / 2 + rand );
 
-      rand = (2*Math.random() - 1) * 255 / level;
+      rand = (2*random.nextFloat(0, 1) - 1) * 255 / level;
       var g = Math.round( (colors[i1].g + colors[i2].g) / 2 + rand );
 
-      rand = rand = (2*Math.random() - 1) * 255 / level;
+      rand = rand = (2*random.nextFloat(0, 1) - 1) * 255 / level;
       var b = Math.round( (colors[i1].b + colors[i2].b) / 2 + rand );
 
       var imid = Math.round( (i1 + i2)/2 );
@@ -222,7 +222,8 @@
       },
       dist: c2.re - c1.re,
       stepsValuesIdx: stepsValuesIdx,
-      c0: c0 && c0.serialize()
+      c0: c0 && c0.serialize(),
+      seed: random.seed
     }));
 
     if (document.location.hash != newState) {
@@ -240,6 +241,10 @@
       var im1 = center.im - h;
       var re2 = center.re + w;
       var im2 = center.im + h;
+      var seed = state.seed;
+      if (seed) {
+        random = new Random(seed);
+      }
 
       c1 = new Complex(re1, im1);
       c2 = new Complex(re2, im2);
@@ -270,11 +275,9 @@
   window.onmousedown = function(e) {
     if (moving || juliaMoving) return;
     if (e.shiftKey) {
-      console.debug("Julia moving");
       juliaMoving = true;
       moving = false;
     } else {
-      console.debug("Moving");
       juliaMoving = false;
       moving = true;
       x1 = e.offsetX;
@@ -332,7 +335,6 @@
   window.onmouseup = function(e) {
     moving = false;
     juliaMoving = false;
-    console.debug("Moving OFF");
   };
 
   var mousewheelevt = (/Firefox/i.test(navigator.userAgent))
@@ -411,7 +413,11 @@
     var ch = String.fromCharCode(e.charCode);
     if (ch == "d" && !e.altKey && !e.ctrlKey) {
       cycleDetails();
-    }    
+    } else if (ch == "p" && !e.altKey && !e.ctrlKey) {
+      random.reset();
+      palete = rebuildPalete(steps);
+      drawSet(c1, c2, ctx);
+    }
   };
 
   function reset() {
