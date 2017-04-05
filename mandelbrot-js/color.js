@@ -1,7 +1,7 @@
 function Color(r, g, b) {
-	this.r = r;
-	this.g = g;
-	this.b = b;
+  this.r = r;
+  this.g = g;
+  this.b = b;
 }
 
 Color.fromHsv = function (h, s, v) {
@@ -23,4 +23,4 @@ Color.fromHsv = function (h, s, v) {
     Math.round(r * 255),
     Math.round(g * 255),
     Math.round(b * 255));
-}
+};

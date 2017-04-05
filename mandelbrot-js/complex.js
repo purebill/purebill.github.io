@@ -23,11 +23,11 @@ Complex.prototype.div = function(c2) {
   return new Complex(re, im);
 };
 
-Complex.prototype.abs = function(first_argument) {
+Complex.prototype.abs = function() {
   return this.re * this.re + this.im * this.im;
 };
 
-Complex.prototype.toString = function(first_argument) {
+Complex.prototype.toString = function() {
   return "(re: " + this.re + ", im: " + this.im + ")";
 };
 
