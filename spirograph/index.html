@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>lissajous</title>
+    <title>Spirograph</title>
 </head>
 <body>
 <canvas id="canvas"></canvas>
@@ -127,7 +127,7 @@
             ctx.restore();
         }
     };
-    var objects = [bigCircle, smallCircle, hole];
+    var objects = [hole, bigCircle, smallCircle];
 
     draw();
 
@@ -135,6 +135,8 @@
         ctx.fillStyle = '#ffffff';
         ctx.strokeStyle = '#000000';
         ctx.fillRect(0, 0, width, height);
+
+        ctx.fillStyle = 'transparent';
 
         objects.forEach(function (it) { it.draw(); });
 
