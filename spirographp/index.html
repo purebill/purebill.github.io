@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>lissajous</title>
+</head>
+<body>
+<canvas id="canvas"></canvas>
+
+<script type="text/javascript">
+    var c = document.getElementById("canvas");
+    c.width = window.innerWidth;
+    c.height = window.innerHeight;
+    var ctx = c.getContext("2d", { alpha: false });
+    var width = c.width;
+    var height = c.height;
+
+    var r = 140; // Inner circle radius
+    var R = 300; // Outer circle radius
+    var d = 30; // distance from the small circles' center to the hole
+
+    var runs = 10;
+    var omega = 0.1;
+
+    var movingObject = null;
+
+    window.document.body.onmousedown = function (e) {
+        for (var i = 0; i < objects.length; i++) {
+            if (objects[i].isOver(e)) {
+                movingObject = objects[i];
+                movingObject.startMove(e);
+                break;
+            }
+        }
+    };
+    window.document.body.onmousemove = function (e) {
+        if (movingObject) {
+            movingObject.move(e);
+            draw();
+        }
+    };
+
+    window.document.body.onmouseup = function (e) {
+        if (movingObject) {
+            movingObject.endMove(e);
+        }
+        movingObject = null;
+    };
+
+    var hole = {
+        isOver: function (e) {
+            var currentP = next(0);
+            var p = space([e.pageX, e.pageY]);
+            var distance = Math.sqrt(Math.pow(p[0] - currentP[0], 2) + Math.pow(p[1] - currentP[1], 2));
+            return distance < 20;
+        },
+        startMove: function (e) {
+            this.startY = next(0)[1];
+            this.startD = d;
+        },
+        endMove: function (e) {
+
+        },
+        move: function (e) {
+            var p = space([e.pageX, e.pageY]);
+            d = this.startD + p[1] - this.startY;
+        },
+        draw: function () {
+            ctx.save();
+            ctx.beginPath();
+            ctx.fillStyle = "#ff0000";
+            var p = screen(next(0));
+            circle(p[0], p[1], 5);
+            ctx.fill();
+            ctx.stroke();
+            ctx.restore();
+        }
+    };
+    var bigCircle = {
+        isOver: function (e) {
+            var p = space([e.pageX, e.pageY]);
+            return Math.abs(Math.sqrt(Math.pow(p[0], 2) + Math.pow(p[1], 2)) - R) < 20;
+        },
+        startMove: function (e) {
+        },
+        endMove: function (e) {
+        },
+        move: function (e) {
+            var p = space([e.pageX, e.pageY]);
+            R = Math.sqrt(Math.pow(p[0], 2) + Math.pow(p[1], 2));
+        },
+        draw: function () {
+            ctx.save();
+            ctx.beginPath();
+            ctx.strokeStyle = '#aaaaaa';
+            circle(width / 2, height / 2, R);
+            ctx.fill();
+            ctx.stroke();
+            ctx.restore();
+        }
+    };
+    var smallCircle = {
+        isOver: function (e) {
+            var p = space([e.pageX, e.pageY]);
+            var cX = 0;
+            var cY = R - r;
+            return Math.abs(Math.sqrt(Math.pow(p[0] - cX, 2) + Math.pow(p[1] - cY, 2)) - r) < 20;
+        },
+        startMove: function (e) {
+
+        },
+        endMove: function (e) {
+
+        },
+        move: function (e) {
+            var p = space([e.pageX, e.pageY]);
+            var cX = 0;
+            var cY = R - r;
+            r = Math.sqrt(Math.pow(p[0] - cX, 2) + Math.pow(p[1] - cY, 2));
+        },
+        draw: function () {
+            ctx.save();
+            ctx.strokeStyle = '#aaaaaa';
+            ctx.beginPath();
+            circle(width / 2, height / 2 - R + r, r);
+            ctx.stroke();
+            ctx.restore();
+        }
+    };
+    var objects = [bigCircle, smallCircle, hole];
+
+    draw();
+
+    function draw() {
+        ctx.fillStyle = '#ffffff';
+        ctx.strokeStyle = '#000000';
+        ctx.fillRect(0, 0, width, height);
+
+        objects.forEach(function (it) { it.draw(); });
+
+        ctx.beginPath();
+        var p = screen(next(0));
+        ctx.moveTo(p[0], p[1]);
+        for (var i = 0; i < Math.PI * 2 * R / r / omega * runs; i++) {
+            p = screen(next(i));
+            ctx.lineTo(p[0], p[1]);
+        }
+        ctx.stroke();
+    }
+
+    function circle(x, y, r) {
+        ctx.arc(x, y, r, 0, 2 * Math.PI);
+    }
+
+    function next(t) {
+        var xc = (R - r) * Math.sin(r / R * -omega * t);
+        var x = xc + d * Math.sin(omega * t);
+        var yc = (R - r) * Math.cos(r / R * -omega * t);
+        var y = yc + d * Math.cos(omega * t);
+        return [x, y];
+    }
+
+    function screen(p) {
+        return [p[0] + width / 2, height/2 - p[1]];
+    }
+
+    function space(p) {
+        return [p[0] - width / 2, height/2 - p[1]];
+    }
+</script>
+</body>
+</html>
