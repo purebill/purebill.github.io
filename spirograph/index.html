@@ -62,6 +62,22 @@
             movingObject.move(e);
             draw();
         }
+
+        var changed = false;
+        var wasSelected = false;
+        objects.forEach(function (it) {
+            var before = it.selected;
+            it.selected = !wasSelected && it.isOver(e);
+            if (it.selected) {
+                wasSelected = true;
+            }
+            if (before != it.selected) {
+                changed = true;
+            }
+        });
+        if (changed) {
+            draw();
+        }
     };
 
     window.document.body.onmouseup = function (e) {
@@ -71,6 +87,8 @@
         movingObject = null;
     };
 
+    var nop = function () {};
+
     var hole = {
         isOver: function (e) {
             var currentP = next(0);
@@ -78,13 +96,11 @@
             var distance = Math.sqrt(Math.pow(p[0] - currentP[0], 2) + Math.pow(p[1] - currentP[1], 2));
             return distance < 20;
         },
-        startMove: function (e) {
+        startMove: function () {
             this.startY = next(0)[1];
             this.startD = d;
         },
-        endMove: function (e) {
-
-        },
+        endMove: nop,
         move: function (e) {
             var p = space([e.pageX, e.pageY]);
             d = this.startD + p[1] - this.startY;
@@ -92,7 +108,11 @@
         draw: function () {
             ctx.save();
             ctx.beginPath();
-            ctx.fillStyle = "#ff0000";
+            if (this.selected) {
+                ctx.fillStyle = "#ff0000";
+            } else {
+                ctx.fillStyle = "#ffaaaa";
+            }
             var p = screen(next(0));
             circle(p[0], p[1], 5);
             ctx.fill();
@@ -105,10 +125,8 @@
             var p = space([e.pageX, e.pageY]);
             return Math.abs(Math.sqrt(Math.pow(p[0], 2) + Math.pow(p[1], 2)) - R) < 20;
         },
-        startMove: function (e) {
-        },
-        endMove: function (e) {
-        },
+        startMove: nop,
+        endMove: nop,
         move: function (e) {
             var p = space([e.pageX, e.pageY]);
             R = Math.sqrt(Math.pow(p[0], 2) + Math.pow(p[1], 2));
@@ -116,7 +134,12 @@
         draw: function () {
             ctx.save();
             ctx.beginPath();
-            ctx.strokeStyle = '#aaaaaa';
+            if (this.selected) {
+                ctx.lineWidth = 3;
+                ctx.strokeStyle = '#ffaaaa';
+            } else {
+                ctx.strokeStyle = '#aaaaaa';
+            }
             circle(width / 2, height / 2, R);
             ctx.fill();
             ctx.stroke();
@@ -130,12 +153,8 @@
             var cY = R - r;
             return Math.abs(Math.sqrt(Math.pow(p[0] - cX, 2) + Math.pow(p[1] - cY, 2)) - r) < 20;
         },
-        startMove: function (e) {
-
-        },
-        endMove: function (e) {
-
-        },
+        startMove: nop,
+        endMove: nop,
         move: function (e) {
             var p = space([e.pageX, e.pageY]);
             var cX = 0;
@@ -144,7 +163,12 @@
         },
         draw: function () {
             ctx.save();
-            ctx.strokeStyle = '#aaaaaa';
+            if (this.selected) {
+                ctx.lineWidth = 3;
+                ctx.strokeStyle = '#ffaaaa';
+            } else {
+                ctx.strokeStyle = '#aaaaaa';
+            }
             ctx.beginPath();
             circle(width / 2, height / 2 - R + r, r);
             ctx.stroke();
