@@ -7,6 +7,16 @@
         #runsLabel {
             position: absolute;
         }
+        .noselection {
+            -webkit-touch-callout: none;
+            -webkit-user-select: none;
+            -khtml-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
+
+            cursor: default;
+        }
     </style>
 </head>
 <body>
@@ -21,9 +31,13 @@
     <option value="75" label="75" />
     <option value="100" label="100" />
 </datalist>
-<canvas id="canvas"></canvas>
+<canvas id="canvas" class="noselection"></canvas>
+
+<script type="text/javascript" src="http://hammerjs.github.io/dist/hammer.min.js"></script>
 
 <script type="text/javascript">
+    var hammertime = new Hammer(document.body, {});
+
     var c = document.getElementById("canvas");
     c.width = window.innerWidth;
     c.height = window.innerHeight;
@@ -48,7 +62,7 @@
         } catch (e) {}
     };
 
-    window.document.body.onmousedown = function (e) {
+    window.onmousedown = function (e) {
         for (var i = 0; i < objects.length; i++) {
             if (objects[i].isOver(e)) {
                 movingObject = objects[i];
@@ -57,7 +71,7 @@
             }
         }
     };
-    window.document.body.onmousemove = function (e) {
+    window.onmousemove = function (e) {
         if (movingObject) {
             movingObject.move(e);
             draw();
@@ -80,12 +94,33 @@
         }
     };
 
-    window.document.body.onmouseup = function (e) {
+    window.onmouseup = function (e) {
         if (movingObject) {
             movingObject.endMove(e);
         }
         movingObject = null;
     };
+
+    hammertime.on("panstart", function (e) {
+        window.onmousedown({
+            pageX: e.center.x,
+            pageY: e.center.y
+        });
+    });
+
+    hammertime.on("panmove", function (e) {
+        window.onmousemove({
+            pageX: e.center.x,
+            pageY: e.center.y
+        });
+    });
+
+    hammertime.on("panend", function (e) {
+        window.onmouseup({
+            pageX: e.center.x,
+            pageY: e.center.y
+        });
+    });
 
     var nop = function () {};
 
@@ -106,6 +141,8 @@
             d = this.startD + p[1] - this.startY;
         },
         draw: function () {
+            saveState();
+
             ctx.save();
             ctx.beginPath();
             if (this.selected) {
@@ -177,8 +214,6 @@
     };
     var objects = [hole, bigCircle, smallCircle];
 
-    draw();
-
     function draw() {
         ctx.fillStyle = '#ffffff';
         ctx.strokeStyle = '#000000';
@@ -216,6 +251,41 @@
 
     function space(p) {
         return [p[0] - width / 2, height/2 - p[1]];
+    }
+
+    function saveState() {
+        var newState = btoa(JSON.stringify({
+            R: R,
+            r: r,
+            d: d,
+            runs: runs
+        }));
+
+        if (document.location.hash != newState) {
+            document.location.hash = newState;
+        }
+    }
+
+    function loadStateAndDraw() {
+        try {
+            var state = JSON.parse(atob(document.location.hash.substr(1)));
+            R = state.R;
+            r = state.r;
+            d = state.d;
+            runs = state.runs;
+
+            draw();
+            return true;
+        } catch (e) {
+            // just ignore if something went wrong while deserializing the state
+        }
+        return false;
+    }
+
+    window.onpopstate = loadStateAndDraw;
+
+    if (!loadStateAndDraw()) {
+        draw();
     }
 </script>
 </body>
