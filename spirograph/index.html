@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    <link type = 'image/x-icon' rel = 'shortcut icon' id="favicon" />
     <meta charset="UTF-8">
     <title>Spirograph</title>
     <style>
@@ -257,6 +258,8 @@
             ctx.lineTo(p[0], p[1]);
         }
         ctx.stroke();
+
+        renderFavicon();
     }
 
     function circle(x, y, r) {
@@ -315,6 +318,22 @@
             // just ignore if something went wrong while deserializing the state
         }
         return false;
+    }
+
+    function renderFavicon() {
+        var w = 64;
+        var h = 64;
+
+        var canvas = document.createElement("canvas");
+        canvas.width = w;
+        canvas.height = h;
+        var ctx = canvas.getContext("2d");
+        var left = width / 2 - R;
+        var top = height / 2 - R;
+        ctx.drawImage(document.getElementById("canvas"), left, top, 2*R, 2*R, 0, 0, w, h);
+
+        var link = document.getElementById("favicon");
+        link.href = canvas.toDataURL("image/x-icon");
     }
 
     window.onpopstate = loadStateAndDraw;
