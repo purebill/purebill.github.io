@@ -4,7 +4,12 @@
     <meta charset="UTF-8">
     <title>Spirograph</title>
     <style>
-        #runsLabel {
+        html, body {
+            width:  100%;
+            height: 100%;
+            margin: 0;
+        }
+        #runsLabel, #canvas {
             position: absolute;
         }
         .noselection {
@@ -20,9 +25,10 @@
     </style>
 </head>
 <body>
-<label for="runs" id="runsLabel">
+<canvas id="canvas" class="noselection"></canvas>
+<label for="runs" id="runsLabel" class="noselection">
     Runs
-    <input type="range" id="runs" min="1" max="100" value="10" list="runsList">
+    <input type="range" id="runs" min="1" max="100" value="10" list="runsList" class="noselection">
 </label>
 <datalist id="runsList">
     <option value="1" label="1" />
@@ -31,19 +37,17 @@
     <option value="75" label="75" />
     <option value="100" label="100" />
 </datalist>
-<canvas id="canvas" class="noselection"></canvas>
 
 <script type="text/javascript" src="http://hammerjs.github.io/dist/hammer.min.js"></script>
 
 <script type="text/javascript">
     var hammertime = new Hammer(document.body, {});
+    hammertime.get('pan').set({ direction: Hammer.DIRECTION_ALL });
 
-    var c = document.getElementById("canvas");
-    c.width = window.innerWidth;
-    c.height = window.innerHeight;
-    var ctx = c.getContext("2d", { alpha: false });
-    var width = c.width;
-    var height = c.height;
+    var ctx;
+
+    var width;
+    var height;
 
     var r = 140; // Inner circle radius
     var R = 300; // Outer circle radius
@@ -101,26 +105,48 @@
         movingObject = null;
     };
 
+    var mousewheelevt = (/Firefox/i.test(navigator.userAgent))
+            ? "DOMMouseScroll"
+            : "mousewheel";
+
+    if (window.attachEvent) {
+        window.attachEvent("on" + mousewheelevt, onmousewheel);
+    } else if (window.addEventListener) {
+        window.addEventListener(mousewheelevt, onmousewheel, false);
+    }
+
+    function onmousewheel() {
+        return true;
+    }
+
     hammertime.on("panstart", function (e) {
         window.onmousedown({
             pageX: e.center.x,
-            pageY: e.center.y
+            pageY: e.center.y,
+            mobile: true
         });
     });
 
     hammertime.on("panmove", function (e) {
         window.onmousemove({
             pageX: e.center.x,
-            pageY: e.center.y
+            pageY: e.center.y,
+            mobile: true
         });
     });
 
     hammertime.on("panend", function (e) {
         window.onmouseup({
             pageX: e.center.x,
-            pageY: e.center.y
+            pageY: e.center.y,
+            mobile: true
         });
     });
+
+    window.onresize = function () {
+        init();
+        draw();
+    };
 
     var nop = function () {};
 
@@ -129,7 +155,7 @@
             var currentP = next(0);
             var p = space([e.pageX, e.pageY]);
             var distance = Math.sqrt(Math.pow(p[0] - currentP[0], 2) + Math.pow(p[1] - currentP[1], 2));
-            return distance < 20;
+            return distance < 20 * (e.mobile ? 2 : 1);
         },
         startMove: function () {
             this.startY = next(0)[1];
@@ -160,7 +186,7 @@
     var bigCircle = {
         isOver: function (e) {
             var p = space([e.pageX, e.pageY]);
-            return Math.abs(Math.sqrt(Math.pow(p[0], 2) + Math.pow(p[1], 2)) - R) < 20;
+            return Math.abs(Math.sqrt(Math.pow(p[0], 2) + Math.pow(p[1], 2)) - R) < 20 * (e.mobile ? 2 : 1);
         },
         startMove: nop,
         endMove: nop,
@@ -188,7 +214,7 @@
             var p = space([e.pageX, e.pageY]);
             var cX = 0;
             var cY = R - r;
-            return Math.abs(Math.sqrt(Math.pow(p[0] - cX, 2) + Math.pow(p[1] - cY, 2)) - r) < 20;
+            return Math.abs(Math.sqrt(Math.pow(p[0] - cX, 2) + Math.pow(p[1] - cY, 2)) - r) < 20 * (e.mobile ? 2 : 1);
         },
         startMove: nop,
         endMove: nop,
@@ -253,6 +279,15 @@
         return [p[0] - width / 2, height/2 - p[1]];
     }
 
+    function init() {
+        var c = document.getElementById("canvas");
+        c.width = window.innerWidth;
+        c.height = window.innerHeight;
+        ctx = c.getContext("2d", { alpha: false });
+        width = c.width;
+        height = c.height;
+    }
+
     function saveState() {
         var newState = btoa(JSON.stringify({
             R: R,
@@ -284,6 +319,7 @@
 
     window.onpopstate = loadStateAndDraw;
 
+    init();
     if (!loadStateAndDraw()) {
         draw();
     }
