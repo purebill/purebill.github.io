@@ -85,8 +85,9 @@
     document.getElementById("btnClosestFraction").onclick = function () {
         var digits = parseInt(document.getElementById("digits").value);
         var f = findFraction(r / R, Math.pow(10, digits) - 1);
+        var dToR = d / r;
         r = R * f.value();
-        d = r / 2;
+        d = dToR * r;
         draw();
     };
 
