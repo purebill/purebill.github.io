@@ -10,7 +10,11 @@
             height: 100%;
             margin: 0;
         }
-        #runsLabel, #canvas {
+        button, label {
+            display: block;
+            margin-bottom: 10px;
+        }
+        #controls {
             position: absolute;
         }
         .noselection {
@@ -23,24 +27,35 @@
 
             cursor: default;
         }
+        #digits {
+            display: block;
+            float: left;
+            width: 40px;
+        }
     </style>
 </head>
 <body>
+<div id="controls" class="noselection">
+    <button id="btnReset">Reset</button>
+    <input value="1" type="number" id="digits" title="Digits">
+    <button id="btnClosestFraction">Closest Fraction</button>
+    <label>
+        <input type="range" id="runs" min="1" max="100" value="10" list="runsList" class="noselection">
+    </label>
+    <datalist id="runsList">
+        <option value="1" label="1" />
+        <option value="25" label="25" />
+        <option value="50" label="50" />
+        <option value="75" label="75" />
+        <option value="100" label="100" />
+    </datalist>
+</div>
 <canvas id="canvas" class="noselection"></canvas>
-<label for="runs" id="runsLabel" class="noselection">
-    Runs
-    <input type="range" id="runs" min="1" max="100" value="10" list="runsList" class="noselection">
-</label>
-<datalist id="runsList">
-    <option value="1" label="1" />
-    <option value="25" label="25" />
-    <option value="50" label="50" />
-    <option value="75" label="75" />
-    <option value="100" label="100" />
-</datalist>
 
-<script type="text/javascript" src="http://hammerjs.github.io/dist/hammer.min.js"></script>
+<!--http://hammerjs.github.io/dist/hammer.min.js-->
+<script type="text/javascript" src="hammer.min.js"></script>
 
+<script type="text/javascript" src="fraction.js"></script>
 <script type="text/javascript">
     var hammertime = new Hammer(document.body, {});
     hammertime.get('pan').set({ direction: Hammer.DIRECTION_ALL });
@@ -65,6 +80,23 @@
             runs = parseInt(runsInput.value);
             draw();
         } catch (e) {}
+    };
+
+    document.getElementById("btnClosestFraction").onclick = function () {
+        var digits = parseInt(document.getElementById("digits").value);
+        var f = findFraction(r / R, Math.pow(10, digits) - 1);
+        r = R * f.value();
+        d = r / 2;
+        draw();
+    };
+
+    document.getElementById("btnReset").onclick = function () {
+        r = 140;
+        R = 300;
+        d = 30;
+        runs = 10;
+        omega = 0.1;
+        draw();
     };
 
     window.onmousedown = function (e) {
