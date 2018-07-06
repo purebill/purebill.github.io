@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <link type = 'image/x-icon' rel = 'shortcut icon' id="favicon" />
+    <meta charset="UTF-8">
+    <title>Circle</title>
+    <style>
+        html, body {
+            width:  100%;
+            height: 100%;
+            margin: 0;
+        }
+        button, label {
+            display: block;
+            margin-bottom: 10px;
+        }
+        #controls, #canvas {
+            position: absolute;
+        }
+        .noselection {
+            -webkit-touch-callout: none;
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
+
+            cursor: default;
+        }
+    </style>
+</head>
+<body>
+<canvas id="canvas" class="noselection"></canvas>
+<div id="controls" class="noselection">
+    <label style="background-color: #ff9999">
+        <input type="range" id="r1" min="1" max="49" value="10" class="noselection">
+    </label>
+    <label style="background-color: #99ff99">
+        <input type="range" id="r2" min="1" max="49" value="20" class="noselection">
+    </label>
+</div>
+
+<script type="text/javascript">
+    var ctx;
+
+    var width;
+    var height;
+
+    var r1Input = document.getElementById("r1");
+    var r2Input = document.getElementById("r2");
+
+    var maxI = 16;
+    var maxJ = 1;
+
+    var R = 400;
+    var c0 = [0, 0];
+
+    var r1K = parseInt(r1Input.value) / 100.0;
+    var alpha = 45 / 180 * Math.PI;
+
+    var r2K = parseInt(r2Input.value) / 100.0;
+
+    r1Input.onchange = draw;
+    r2Input.onchange = draw;
+
+    window.onresize = function () {
+        init();
+        draw();
+    };
+
+    function draw() {
+        r1K = parseInt(r1Input.value) / 100.0;
+        r2K = parseInt(r2Input.value) / 100.0;
+
+        ctx.fillStyle = '#ffffff';
+        ctx.strokeStyle = '#000000';
+        ctx.fillRect(0, 0, width, height);
+        ctx.fillStyle = 'transparent';
+
+        var r1 = R * r1K;
+        var r2 = R * r2K;
+
+        var c1 = [(R - r1) * Math.cos(alpha) + c0[0], (R - r1) * Math.sin(alpha) + c0[1]];
+
+        var beta = alpha + Math.acos(cosCA(R-r1, r1+r2, R-r2));
+        var c2 = [(R - r2) * Math.cos(beta) + c0[0], (R - r2) * Math.sin(beta) + c0[1]];
+
+        drawR(R, c0, 1, 1);
+
+        ctx.save();
+        ctx.strokeStyle = '#000000';
+        circle(screen(c0), R);
+
+        ctx.strokeStyle = '#ff0000';
+        ctx.lineWidth = 2;
+        circle(screen(c1), r1);
+        ctx.strokeStyle = '#00ff00';
+        circle(screen(c2), r2);
+        ctx.restore();
+    }
+
+    function drawR(R, c0, i, j) {
+        if (j > maxJ) return;
+
+        var r1 = R * r1K;
+        var r2 = R * r2K;
+
+        var c1 = [(R - r1) * Math.cos(alpha) + c0[0], (R - r1) * Math.sin(alpha) + c0[1]];
+
+        var beta = alpha + Math.acos(cosCA(R-r1, r1+r2, R-r2));
+        var c2 = [(R - r2) * Math.cos(beta) + c0[0], (R - r2) * Math.sin(beta) + c0[1]];
+
+        drawTangentR(R, c0, r1, c1, r2, c2, false, i+1, j);
+    }
+
+    function drawTangentR(R, c0, r1, c1, r2, c2, ce, i, j) {
+        if (i > maxI) return;
+
+        // Calculate r3 using http://hijos.ru/2014/04/02/teorema-soddi/
+        var a = 1/r1/r1 + 1/r2/r2 + 1/R/R;
+        var b = 1/r1 +1/r2 - 1/R;
+        var r31 = 1/(b + Math.sqrt(2*(b*b - a)));
+        var r32 = 1/(b - Math.sqrt(2*(b*b - a)));
+
+        var c31 = tangentTo(circleIntersect(c1, r1 + r31, c2, r2 + r31), r31, c0, R);
+        var c32 = tangentTo(circleIntersect(c1, r1 + r32, c2, r2 + r32), r31, c0, R);
+
+        var draw1 = false;
+        if (ce) {
+            draw1 = Math.pow(ce[0]-c31[0], 2) + Math.pow(ce[1]-c31[1], 2)
+                    >
+                    Math.pow(ce[0]-c32[0], 2) + Math.pow(ce[1]-c32[1], 2);
+        }
+
+        if (i == maxI) {
+            ctx.save();
+            ctx.strokeStyle = '#000000';
+            if (!ce || draw1) circle(screen(c31), r31);
+            if (!ce || !draw1) circle(screen(c32), r32);
+            ctx.restore();
+        }
+
+        if (!ce || draw1) {
+            drawTangentR(R, c0, r1, c1, r31, c31, c2, i + 1, j);
+            drawTangentR(R, c0, r1, c1, r32, c32, c2, i + 1, j);
+            drawR(r1, c1, i, j+1);
+        }
+        if (!ce || !draw1) {
+            drawTangentR(R, c0, r2, c2, r31, c31, c1, i + 1, j);
+            drawTangentR(R, c0, r2, c2, r32, c32, c1, i + 1, j);
+            drawR(r2, c2, i, j+1);
+        }
+    }
+
+    function tangentTo(centers, r, c0, R) {
+        var c1 = centers[0];
+        var c2 = centers[1];
+        var d1 = Math.sqrt(Math.pow(c1[0]-c0[0], 2) + Math.pow(c1[1]-c0[1], 2));
+        var d2 = Math.sqrt(Math.pow(c2[0]-c0[0], 2) + Math.pow(c2[1]-c0[1], 2));
+        if (Math.abs(R - r - d1) < Math.abs(R - r - d2)) {
+            return c1;
+        } else {
+            return c2;
+        }
+    }
+
+    function circleIntersect(c1, r1, c2, r2) {
+        var x2 = c2[0] - c1[0];
+        var y2 = c2[1] - c1[1];
+        var a = 2*x2;
+        var b = 2*y2;
+        var c = x2*x2 + y2*y2 + r1*r1 - r2*r2;
+        var e = c/b;
+        var f = a/b;
+
+        var x = (e*f - Math.sqrt((1 + f*f)*r1*r1 - e*e)) / (f*f + 1);
+        var y = e-f*x;
+
+        var result = [[x + c1[0], y + c1[1]]];
+
+        x =     (e*f + Math.sqrt((1 + f*f)*r1*r1 - e*e)) / (f*f + 1);
+        y = e-f*x;
+
+        result.push([x + c1[0], y + c1[1]]);
+
+        return result;
+    }
+
+    function circle(p, r) {
+        ctx.beginPath();
+        ctx.arc(p[0], p[1], r, 0, 2 * Math.PI);
+        ctx.stroke();
+    }
+
+    function screen(p) {
+        return [p[0] + width / 2, height/2 - p[1]];
+    }
+
+    function init() {
+        var c = document.getElementById("canvas");
+        c.width = window.innerWidth;
+        c.height = window.innerHeight;
+        ctx = c.getContext("2d", { alpha: false });
+        width = c.width;
+        height = c.height;
+    }
+
+    function cosCA(a, b, c) {
+        return (c*c + a*a - b*b) / 2 / a / c;
+    }
+
+    init();
+    draw();
+</script>
+</body>
+</html>
