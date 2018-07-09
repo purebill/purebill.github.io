@@ -38,7 +38,7 @@
         <input type="range" id="r2" min="1" max="49" value="59" class="noselection">
     </label>
 </div>
-
+<script type="text/javascript" src="state.js"></script>
 <script type="text/javascript">
     var cm = [];
 
@@ -77,10 +77,25 @@
         draw();
     };
 
+    function setState(state) {
+        r1Input.value = Math.round(state.r1K * 100);
+        r2Input.value = Math.round(state.r2K * 100);
+        draw();
+    }
+
+    function getState() {
+        return {
+            r1K: r1K,
+            r2K: r2K
+        };
+    }
+
     init();
-    draw();
+    if (!State.init(getState, setState)) draw();
 
     function draw(seedOnly) {
+        if (!seedOnly) State.save();
+
         cm = [];
 
         r1K = parseInt(r1Input.value) / 100.0;
@@ -188,17 +203,6 @@
         if (!ce || draw1) circle(screen(c31), r31);
         if (!ce || !draw1) circle(screen(c32), r32);
         ctx.restore();
-
-        var innerTangent1 = findInnerTangent(r1, c1, r2, c2, r31, c31);
-        var c41 = innerTangent1.c;
-        var r41 = innerTangent1.r;
-
-        var innerTangent2 = findInnerTangent(r1, c1, r2, c2, r32, c32);
-        var c42 = innerTangent2.c;
-        var r42 = innerTangent2.r;
-
-        /*circle(screen(c41), r41);
-        circle(screen(c42), r42);*/
 
         if (!ce || draw1) {
             drawTangentR(R, c0, r1, c1, r31, c31, c2, i + 1, j);
