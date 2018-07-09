@@ -32,14 +32,16 @@
 <canvas id="canvas" class="noselection"></canvas>
 <div id="controls" class="noselection">
     <label style="background-color: #ff9999">
-        <input type="range" id="r1" min="1" max="49" value="10" class="noselection">
+        <input type="range" id="r1" min="1" max="49" value="59" class="noselection">
     </label>
     <label style="background-color: #99ff99">
-        <input type="range" id="r2" min="1" max="49" value="20" class="noselection">
+        <input type="range" id="r2" min="1" max="49" value="59" class="noselection">
     </label>
 </div>
 
 <script type="text/javascript">
+    var cm = [];
+
     var ctx;
 
     var width;
@@ -48,10 +50,11 @@
     var r1Input = document.getElementById("r1");
     var r2Input = document.getElementById("r2");
 
-    var maxI = 16;
+    var maxI = 15;
     var maxJ = 1;
+    var minR = 2;
 
-    var R = 400;
+    var R;
     var c0 = [0, 0];
 
     var r1K = parseInt(r1Input.value) / 100.0;
@@ -62,12 +65,24 @@
     r1Input.onchange = draw;
     r2Input.onchange = draw;
 
+    r1Input.onmousemove = r2Input.onmousemove = function () {
+        draw(true);
+    };
+    r1Input.onmouseout = r2Input.onmouseout = function () {
+        draw();
+    };
+
     window.onresize = function () {
         init();
         draw();
     };
 
-    function draw() {
+    init();
+    draw();
+
+    function draw(seedOnly) {
+        cm = [];
+
         r1K = parseInt(r1Input.value) / 100.0;
         r2K = parseInt(r2Input.value) / 100.0;
 
@@ -84,22 +99,27 @@
         var beta = alpha + Math.acos(cosCA(R-r1, r1+r2, R-r2));
         var c2 = [(R - r2) * Math.cos(beta) + c0[0], (R - r2) * Math.sin(beta) + c0[1]];
 
-        drawR(R, c0, 1, 1);
+        if (!seedOnly) drawR(R, c0, 1, 1);
 
-        ctx.save();
-        ctx.strokeStyle = '#000000';
-        circle(screen(c0), R);
+        if (seedOnly) {
+            ctx.save();
+            ctx.strokeStyle = '#000000';
+            circle(screen(c0), R);
 
-        ctx.strokeStyle = '#ff0000';
-        ctx.lineWidth = 2;
-        circle(screen(c1), r1);
-        ctx.strokeStyle = '#00ff00';
-        circle(screen(c2), r2);
-        ctx.restore();
+            ctx.strokeStyle = '#ff0000';
+            ctx.lineWidth = 2;
+            circle(screen(c1), r1, true);
+            ctx.strokeStyle = '#00ff00';
+            circle(screen(c2), r2, true);
+            ctx.restore();
+        } else {
+            circle(screen(c0), R);
+        }
     }
 
     function drawR(R, c0, i, j) {
         if (j > maxJ) return;
+        if (R < minR) return;
 
         var r1 = R * r1K;
         var r2 = R * r2K;
@@ -109,10 +129,44 @@
         var beta = alpha + Math.acos(cosCA(R-r1, r1+r2, R-r2));
         var c2 = [(R - r2) * Math.cos(beta) + c0[0], (R - r2) * Math.sin(beta) + c0[1]];
 
-        drawTangentR(R, c0, r1, c1, r2, c2, false, i+1, j);
+        var outTangent = findOuterTangent(R, c0, r1, c1, r2, c2);
+        var c31 = outTangent[0].c;
+        var r31 = outTangent[0].r;
+        var c32 = outTangent[1].c;
+        var r32 = outTangent[1].r;
+
+        circle(screen(c1), r1);
+        circle(screen(c2), r2);
+        circle(screen(c31), r31);
+        circle(screen(c32), r32);
+
+        drawTangentR(R, c0, r1, c1, r31, c31, c2, i + 1, j);
+        drawTangentR(R, c0, r1, c1, r32, c32, c2, i + 1, j);
+        drawTangentR(R, c0, r2, c2, r31, c31, c1, i + 1, j);
+        drawTangentR(R, c0, r2, c2, r32, c32, c1, i + 1, j);
+
+        drawR(r1, c1, i, j+1);
+        drawR(r2, c2, i, j+1);
+        drawR(r31, c31, i, j+1);
+        drawR(r32, c32, i, j+1);
+    }
+
+    function drawInnerTangentR(c1, r1, c2, r2, c3, r3) {
+        var innerTangent1 = findInnerTangent(r1, c1, r2, c2, r3, c3);
+        var c4 = innerTangent1.c;
+        var r4 = innerTangent1.r;
+
+        circle(screen(c4), r4);
+
+        if (r4 < minR) return;
+
+        drawInnerTangentR(c1, r1, c2, r2, c4, r4);
+        drawInnerTangentR(c2, r2, c3, r3, c4, r4);
+        drawInnerTangentR(c3, r3, c1, r1, c4, r4);
     }
 
     function drawTangentR(R, c0, r1, c1, r2, c2, ce, i, j) {
+//        if (r1 < minR || r2 < minR) return;
         if (i > maxI) return;
 
         // Calculate r3 using http://hijos.ru/2014/04/02/teorema-soddi/
@@ -122,22 +176,29 @@
         var r32 = 1/(b - Math.sqrt(2*(b*b - a)));
 
         var c31 = tangentTo(circleIntersect(c1, r1 + r31, c2, r2 + r31), r31, c0, R);
-        var c32 = tangentTo(circleIntersect(c1, r1 + r32, c2, r2 + r32), r31, c0, R);
+        var c32 = tangentTo(circleIntersect(c1, r1 + r32, c2, r2 + r32), r32, c0, R);
 
         var draw1 = false;
         if (ce) {
-            draw1 = Math.pow(ce[0]-c31[0], 2) + Math.pow(ce[1]-c31[1], 2)
-                    >
-                    Math.pow(ce[0]-c32[0], 2) + Math.pow(ce[1]-c32[1], 2);
+            draw1 = distSq(ce, c31) > distSq(ce, c32);
         }
 
-        if (i == maxI) {
-            ctx.save();
-            ctx.strokeStyle = '#000000';
-            if (!ce || draw1) circle(screen(c31), r31);
-            if (!ce || !draw1) circle(screen(c32), r32);
-            ctx.restore();
-        }
+        ctx.save();
+        ctx.strokeStyle = '#000000';
+        if (!ce || draw1) circle(screen(c31), r31);
+        if (!ce || !draw1) circle(screen(c32), r32);
+        ctx.restore();
+
+        var innerTangent1 = findInnerTangent(r1, c1, r2, c2, r31, c31);
+        var c41 = innerTangent1.c;
+        var r41 = innerTangent1.r;
+
+        var innerTangent2 = findInnerTangent(r1, c1, r2, c2, r32, c32);
+        var c42 = innerTangent2.c;
+        var r42 = innerTangent2.r;
+
+        /*circle(screen(c41), r41);
+        circle(screen(c42), r42);*/
 
         if (!ce || draw1) {
             drawTangentR(R, c0, r1, c1, r31, c31, c2, i + 1, j);
@@ -149,13 +210,16 @@
             drawTangentR(R, c0, r2, c2, r32, c32, c1, i + 1, j);
             drawR(r2, c2, i, j+1);
         }
+
+        drawInnerTangentR(c1, r1, c2, r2, c31, r31);
+        drawInnerTangentR(c1, r1, c2, r2, c32, r32);
     }
 
     function tangentTo(centers, r, c0, R) {
         var c1 = centers[0];
         var c2 = centers[1];
-        var d1 = Math.sqrt(Math.pow(c1[0]-c0[0], 2) + Math.pow(c1[1]-c0[1], 2));
-        var d2 = Math.sqrt(Math.pow(c2[0]-c0[0], 2) + Math.pow(c2[1]-c0[1], 2));
+        var d1 = Math.sqrt(distSq(c1, c0));
+        var d2 = Math.sqrt(distSq(c2, c0));
         if (Math.abs(R - r - d1) < Math.abs(R - r - d2)) {
             return c1;
         } else {
@@ -185,7 +249,45 @@
         return result;
     }
 
-    function circle(p, r) {
+    function findInnerTangent(r1, c1, r2, c2, r3, c3) {
+        // Calculate r3 using http://hijos.ru/2014/04/02/teorema-soddi/
+        var a = 1/r1/r1 + 1/r2/r2 + 1/r3/r3;
+        var b = 1/r1 +1/r2 + 1/r3;
+        var r4 = 1/(b + Math.sqrt(2*(b*b - a)));
+//        var r42 = 1/(b - Math.sqrt(2*(b*b - a)));
+
+
+        var c4 = tangentTo(circleIntersect(c1, r1 + r4, c2, r2 + r4), r4, c3, r3);
+
+        return {c: c4, r: r4};
+    }
+
+    function findOuterTangent(R, c0, r1, c1, r2, c2) {
+        // Calculate r3 using http://hijos.ru/2014/04/02/teorema-soddi/
+        var a = 1/r1/r1 + 1/r2/r2 + 1/R/R;
+        var b = 1/r1 +1/r2 - 1/R;
+        var r31 = 1/(b + Math.sqrt(2*(b*b - a)));
+        var r32 = 1/(b - Math.sqrt(2*(b*b - a)));
+
+        var c31 = tangentTo(circleIntersect(c1, r1 + r31, c2, r2 + r31), r31, c0, R);
+        var c32 = tangentTo(circleIntersect(c1, r1 + r32, c2, r2 + r32), r31, c0, R);
+
+        return [{c: c31, r: r31}, {c: c32, r: r32}];
+    }
+
+
+    function distSq(p1, p2) {
+        return Math.pow(p1[0]-p2[0], 2) + Math.pow(p1[1]-p2[1], 2);
+    }
+
+    function circle(p, r, force) {
+        r = Math.round(r);
+        if (!force) {
+            var key = Math.floor(p[0]) + "," + Math.floor(p[1]);
+            if (cm[key]) return;
+            cm[key] = true;
+        }
+
         ctx.beginPath();
         ctx.arc(p[0], p[1], r, 0, 2 * Math.PI);
         ctx.stroke();
@@ -202,14 +304,13 @@
         ctx = c.getContext("2d", { alpha: false });
         width = c.width;
         height = c.height;
+
+        R = Math.min(width, height) * 0.5 * 0.8;
     }
 
     function cosCA(a, b, c) {
         return (c*c + a*a - b*b) / 2 / a / c;
     }
-
-    init();
-    draw();
 </script>
 </body>
 </html>
