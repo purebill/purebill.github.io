@@ -37,6 +37,8 @@ $("saved").onchange = function () {
   }
 }
 
+window.onresize = onResize;
+
 window.onbeforeunload = function (e) {
   var message = "Не сохранено. Всё равно уйти?";
 
@@ -56,6 +58,7 @@ var selectedIdx;
 var currentName;
 var changed = false;
 
+onResize();
 loadStates();
 createPalete(30);
 $("apply").onclick();
@@ -67,6 +70,12 @@ function saveFirst() {
       $("save").onclick();
     }
   }
+}
+
+function onResize(e) {
+  $("main").style.width = (window.innerWidth - 120).toString() + "px";
+  $("main").style.height = (window.innerHeight - 50).toString() + "px";
+  $("tiles").style.height = (window.innerHeight - 50).toString() + "px";
 }
 
 function createPalete(n) {
@@ -98,7 +107,7 @@ var wall;
 function create(N, M, cells) {
   changed = !cells;
 
-  $("container").style.width = ((N + 1) * 64 + 1) + "px";
+  // $("container").style.width = (N * (64 + 2)).toString() + "px";
   $("container").innerHTML = "";
   wall = [];
 
@@ -106,6 +115,7 @@ function create(N, M, cells) {
     wall[row] = [];
     
     var span = document.createElement("span");
+    span.style.width = (N * (64 + 2)).toString() + "px";
 
     for (var i = 0; i < N; i++) {
       var div = document.createElement("div");
@@ -135,10 +145,11 @@ function create(N, M, cells) {
           changed = true;
         }
       };
-      container.appendChild(div);
+      span.appendChild(div);
 
       wall[row][i] = div;
     }
+    container.appendChild(span);
   }
 }
 
