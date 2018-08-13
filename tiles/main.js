@@ -22,7 +22,9 @@ $("save").onclick = function () {
   var name = prompt("Имя", currentName);
   if (name != null) {
     currentName = name;
-    localStorage.setItem(name, getState());
+    var state = getState();
+    localStorage.setItem(name, state);
+    Firebase.save(name, state);
     changed = false;
     loadStates();
   }
@@ -33,10 +35,19 @@ $("saved").onchange = function () {
 
   if (key != "") {
     saveFirst();
-    var cells = JSON.parse(localStorage[key]);
-    restoreState(cells);
-    loadStates();
-    currentName = key;
+
+    if (this.options[this.selectedIndex].firebase) {
+      Firebase.load(key, function (cells) {
+        restoreState(cells);
+        loadStates();
+        currentName = key;
+      });
+    } else {
+      var cells = JSON.parse(localStorage[key]);
+      restoreState(cells);
+      loadStates();
+      currentName = key;
+    }
   }
 }
 
@@ -270,6 +281,19 @@ function loadStates() {
     option.value = key;
     option.innerHTML = key;
     select.appendChild(option);
+  });
+
+  var localKeys = Object.keys(localStorage);
+  Firebase.loadKeys(function (keys) {
+    keys.forEach(function (key) {
+      if (localKeys.indexOf(key) != -1) return;
+
+      var option = document.createElement("option");
+      option.firebase = true;
+      option.value = key;
+      option.innerHTML = key;
+      select.appendChild(option);
+    });
   });
 }
 
