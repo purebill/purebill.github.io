@@ -4,20 +4,30 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Плтикач</title>
-    <link rel="stylesheet" type="text/css" media="screen" href="main.css?v=2" />
+    <link rel="stylesheet" type="text/css" href="reset.css" />
+    <link rel="stylesheet" type="text/css" href="main.css?v=3" />
+    <link rel="stylesheet" type="text/css" href="print.css?v=3" />
 </head>
 
 <body>
+  <div id="calculations"></div>
   <div class="controls">
     <input type="text" value="35" id="N">
     <input type="text" value="6" id="M">
     <button id="apply">Новый</button>
+
+    <span></span>
+    <button id="undo" title="Отменить">&#10226;</button>
+    <button id="redo" title="Повторить">&#10227;</button>
     
     <span></span>
     <button id="save">Сохранить</button>
     
     <span></span>
     <select id="saved"></select>
+    
+    <span></span>
+    <button id="calculate">Расчитать</button>
   </div>
 
   <div class="tiles" id="tiles"></div>
@@ -27,5 +37,6 @@
   </div>
 </body>
 
-<script src="main.js?v=2"></script>
+<script src="undo.js?v=3"></script>
+<script src="main.js?v=3"></script>
 </html>

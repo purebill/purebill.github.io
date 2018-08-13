@@ -1,3 +1,5 @@
+"use strict";
+
 var container = document.getElementById("container");
 
 var cntrlIsPressed = false;
@@ -21,6 +23,7 @@ $("save").onclick = function () {
   if (name != null) {
     currentName = name;
     localStorage.setItem(name, getState());
+    changed = false;
     loadStates();
   }
 }
@@ -37,6 +40,53 @@ $("saved").onchange = function () {
   }
 }
 
+$("undo").onclick = Undo.undo;
+$("redo").onclick = Undo.redo;
+
+$("calculate").onclick = function () {
+  var rows = wall.length;
+  var cols = wall[0].length;
+  var table = {};
+  for (var row = 0; row < rows; row++) {
+    for (var col = 0; col < cols; col++) {
+      var idx = wall[row][col].idx;
+      table[idx] == undefined && (table[idx] = 0);
+      table[idx]++;
+    }
+  }
+
+  var div = $("calculations");
+  div.style.display = "block";
+  div.innerHTML = Object.keys(table)
+    .map(function (it) {
+      return "<div class='tile" + it + "'><span>" + table[it] + "</span></div>";
+    })
+    .join("\n");
+};
+
+$("calculations").onclick = function () {
+  $("calculations").style.display = "none";
+};
+
+Undo.onChange(updateUndo);
+updateUndo();
+
+window.onkeydown = function (e) {
+  e = window.event ? event : e
+  if (e.keyCode == 90 && e.ctrlKey) {
+    $("undo").onclick();
+  }
+};
+
+window.onkeydown = function (e) {
+  e = window.event ? event : e;
+  if (e.keyCode == 90 && e.ctrlKey) {
+    $("undo").onclick();
+  } else if (e.keyCode == 89 && e.ctrlKey) {
+    $("redo").onclick();
+  }
+};
+
 window.onresize = onResize;
 
 window.onbeforeunload = function (e) {
@@ -45,12 +95,13 @@ window.onbeforeunload = function (e) {
   if (!changed) message = null;
 
   e = e || window.event;
-  // For IE and Firefox
   if (e) {
-    e.returnValue = message;
+    event.preventDefault();
+    if (message != null) {
+      e.returnValue = message;
+    }
   }
 
-  // For Safari
   return message;
 };
 
@@ -134,15 +185,17 @@ function create(N, M, cells) {
       addClass(div, "rotate" + angle);
       div.onclick = function () {
         if (!selectedIdx || selectedIdx == this.idx) {
-          rotate(this);
-          changed = true;
+          Undo.do(rotateAction(this));
+          // rotate(this);
+          // changed = true;
           return;
         }
         
         if (selectedIdx) {
-          this.idx = selectedIdx;
-          this.className = "tile" + selectedIdx;
-          changed = true;
+          Undo.do(changeAction(this));
+          // this.idx = selectedIdx;
+          // this.className = "tile" + selectedIdx;
+          // changed = true;
         }
       };
       span.appendChild(div);
@@ -151,6 +204,41 @@ function create(N, M, cells) {
     }
     container.appendChild(span);
   }
+}
+
+function rotateAction(e) {
+  var oldChanged = changed;
+
+  return {
+    do: function () {
+      rotate(e);
+      changed = true;
+    },
+    undo: function () {
+      unrotate(e);
+      changed = oldChanged;
+    }
+  };
+}
+
+function changeAction(e) {
+  var oldChanged = changed;
+  var oldIdx = e.idx;
+  
+  return {
+    do: function () {
+      removeClass(e, "tile" + e.idx);
+      e.idx = selectedIdx;
+      addClass(e, "tile" + e.idx);
+      changed = true;
+    },
+    undo: function () {
+      removeClass(e, "tile" + e.idx);
+      e.idx = oldIdx;
+      addClass(e, "tile" + e.idx);
+      changed = oldChanged;
+    }
+  };
 }
 
 function getState() {
@@ -176,6 +264,7 @@ function restoreState(cells) {
   $("N").value = rows;
   $("M").value = cols;
   create(cols, rows, cells);
+  Undo.reset();
 }
 
 function loadStates() {
@@ -187,6 +276,11 @@ function loadStates() {
     option.innerHTML = key;
     select.appendChild(option);
   });
+}
+
+function updateUndo() {
+  $("undo").disabled = !Undo.canUndo();
+  $("redo").disabled = !Undo.canRedo();
 }
 
 function $(id) {
@@ -203,6 +297,12 @@ function select(e) {
 function rotate(e) {
   removeClass(e, "rotate" + e.angle);
   e.angle = (e.angle + 90) % 360;
+  addClass(e, "rotate" + e.angle);
+}
+
+function unrotate(e) {
+  removeClass(e, "rotate" + e.angle);
+  e.angle = (e.angle + 270) % 360;
   addClass(e, "rotate" + e.angle);
 }
 
