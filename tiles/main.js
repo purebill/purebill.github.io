@@ -186,16 +186,11 @@ function create(N, M, cells) {
       div.onclick = function () {
         if (!selectedIdx || selectedIdx == this.idx) {
           Undo.do(rotateAction(this));
-          // rotate(this);
-          // changed = true;
           return;
         }
         
         if (selectedIdx) {
           Undo.do(changeAction(this));
-          // this.idx = selectedIdx;
-          // this.className = "tile" + selectedIdx;
-          // changed = true;
         }
       };
       span.appendChild(div);
