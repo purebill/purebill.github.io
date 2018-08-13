@@ -1,9 +1,11 @@
 "use strict";
 
 var Firebase = (function () {
+  var user = "ilya";
+
   function save(key, jsonData, callback) {
     var xhr = new XMLHttpRequest();
-    xhr.open("PUT", "https://tilesman-5afef.firebaseio.com/v1/users/ilya/" + key + ".json");
+    xhr.open("PUT", "https://tilesman-5afef.firebaseio.com/v1/users/" + user + "/" + key + ".json");
 
     xhr.onreadystatechange = function () {
       if (xhr.readyState === 4) {
@@ -23,7 +25,7 @@ var Firebase = (function () {
 
   function load(key, callback, shallow) {
     var xhr = new XMLHttpRequest();
-    xhr.open("GET", "https://tilesman-5afef.firebaseio.com/v1/users/ilya" + (key ? "/" + key : "") + ".json"
+    xhr.open("GET", "https://tilesman-5afef.firebaseio.com/v1/users/" + user + (key ? "/" + key : "") + ".json"
         + (shallow ? "?shallow=true" : ""));
 
     xhr.onreadystatechange = function () {

@@ -95,3 +95,7 @@ div.tile29 {background-image: url("img/tile29.jpg");}
   background-color: black;
   padding: 3px;
 }
+
+#calculations div:nth-of-type(4n+1) {
+  clear: both;
+}

@@ -116,6 +116,7 @@ window.onbeforeunload = function (e) {
   return message;
 };
 
+var palete = {};
 var selectedIdx;
 var currentName;
 var changed = false;
@@ -147,6 +148,7 @@ function createPalete(n) {
     div.className = "tile" + idx;
     div.idx = idx;
     div.id = div.className;
+    palete[idx] = div;
     div.onclick = function () {
       if (selectedIdx == this.idx) {
         unselect(this);
@@ -169,7 +171,6 @@ var wall;
 function create(N, M, cells) {
   changed = !cells;
 
-  // $("container").style.width = (N * (64 + 2)).toString() + "px";
   $("container").innerHTML = "";
   wall = [];
 
@@ -194,7 +195,16 @@ function create(N, M, cells) {
       div.angle = angle;
       addClass(div, "tile" + idx);
       addClass(div, "rotate" + angle);
-      div.onclick = function () {
+      div.oncontextmenu = function (e) {
+        e.preventDefault();
+        
+        palete[this.idx].scrollIntoView();
+        palete[this.idx].onclick();
+      };
+
+      div.onclick = function (e) {
+        e.preventDefault();
+
         if (!selectedIdx || selectedIdx == this.idx) {
           Undo.do(rotateAction(this));
           return;
