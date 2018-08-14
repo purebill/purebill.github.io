@@ -106,6 +106,7 @@ var Tiles = (function () {
     var newUid = prompt("Новый идентификатор");
     if (newUid != null) {
       Uid.set(newUid);
+      $("uid").value = newUid;
       loadStates();
     }
   }
