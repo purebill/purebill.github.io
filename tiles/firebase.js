@@ -1,53 +1,61 @@
 "use strict";
 
 var Firebase = (function () {
+  var baseUrl = "https://tilesman-5afef.firebaseio.com/";
+  var version = "v2";
   var user = "ilya";
 
-  function save(key, jsonData, callback) {
-    var xhr = new XMLHttpRequest();
-    xhr.open("PUT", "https://tilesman-5afef.firebaseio.com/v1/users/" + user + "/" + key + ".json");
+  function save(key, jsonData) {
+    return new Promise(function (resolve, reject) {
+      var xhr = new XMLHttpRequest();
+      xhr.open("PUT", baseUrl + version + "/users/" + user + "/" + key + ".json");
 
-    xhr.onreadystatechange = function () {
-      if (xhr.readyState === 4) {
-        if (xhr.status.toString().startsWith("2")) {
-          !callback || callback(JSON.parse(xhr.responseText));
-        } else {
-          !callback || callback(null);
+      xhr.onreadystatechange = function () {
+        if (xhr.readyState === 4) {
+          if (xhr.status.toString().startsWith("2")) {
+            resolve(JSON.parse(xhr.responseText));
+          } else {
+            reject(xhr);
+          }
         }
-      }
-    };
+      };
 
-    xhr.setRequestHeader("Content-Type", "application/json");
-    xhr.setRequestHeader("Accept", "application/json");
+      xhr.setRequestHeader("Content-Type", "application/json");
+      xhr.setRequestHeader("Accept", "application/json");
 
-    xhr.send(jsonData);
+      xhr.send(jsonData);
+    });
   }
 
-  function load(key, callback, shallow) {
-    var xhr = new XMLHttpRequest();
-    xhr.open("GET", "https://tilesman-5afef.firebaseio.com/v1/users/" + user + (key ? "/" + key : "") + ".json"
-        + (shallow ? "?shallow=true" : ""));
+  function load(key, shallow) {
+    return new Promise(function (resolve, reject) {
+      var xhr = new XMLHttpRequest();
+      xhr.open("GET", baseUrl + version + "/users/" + user + (key ? "/" + key : "") + ".json"
+          + (shallow ? "?shallow=true" : ""));
 
-    xhr.onreadystatechange = function () {
-      if (xhr.readyState === 4) {
-        if (xhr.status.toString().startsWith("2")) {
-          callback(JSON.parse(xhr.responseText));
-        } else {
-          callback(null);
+      xhr.onreadystatechange = function () {
+        if (xhr.readyState === 4) {
+          if (xhr.status.toString().startsWith("2")) {
+            resolve(JSON.parse(xhr.responseText));
+          } else {
+            reject(xhr);
+          }
         }
-      }
-    };
+      };
 
-    xhr.setRequestHeader("Accept", "application/json");
+      xhr.setRequestHeader("Accept", "application/json");
 
-    xhr.send();
+      xhr.send();
+    });
   }
 
-  function loadKeys(callback) {
-    load(null, function (keys) {
-      if (keys != null) callback(Object.keys(keys));
-      else callback([]);
-    }, true);
+  function loadKeys() {
+    return new Promise(function (resolve, reject) {
+      load(null, true).then(function (keys) {
+        if (keys != null) resolve(Object.keys(keys));
+        else resolve([]);
+      });
+    });
   }
 
   return {

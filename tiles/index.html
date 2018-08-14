@@ -5,16 +5,16 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Плтикач</title>
     <link rel="stylesheet" type="text/css" href="reset.css" />
-    <link rel="stylesheet" type="text/css" href="main.css?v=4" />
-    <link rel="stylesheet" type="text/css" href="print.css?v=4" />
-</head>
+    <link rel="stylesheet" type="text/css" href="main.css?v=5" />
+    <link rel="stylesheet" type="text/css" href="print.css?v=5" />
+  </head>
 
 <body>
   <div id="calculations"></div>
-  <div class="controls">
+  <div class="controls" id="controls">
     <input type="text" value="5" id="N">
     <input type="text" value="5" id="M">
-    <button id="apply">Новый</button>
+    <button id="apply" disabled>Новый</button>
 
     <span></span>
     <button id="undo" title="Отменить">&#10226;</button>
@@ -37,7 +37,12 @@
   </div>
 </body>
 
-<script src="firebase.js?v=4"></script>
-<script src="undo.js?v=4"></script>
-<script src="main.js?v=4"></script>
+<script src="sha256.js"></script>
+<script src="css.js"></script>
+<script src="message.js?v=5"></script>
+<script src="firebase.js?v=5"></script>
+<script src="undo.js?v=5"></script>
+<script src="main.js?v=5"></script>
+<script src="files.js?v=5"></script>
+<script src="bootstrap.js?v=5"></script>
 </html>
