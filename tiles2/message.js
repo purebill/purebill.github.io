@@ -1,3 +1,5 @@
+"use strict";
+
 var Message = (function () {
   var messageDiv = document.createElement("div");
   messageDiv.style.position = "absolute";

@@ -1,3 +1,5 @@
+"use strict";
+
 var Files = (function () {
   $("main").ondragover = function (ev) {
     Message.show("Отпусти чтобы загрузить изображения");

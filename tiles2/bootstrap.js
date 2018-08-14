@@ -1,3 +1,5 @@
+"use strict";
+
 var fromLegacyIdx = (function () {
   var legacy = {
     "30": "empty"

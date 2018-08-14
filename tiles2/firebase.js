@@ -2,10 +2,10 @@
 
 var Firebase = (function () {
   var baseUrl = "https://tilesman-5afef.firebaseio.com/";
+  // var baseUrl = "https://test-5cac4.firebaseio.com/";
   var version = "v2";
-  var user = "ilya";
 
-  function save(key, jsonData) {
+  function save(user, key, jsonData) {
     return new Promise(function (resolve, reject) {
       var xhr = new XMLHttpRequest();
       xhr.open("PUT", baseUrl + version + "/users/" + user + "/" + key + ".json");
@@ -27,7 +27,7 @@ var Firebase = (function () {
     });
   }
 
-  function load(key, shallow) {
+  function load(user, key, shallow) {
     return new Promise(function (resolve, reject) {
       var xhr = new XMLHttpRequest();
       xhr.open("GET", baseUrl + version + "/users/" + user + (key ? "/" + key : "") + ".json"
@@ -49,9 +49,9 @@ var Firebase = (function () {
     });
   }
 
-  function loadKeys() {
+  function loadKeys(user) {
     return new Promise(function (resolve, reject) {
-      load(null, true).then(function (keys) {
+      load(user, null, true).then(function (keys) {
         if (keys != null) resolve(Object.keys(keys));
         else resolve([]);
       });
@@ -59,8 +59,14 @@ var Firebase = (function () {
   }
 
   return {
-    save: save,
-    load: load,
-    loadKeys: loadKeys
+    save: function (key, jsonData) {
+      return Uid.uid().then(function (uid) { return save(uid, key, jsonData); })
+    },
+    load: function (key, shallow) {
+      return Uid.uid().then(function (uid) { return load(uid, key, shallow); })
+    },
+    loadKeys: function () {
+      return Uid.uid().then(function (uid) { return loadKeys(uid); })
+    }
   };
 })();

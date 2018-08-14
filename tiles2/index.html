@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Плиткач</title>
     <link rel="stylesheet" type="text/css" href="reset.css" />
-    <link rel="stylesheet" type="text/css" href="main.css?v=5" />
+    <link rel="stylesheet" type="text/css" href="main.css?v=6" />
     <link rel="stylesheet" type="text/css" href="print.css?v=5" />
   </head>
 
@@ -28,6 +28,11 @@
     
     <span></span>
     <button id="calculate">Расчитать</button>
+
+    <span></span>
+    <button id="copyUid" disabled title="Скопировать идентификатор в буфер обмена">&#x1F63C;</button>
+    <input type="text" id="uid" readonly>
+    <button id="newUid" title="Ввести новый идентификатор">&#128100;</button>
   </div>
 
   <div class="tiles" id="tiles"></div>
@@ -40,6 +45,8 @@
 <script src="sha256.js"></script>
 <script src="css.js"></script>
 <script src="message.js?v=5"></script>
+<script src="clipboard.js?v=5"></script>
+<script src="uid.js?v=5"></script>
 <script src="firebase.js?v=5"></script>
 <script src="undo.js?v=5"></script>
 <script src="main.js?v=5"></script>

@@ -1,6 +1,8 @@
 "use strict";
 
 var Tiles = (function () {
+  var prefix = "#tilesman#";
+
   var container = document.getElementById("container");
 
   $("apply").onclick = function () {
@@ -19,7 +21,7 @@ var Tiles = (function () {
       
       var savedLocally = true;
       try {
-        localStorage.setItem(name, state);
+        localStorage.setItem(prefix + name, state);
       } catch (e) {
         savedLocally = false;
         console.error(e);
@@ -52,7 +54,7 @@ var Tiles = (function () {
           Message.hide();
         });
       } else {
-        var cells = JSON.parse(localStorage[key]);
+        var cells = JSON.parse(localStorage[prefix + key]);
         restoreState(cells);
         loadStates();
         currentName = key;
@@ -90,6 +92,23 @@ var Tiles = (function () {
     $("calculations").style.display = "none";
     ["main", "controls", "tiles"].forEach(function (it) { $(it).style.display = "block"; });
   };
+
+  Uid.uid().then(function (uid) {
+    $("uid").value = uid;
+    $("copyUid").disabled = false;
+  });
+
+  $("copyUid").onclick = function () {
+    Clipboard.copy($("uid").value);
+  }
+
+  $("newUid").onclick = function () {
+    var newUid = prompt("Новый идентификатор");
+    if (newUid != null) {
+      Uid.set(newUid);
+      loadStates();
+    }
+  }
 
   Undo.onChange(updateUndo);
   updateUndo();
@@ -331,17 +350,23 @@ var Tiles = (function () {
     Undo.reset();
   }
 
+  function storedKeys() {
+    return Object.keys(localStorage)
+      .filter(function (key) { return key.startsWith(prefix); })
+      .map(function (key) { return key.substr(prefix.length) ;});
+  }
+
   function loadStates() {
     var select = $("saved");
     select.innerHTML = "<option value='' selected>Загрузить</option>";
-    Object.keys(localStorage).forEach(function (key) {
+    storedKeys().forEach(function (key) {
       var option = document.createElement("option");
       option.value = key;
       option.innerHTML = key;
       select.appendChild(option);
     });
 
-    var localKeys = Object.keys(localStorage);
+    var localKeys = storedKeys();
     Firebase.loadKeys().then(function (keys) {
       keys.forEach(function (key) {
         if (localKeys.indexOf(key) != -1) return;
