@@ -1,0 +1,78 @@
+.tiles {
+  width: 100px;
+  height: 800px;
+  float: left;
+  overflow: scroll;
+}
+.tiles .selected {
+  border: 2px solid #ff0000;
+  margin: 0;
+}
+#main {
+  float: left;
+  width: 1000px;
+  overflow: auto;
+  height: 800px;
+}
+.container span {
+  overflow: visible;
+  display: block;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.container div, .tiles div, #calculations div {
+  width: 64px;
+  height: 64px;
+  background-size: contain;
+  margin: 1px;
+  float: left;
+}
+
+.tiles div {
+  border: 1px solid black;
+  padding: 1px;
+}
+
+.container .rotate90 {
+  transform: rotate(90deg);
+}
+.container .rotate180 {
+  transform: rotate(180deg);
+}
+.container .rotate270 {
+  transform: rotate(270deg);
+}
+
+.controls input {
+  width: 40px;
+}
+
+.controls span {
+  display: inline-block;
+  width: 20px;
+}
+
+#calculations {
+  background-color: white;
+  padding: 5px;
+  border: 1px solid black;
+  display: none;
+  width: 100%;
+  height: 100%;
+  position: fixed;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+#calculations div span {
+  font-size: 130%;
+  color: white;
+  font-weight: bold;
+  background-color: black;
+  padding: 3px;
+}
+
+#calculations div:nth-of-type(4n+1) {
+  clear: both;
+}
