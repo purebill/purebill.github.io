@@ -22,14 +22,15 @@ var Uid = (function () {
             try {
               value = JSON.parse(xhr.responseText).result.random.data[0];
             } catch (e) {
-              reject(xhr);
+              value = generateLocally();
             }
             if (value) {
               set(value);
               resolve(uidValue);
             }
           } else {
-            reject(xhr);
+            set(generateLocally());
+            resolve(uidValue);
           }
         }
       };
@@ -47,6 +48,29 @@ var Uid = (function () {
         "id": 1
       }));
     });
+  }
+
+  function generateLocally() {
+    var hash = sha256.create();
+
+    // time
+    hash.update((new Date()).getTime().toString());
+    
+    // some local entropy
+    for (var i = 0; i < 10; i++) hash.update(Math.random().toString());
+
+    // see https://github.com/Valve/fingerprintjs2/blob/master/fingerprint2.js
+    hash.update(navigator.userAgent || '');
+    hash.update(navigator.language || navigator.userLanguage || navigator.browserLanguage || navigator.systemLanguage || '');
+    hash.update((window.screen.colorDepth || -1).toString());
+    hash.update((navigator.deviceMemory || -1).toString());
+    hash.update((window.devicePixelRatio || '').toString());
+    hash.update((new Date().getTimezoneOffset()).toString());
+    hash.update(navigator.cpuClass || '');
+    hash.update(navigator.platform || '');
+    hash.update((navigator.hardwareConcurrency || '').toString());
+    
+    return hash.hex();
   }
 
   function set(value) {
