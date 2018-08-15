@@ -13,6 +13,11 @@ var Files = (function () {
   document.ondrop = function (ev) {
     ev.preventDefault();
 
+    if (!filesDroped(ev.dataTransfer.items)) {
+      Message.hide();
+      return;
+    }
+
     Message.show("Обрабатывается...");
 
     var dataUris = [];
@@ -32,6 +37,15 @@ var Files = (function () {
       ev.dataTransfer.items.clear();
     });
   };
+
+  function filesDroped(items) {
+    for (var i = 0; i < items.length; i++) {
+      if (items[i].kind !== 'file') {
+        return false;
+      }
+    }
+    return true;
+  }
 
   var c = document.createElement("canvas");
   c.width = 64;
