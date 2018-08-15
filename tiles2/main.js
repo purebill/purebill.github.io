@@ -1,7 +1,6 @@
 "use strict";
 
 var Tiles = (function () {
-  var version = "1.0";
   var prefix = "#tilesman#";
 
   // one time localStorage migration
@@ -9,16 +8,29 @@ var Tiles = (function () {
     Object.keys(localStorage).forEach(function (key) {
       localStorage[prefix + key] = localStorage[key];
     });
-    localStorage['tilesman-version'] = version;
+    Version.get().then(function (version) {
+      localStorage['tilesman-version'] = version;
+    })
   }
   
+  Version.get().then(function (version) {
+    $("version").innerHTML = "v" + version;
+  });
+
+  Version.subscribe(function (newVersion, oldVersion) {
+    $("newVersion").style.display = "";
+  });
+
+  $("newVersion").onclick = function () {
+    window.location.reload();
+  };
 
   var container = document.getElementById("container");
 
   $("apply").onclick = function () {
     saveFirst();
-    currentName = undefined;
     create(parseInt($("N").value), parseInt($("M").value));
+    loaded("");
   }
 
   $("save").onclick = function () {
@@ -49,30 +61,46 @@ var Tiles = (function () {
   }
 
   $("saved").onchange = function () {
-    var key = this.value;
+    if (this.value != "") {
+      load(this.value);
+    }
+  }
 
-    if (key != "") {
-      saveFirst();
+  function load(key) {
+    saveFirst();
 
-      Message.show("Загрузжаю...");
+    Message.show("Загрузжаю...");
 
-      if (this.options[this.selectedIndex].firebase) {
+    var select = $("saved");
+
+    var option;
+    for (var i = 0; i < select.options.length; i++) {
+      if (select.options[i].value == key) {
+        option = select.options[i];
+        break;
+      }
+    }
+    if (option) {
+      if (option.firebase) {
         Firebase.load(key).then(function (cells) {
           restoreState(cells).then(function () {
-            loadStates();
-            currentName = key;
-            Message.hide();
+            loaded(key);
           });
         });
       } else {
         var cells = JSON.parse(localStorage[prefix + key]);
         restoreState(cells).then(function () {
-          loadStates();
-          currentName = key;
-          Message.hide();
+          loaded(key);
         });
       }
     }
+  }
+
+  function loaded(name) {
+    currentName = name;
+    changed = false;
+    window.location.hash = "#" + name;
+    Message.hide();
   }
 
   $("undo").onclick = Undo.undo;
@@ -120,6 +148,7 @@ var Tiles = (function () {
       Uid.set(newUid);
       $("uid").value = newUid;
       loadStates();
+      loaded("");
     }
   }
 
@@ -166,7 +195,11 @@ var Tiles = (function () {
   var changed = false;
 
   onResize();
-  loadStates();
+  loadStates().then(function () {
+    if (window.location.hash != "") {
+      load(decodeURIComponent(window.location.hash).substr(1));
+    }
+  });
   disableControls();
 
   function disableControls() {
@@ -379,26 +412,28 @@ var Tiles = (function () {
   }
 
   function loadStates() {
-    var select = $("saved");
-    select.innerHTML = "<option value='' selected>Загрузить</option>";
-    storedKeys().forEach(function (key) {
-      var option = document.createElement("option");
-      option.value = key;
-      option.innerHTML = key;
-      select.appendChild(option);
-    });
-
-    var localKeys = storedKeys();
-    Firebase.loadKeys().then(function (keys) {
-      keys.forEach(function (key) {
-        if (localKeys.indexOf(key) != -1) return;
-
+    return new Promise(function (resolve) {
+      var select = $("saved");
+      select.innerHTML = "<option value='' selected>Загрузить</option>";
+      storedKeys().forEach(function (key) {
         var option = document.createElement("option");
-        option.firebase = true;
         option.value = key;
         option.innerHTML = key;
         select.appendChild(option);
       });
+
+      var localKeys = storedKeys();
+      Firebase.loadKeys().then(function (keys) {
+        keys.forEach(function (key) {
+          if (localKeys.indexOf(key) != -1) return;
+
+          var option = document.createElement("option");
+          option.firebase = true;
+          option.value = key;
+          option.innerHTML = key;
+          select.appendChild(option);
+        });
+      }).then(resolve);
     });
   }
 

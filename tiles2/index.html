@@ -11,6 +11,7 @@
 
 <body>
   <div id="calculations"></div>
+  
   <div class="controls" id="controls">
     <input type="text" value="5" id="N">
     <input type="text" value="5" id="M">
@@ -33,6 +34,10 @@
     <button id="copyUid" disabled title="Скопировать идентификатор в буфер обмена">&#x1F63C;</button>
     <input type="text" id="uid" readonly>
     <button id="newUid" title="Ввести новый идентификатор">&#128100;</button>
+
+    <span></span>
+    <label id="version"></label>
+    <button id="newVersion" title="Доступна новая версия. Обновиться" style="display: none">Новая версия</button>
   </div>
 
   <div class="tiles" id="tiles"></div>
@@ -50,6 +55,7 @@
 <script src="firebase.js?v=5"></script>
 <script src="undo.js?v=5"></script>
 <script src="bootstrap.js?v=6"></script>
-<script src="main.js?v=6"></script>
+<script src="version.js?v=6"></script>
+<script src="main.js?v=7"></script>
 <script src="files.js?v=5"></script>
 </html>
