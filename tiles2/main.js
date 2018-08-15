@@ -1,7 +1,17 @@
 "use strict";
 
 var Tiles = (function () {
+  var version = "1.0";
   var prefix = "#tilesman#";
+
+  // one time localStorage migration
+  if (!localStorage['tilesman-version']) {
+    Object.keys(localStorage).forEach(function (key) {
+      localStorage[prefix + key] = localStorage[key];
+    });
+    localStorage['tilesman-version'] = version;
+  }
+  
 
   var container = document.getElementById("container");
 
