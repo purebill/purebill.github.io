@@ -22,14 +22,17 @@ var Files = (function () {
 
     var dataUris = [];
     for (var i = 0; i < ev.dataTransfer.items.length; i++) {
-      // If dropped items aren't files, reject them
-      if (ev.dataTransfer.items[i].kind === 'file') {
-        var file = ev.dataTransfer.items[i].getAsFile();
-        if (file.type == "image/jpeg" || file.type == "image/png") {
-          dataUris.push(toDataUri(file));
-        }
+      var file = ev.dataTransfer.items[i].getAsFile();
+      if (file.type == "image/jpeg" || file.type == "image/png") {
+        dataUris.push(toDataUri(file));
       }
     }
+    
+    if (dataUris.length == 0) {
+      Message.hide();
+      return;
+    }
+
     Promise.all(dataUris).then(function (uris) {
       ev.dataTransfer.items.clear();
       Tiles.newTiles(uris);

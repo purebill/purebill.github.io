@@ -1,6 +1,6 @@
 "use strict";
 
-var fromLegacyIdx = (function () {
+var Bootstrap = (function () {
   var legacy = {
     "30": "empty"
   };
@@ -65,11 +65,15 @@ var fromLegacyIdx = (function () {
     "tile29.jpg"
   ];
 
-  if (location.host.startsWith("localhost")) {
-    Promise.all(tiles.map(function (it) { return loadXHR(it, "img/" + it); })).then(function (tiles) {
-      Tiles.newTiles(tiles);
-    });
+  function loadLegacyTiles() {
+    return Promise.all(tiles.map(function (it) { return loadXHR(it, "img/" + it); }))
+      .then(function (tiles) {
+        Tiles.newTiles(tiles);
+      });
   }
 
-  return fromLegacyIdx;
+  return {
+    fromLegacyIdx: fromLegacyIdx,
+    loadLegacyTiles: loadLegacyTiles
+  };
 }) ();

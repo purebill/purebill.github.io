@@ -48,17 +48,19 @@ var Tiles = (function () {
 
       if (this.options[this.selectedIndex].firebase) {
         Firebase.load(key).then(function (cells) {
-          restoreState(cells);
+          restoreState(cells).then(function () {
+            loadStates();
+            currentName = key;
+            Message.hide();
+          });
+        });
+      } else {
+        var cells = JSON.parse(localStorage[prefix + key]);
+        restoreState(cells).then(function () {
           loadStates();
           currentName = key;
           Message.hide();
         });
-      } else {
-        var cells = JSON.parse(localStorage[prefix + key]);
-        restoreState(cells);
-        loadStates();
-        currentName = key;
-        Message.hide();
       }
     }
   }
@@ -243,7 +245,7 @@ var Tiles = (function () {
           var idx = Object.keys(palete)[rand(0, Object.keys(palete).length - 2)];
           angle = 0;
         } else {
-          idx = fromLegacyIdx(cells[row][i].idx);
+          idx = Bootstrap.fromLegacyIdx(cells[row][i].idx);
           angle = cells[row][i].angle;
         }
         div.idx = idx;
@@ -336,19 +338,28 @@ var Tiles = (function () {
   }
 
   function restoreState(state) {
-    var tiles = state.tiles;
-    if (tiles) {
-      newTiles(tiles);
-    }
+    return new Promise(function (resolve, reject) {
+      var tiles = state.tiles;
 
-    var cells = state.cells || state;
+      var c = function () {
+        var cells = state.cells || state;
 
-    var rows = cells.length;
-    var cols = cells[0].length;
-    $("N").value = rows;
-    $("M").value = cols;
-    create(cols, rows, cells);
-    Undo.reset();
+        var rows = cells.length;
+        var cols = cells[0].length;
+        $("N").value = rows;
+        $("M").value = cols;
+        create(cols, rows, cells);
+        Undo.reset();
+        resolve();
+      };
+
+      if (tiles) {
+        newTiles(tiles);
+        c();
+      } else {
+        Bootstrap.loadLegacyTiles().then(c);
+      }
+    });
   }
 
   function storedKeys() {

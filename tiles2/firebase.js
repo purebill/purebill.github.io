@@ -3,7 +3,7 @@
 var Firebase = (function () {
   var baseUrl = "https://tilesman-5afef.firebaseio.com/";
   // var baseUrl = "https://test-5cac4.firebaseio.com/";
-  var version = "v2";
+  var version = "v1";
 
   function save(user, key, jsonData) {
     return new Promise(function (resolve, reject) {
