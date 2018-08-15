@@ -100,6 +100,7 @@ var Tiles = (function () {
     currentName = name;
     changed = false;
     window.location.hash = "#" + name;
+    $("saved").selectedIndex = 0;
     Message.hide();
   }
 
