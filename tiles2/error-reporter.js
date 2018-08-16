@@ -4,6 +4,8 @@
   window.onerror = function (message, source, lineno, colno, error) {
     if (inside) return false;
 
+    if (source.startsWith("http://localhost")) return false;
+    
     if (source == "" || source.startsWith("https://maker.ifttt.com")) return true;    
 
     inside = true
