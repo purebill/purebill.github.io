@@ -172,18 +172,16 @@ var Tiles = (function () {
   updateUndo();
 
   window.onkeydown = function (e) {
-    e = window.event ? event : e
-    if (e.keyCode == 90 && e.ctrlKey) {
-      $("undo").onclick();
-    }
-  };
-
-  window.onkeydown = function (e) {
     e = window.event ? event : e;
     if (e.keyCode == 90 && e.ctrlKey) {
+      e.preventDefault();
       $("undo").onclick();
     } else if (e.keyCode == 89 && e.ctrlKey) {
+      e.preventDefault();
       $("redo").onclick();
+    } else if (e.keyCode == 83 && e.ctrlKey) {
+      e.preventDefault();
+      $("save").onclick();
     }
   };
 
@@ -265,6 +263,33 @@ var Tiles = (function () {
       selectedIdx = this.idx;
       select($("tile" + selectedIdx));
     };
+    div.oncontextmenu = function (e) {
+      e.preventDefault();
+
+      if (idx == "empty") return;
+
+      if (confirm("Удалить?")) {
+        var used = false;
+        var rows = wall.length;
+        for (var row = 0; row < rows; row++) {
+          var cols = wall[row].length;
+          for (var col = 0; col < cols; col++) {
+            if (wall[row][col].idx == idx) {
+              used = true;
+              break;
+            }
+          }
+        }
+        if (!used) {
+          unselect(div);
+          delete palete[idx];
+          currentTiles =  currentTiles.filter(function (it) { return it.hash != idx;});
+          $("tiles").removeChild(div);
+        } else {
+          alert("Не могу. Используется");
+        }
+      }
+    };
     $("tiles").appendChild(div);
   }
 
@@ -289,7 +314,7 @@ var Tiles = (function () {
     changed = !cells;
 
     var container = $("container");
-    
+
     container.innerHTML = "";
     wall = [];
 
