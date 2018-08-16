@@ -13,6 +13,11 @@
   width: 1000px;
   overflow: auto;
   height: 800px;
+  background-color: gray;
+}
+.container {
+  display: table-cell;
+  background-color: white;
 }
 .container span {
   overflow: visible;
@@ -29,9 +34,17 @@
   float: left;
 }
 
+.tiles {
+  background-color: gray;
+}
+
 .tiles div {
   border: 1px solid black;
   padding: 1px;
+}
+
+.tileempty {
+  background-color: white;
 }
 
 .container .rotate90 {

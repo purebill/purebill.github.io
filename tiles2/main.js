@@ -58,6 +58,7 @@ var Tiles = (function () {
       });
       Firebase.saveVersion(name, JSON.stringify(state.version));
 
+      window.location.hash = "#" + name;
       changed = false;
       loadStates();
     }
@@ -287,7 +288,9 @@ var Tiles = (function () {
   function create(N, M, cells) {
     changed = !cells;
 
-    $("container").innerHTML = "";
+    var container = $("container");
+    
+    container.innerHTML = "";
     wall = [];
 
     for (var row = 0; row < M; row++) {
@@ -336,6 +339,11 @@ var Tiles = (function () {
       }
       container.appendChild(span);
     }
+
+    var clear = document.createElement("b");
+    clear.style.clear = "both";
+    clear.style.display = "block";
+    container.appendChild(clear);
 
     if (N > 0) enableControls();
   }
@@ -502,13 +510,34 @@ var Tiles = (function () {
 
     createPalete(tiles);
     create(0, 0);
-    changed = false;
+    loaded("");
+    disableControls();
 
     currentTiles = tiles;
   }
 
+  function addTiles(tiles) {
+    if (!currentTiles) {
+      newTiles(tiles);
+      return;
+    }
+
+    tiles = tiles.filter(function (it) {
+      return currentTiles.findIndex(function (existing) { return existing.hash == it.hash; }) == -1;
+    });
+
+    tiles.forEach(function (it) {
+      createCSSSelector(".tile" + it.hash, "background-image: url('" + it.uri + "')");
+    });
+
+    tiles.forEach(function (it) { currentTiles.push(it); });
+
+    createPalete(currentTiles);
+  }
+
   return {
-    newTiles: newTiles
+    newTiles: newTiles,
+    addTiles: addTiles
   };
 }) ();
 

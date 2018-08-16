@@ -35,7 +35,11 @@ var Files = (function () {
 
     Promise.all(dataUris).then(function (uris) {
       ev.dataTransfer.items.clear();
-      Tiles.newTiles(uris);
+      if (confirm("Добавить к существующим?")) {
+        Tiles.addTiles(uris);
+      } else {
+        Tiles.newTiles(uris);
+      }
       Message.hide();
       ev.dataTransfer.items.clear();
     });
@@ -62,11 +66,6 @@ var Files = (function () {
       converter.onload = function(e) {
         var dataUri = e.target.result;
         downscale(file, dataUri).then(resolve);
-        // resolve({
-        //   name: file.name,
-        //   uri: dataUri,
-        //   hash: sha256.hex(dataUri)
-        // });
       };
       converter.readAsDataURL(file);
     });
