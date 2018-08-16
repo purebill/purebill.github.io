@@ -2,13 +2,16 @@
 
 var Firebase = (function () {
   var baseUrl = "https://tilesman-5afef.firebaseio.com/";
-  // var baseUrl = "https://test-5cac4.firebaseio.com/";
   var version = "v1";
 
   function save(user, key, jsonData) {
+    return put("/users/" + user + "/" + key, jsonData);
+  }
+
+  function put(path, jsonData) {
     return new Promise(function (resolve, reject) {
       var xhr = new XMLHttpRequest();
-      xhr.open("PUT", baseUrl + version + "/users/" + user + "/" + key + ".json");
+      xhr.open("PUT", baseUrl + version + path + ".json");
 
       xhr.onreadystatechange = function () {
         if (xhr.readyState === 4) {
@@ -27,10 +30,10 @@ var Firebase = (function () {
     });
   }
 
-  function load(user, key, shallow) {
+  function get(path, shallow) {
     return new Promise(function (resolve, reject) {
       var xhr = new XMLHttpRequest();
-      xhr.open("GET", baseUrl + version + "/users/" + user + (key ? "/" + key : "") + ".json"
+      xhr.open("GET", baseUrl + version + path + ".json"
           + (shallow ? "?shallow=true" : ""));
 
       xhr.onreadystatechange = function () {
@@ -49,12 +52,28 @@ var Firebase = (function () {
     });
   }
 
+  function load(user, key, shallow) {
+    return get("/users/" + user + (key ? "/" + key : ""), shallow);
+  }
+
   function loadKeys(user) {
-    return new Promise(function (resolve, reject) {
-      load(user, null, true).then(function (keys) {
-        if (keys != null) resolve(Object.keys(keys));
-        else resolve([]);
+    return load(user, null, true).then(function (keys) {
+      if (keys != null) return Object.keys(keys);
+      else return [];
+    });
+  }
+
+  function loadVersion(key) {
+    return Uid.uid().then(function (uid) {
+      return get("/versions/" + uid + "/" + key).then(function (version) {
+        return version || 0;
       });
+    });
+  }
+
+  function saveVersion(key, version) {
+    return Uid.uid().then(function (uid) {
+      return put("/versions/" + uid + "/" + key, version);
     });
   }
 
@@ -67,6 +86,8 @@ var Firebase = (function () {
     },
     loadKeys: function () {
       return Uid.uid().then(function (uid) { return loadKeys(uid); })
-    }
+    },
+    loadVersion: loadVersion,
+    saveVersion: saveVersion
   };
 })();

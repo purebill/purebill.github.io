@@ -31,6 +31,7 @@ var Tiles = (function () {
     saveFirst();
     create(parseInt($("N").value), parseInt($("M").value));
     loaded("");
+    currentVersion = 0;
   }
 
   $("save").onclick = function () {
@@ -40,10 +41,11 @@ var Tiles = (function () {
 
       currentName = name;
       var state = getState();
+      var stateJson = JSON.stringify(state);
       
       var savedLocally = true;
       try {
-        localStorage.setItem(prefix + name, state);
+        localStorage.setItem(prefix + name, stateJson);
       } catch (e) {
         savedLocally = false;
         console.error(e);
@@ -51,9 +53,10 @@ var Tiles = (function () {
 
       savedLocally && Message.hide();
 
-      Firebase.save(name, state).then(function () {
+      Firebase.save(name, stateJson).then(function () {
         Message.hide();
       });
+      Firebase.saveVersion(name, JSON.stringify(state.version));
 
       changed = false;
       loadStates();
@@ -89,8 +92,19 @@ var Tiles = (function () {
         });
       } else {
         var cells = JSON.parse(localStorage[prefix + key]);
-        restoreState(cells).then(function () {
-          loaded(key);
+        var localVersion = cells.version || 0;
+        Firebase.loadVersion(key).then(function (remoteVersion) {
+          if (remoteVersion > localVersion) {
+            Firebase.load(key).then(function (cells) {
+              restoreState(cells).then(function () {
+                loaded(key);
+              });
+            }); 
+          } else {
+            restoreState(cells).then(function () {
+              loaded(key);
+            });
+          }
         });
       }
     }
@@ -181,7 +195,7 @@ var Tiles = (function () {
 
     e = e || window.event;
     if (e) {
-      event.preventDefault();
+      e.preventDefault();
       if (message != null) {
         e.returnValue = message;
       }
@@ -193,6 +207,7 @@ var Tiles = (function () {
   var palete = {};
   var selectedIdx;
   var currentName;
+  var currentVersion = 0;
   var changed = false;
 
   onResize();
@@ -375,10 +390,11 @@ var Tiles = (function () {
       }
     }
 
-    return JSON.stringify({
+    return {
       tiles: currentTiles,
-      cells: cells
-    });
+      cells: cells,
+      version: ++currentVersion
+    };
   }
 
   function restoreState(state) {
@@ -394,6 +410,7 @@ var Tiles = (function () {
         $("M").value = cols;
         create(cols, rows, cells);
         Undo.reset();
+        currentVersion = state.version || 0;
         resolve();
       };
 
