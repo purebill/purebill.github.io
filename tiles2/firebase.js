@@ -67,6 +67,8 @@ var Firebase = (function () {
     return Uid.uid().then(function (uid) {
       return get("/versions/" + uid + "/" + key).then(function (version) {
         return version || 0;
+      }).catch(function () {
+        return 0;
       });
     });
   }
