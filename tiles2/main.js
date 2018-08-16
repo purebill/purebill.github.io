@@ -60,10 +60,12 @@ var Tiles = (function () {
 
       savedLocally && Message.hide();
 
+      function nop() {}
+
       Firebase.save(name, stateJson).then(function () {
         Message.hide();
-      });
-      Firebase.saveVersion(name, JSON.stringify(state.version));
+      }).catch(nop);
+      Firebase.saveVersion(name, JSON.stringify(state.version)).catch(nop);
 
       window.location.hash = "#" + name;
       changed = false;
@@ -495,7 +497,7 @@ var Tiles = (function () {
           option.innerHTML = key;
           select.appendChild(option);
         });
-      }).then(resolve);
+      }).then(resolve).catch(resolve);
     });
   }
 
