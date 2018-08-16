@@ -25,13 +25,20 @@ var Tiles = (function () {
     window.location.reload();
   };
 
-  var container = document.getElementById("container");
-
-  $("apply").onclick = function () {
+  function newDocument(cells) {
     saveFirst();
-    create(parseInt($("N").value), parseInt($("M").value));
+    create(parseInt($("N").value), parseInt($("M").value), cells);
     loaded("");
     currentVersion = 0;
+    Undo.reset();
+  }
+
+  $("newRandom").onclick = function () {
+    newDocument();
+  }
+
+  $("newEmpty").onclick = function () {
+    newDocument("empty");
   }
 
   $("save").onclick = function () {
@@ -305,7 +312,8 @@ var Tiles = (function () {
       hash: "empty"
     });
 
-    $("apply").disabled = false;
+    $("newRandom").disabled = false;
+    $("newEmpty").disabled = false;
   }
 
   var wall;
@@ -327,9 +335,12 @@ var Tiles = (function () {
       for (var i = 0; i < N; i++) {
         var div = document.createElement("div");
         var idx, angle;
-        if (!cells) {
+        if (cells === "empty") {
+          idx = "empty";
+          angle = 0;
+        } else if (!cells) {
           // do not include 'empty' tile
-          var idx = Object.keys(palete)[rand(0, Object.keys(palete).length - 2)];
+          idx = Object.keys(palete)[rand(0, Object.keys(palete).length - 2)];
           angle = 0;
         } else {
           idx = Bootstrap.fromLegacyIdx(cells[row][i].idx);
