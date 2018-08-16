@@ -36,9 +36,8 @@
   };
 
   function sendError(text) {
-    var s = document.createElement("script");
-    s.type = "";
-    s.src = "https://maker.ifttt.com/trigger/tilesman-error/with/key/dhe96or_TBtNNNgY9NzE_a?value1=" + encodeURIComponent(text);
-    document.head.appendChild(s);
+    // IFTTT has no CORS support
+    var img = new Image();
+    img.src = "https://maker.ifttt.com/trigger/tilesman-error/with/key/dhe96or_TBtNNNgY9NzE_a?value1=" + encodeURIComponent(text);
   }
 }) ();
