@@ -1,15 +1,17 @@
 .tiles {
   width: 100px;
   height: 800px;
-  float: left;
+  position: absolute;
   overflow: scroll;
+  left: 0;
+  top: 0;
 }
 .tiles .selected {
   border: 2px solid #ff0000;
   margin: 0;
 }
 #main {
-  float: left;
+  margin-left: 100px;
   width: 1000px;
   overflow: auto;
   height: 800px;
