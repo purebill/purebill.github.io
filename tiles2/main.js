@@ -531,11 +531,13 @@ var Tiles = (function () {
   }
 
   function addClass(e, className) {
-    e.className += " " + className;
+    var classes = e.className.trim().split(/\s+/).filter(function (it) { return it != className; });
+    classes.push(className);
+    e.className = classes.join(" ");
   }
 
   function removeClass(e, className) {
-    e.className = e.className.replace(new RegExp("\\b" + className + "\\b","g"), "");
+    e.className = e.className.trim().split(/\s+/).filter(function (it) { return it != className; }).join(" ");
   }
 
   function rand(min, max) {
