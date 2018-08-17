@@ -340,10 +340,10 @@ var Tiles = (function () {
       wall[row] = [];
       
       var span = document.createElement("span");
-      span.style.width = (N * (64 + 2)).toString() + "px";
 
       for (var i = 0; i < N; i++) {
         var div = document.createElement("div");
+        
         var idx, angle;
         if (cells === "empty") {
           idx = "empty";
@@ -356,10 +356,12 @@ var Tiles = (function () {
           idx = Bootstrap.fromLegacyIdx(cells[row][i].idx);
           angle = cells[row][i].angle;
         }
+
         div.idx = idx;
         div.angle = angle;
         addClass(div, "tile" + idx);
         addClass(div, "rotate" + angle);
+        
         div.oncontextmenu = function (e) {
           e.preventDefault();
 
@@ -385,11 +387,6 @@ var Tiles = (function () {
       }
       container.appendChild(span);
     }
-
-    var clear = document.createElement("b");
-    clear.style.clear = "both";
-    clear.style.display = "block";
-    container.appendChild(clear);
 
     if (N > 0) enableControls();
   }

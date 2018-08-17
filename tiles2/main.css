@@ -20,18 +20,21 @@
   background-color: white;
 }
 .container span {
-  overflow: visible;
   display: block;
+  white-space: nowrap;
   margin: 0;
   padding: 0;
   border: 0;
+  line-height: 0;
 }
 .container div, .tiles div, #calculations div {
   width: 64px;
   height: 64px;
   background-size: contain;
   margin: 1px;
-  float: left;
+  padding: 0;
+  border: 0;
+  display: inline-block;
 }
 
 .tiles {
