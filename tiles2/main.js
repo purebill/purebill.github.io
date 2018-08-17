@@ -41,6 +41,10 @@ var Tiles = (function () {
     newDocument("empty");
   }
 
+  $("saveAsJpeg").onclick = function () {
+    saveAsFile(currentName, wall, currentTiles);
+  }
+
   $("save").onclick = function () {
     var name = prompt("Имя", currentName);
     if (name != null) {
@@ -222,17 +226,21 @@ var Tiles = (function () {
   loadStates().then(function () {
     if (window.location.hash != "") {
       load(decodeURIComponent(window.location.hash).substr(1));
+    } else {
+      Message.show("Перетяните сюда изображения плитки или загрузите сохранённый дизайн.");
     }
   });
   disableControls();
 
   function disableControls() {
     $("save").disabled = true;
+    $("saveAsJpeg").disabled = true;
     $("calculate").disabled = true;
   }
 
   function enableControls() {
     $("save").disabled = false;
+    $("saveAsJpeg").disabled = false;
     $("calculate").disabled = false;
   }
 
@@ -574,6 +582,7 @@ var Tiles = (function () {
   }
 
   return {
+    isEmpty: function () { return !currentTiles; },
     newTiles: newTiles,
     addTiles: addTiles
   };

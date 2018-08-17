@@ -1,12 +1,9 @@
 "use strict";
 
 var Files = (function () {
-  $("main").ondragover = function (ev) {
-    Message.show("Отпусти чтобы загрузить изображения");
-  };
-
   document.ondragover = function (ev) {
     ev.preventDefault();
+    Message.show("Отпусти чтобы загрузить изображения");
   }
 
   // see https://developer.mozilla.org/en-US/docs/Web/API/HTML_Drag_and_Drop_API/File_drag_and_drop#Process_the_drop
@@ -35,10 +32,10 @@ var Files = (function () {
 
     Promise.all(dataUris).then(function (uris) {
       ev.dataTransfer.items.clear();
-      if (confirm("Добавить к существующим?")) {
-        Tiles.addTiles(uris);
-      } else {
+      if (Tiles.isEmpty() || !confirm("Добавить к существующим?")) {
         Tiles.newTiles(uris);
+      } else {
+        Tiles.addTiles(uris);
       }
       Message.hide();
       ev.dataTransfer.items.clear();
