@@ -2,7 +2,7 @@
   width: 100px;
   height: 800px;
   position: absolute;
-  overflow: scroll;
+  overflow: auto;
   left: 0;
   top: 0;
 }
@@ -60,6 +60,10 @@
 }
 .container .rotate270 {
   transform: rotate(270deg);
+}
+
+.controls {
+  margin-left: 100px;
 }
 
 .controls input {
