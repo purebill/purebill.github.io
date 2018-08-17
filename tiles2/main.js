@@ -195,6 +195,9 @@ var Tiles = (function () {
     } else if (e.keyCode == 83 && e.ctrlKey) {
       e.preventDefault();
       $("save").onclick();
+    } else if (e.keyCode == 69 && e.ctrlKey) {
+      e.preventDefault();
+      $("saveAsJpeg").onclick();
     }
   };
 
