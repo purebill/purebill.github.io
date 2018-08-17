@@ -3,6 +3,8 @@
 var Message = (function () {
   var messageDiv = document.createElement("div");
   messageDiv.style.position = "absolute";
+  messageDiv.style.left = "0";
+  messageDiv.style.top = "0";
   messageDiv.style.width = "100%";
   messageDiv.style.height = "100%";
   messageDiv.style.fontSize = "20pt";
