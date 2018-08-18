@@ -98,30 +98,29 @@ var Tiles = (function () {
       }
     }
     if (option) {
-      if (option.firebase) {
-        Firebase.load(key).then(function (cells) {
-          restoreState(cells).then(function () {
-            loaded(key);
-          });
+      loadState(key, option.firebase).then(function (cells) {
+        restoreState(cells).then(function () {
+          loaded(key);
         });
-      } else {
-        var cells = JSON.parse(localStorage[prefix + key]);
-        var localVersion = cells.version || 0;
-        Firebase.loadVersion(key).then(function (remoteVersion) {
-          if (remoteVersion > localVersion) {
-            Firebase.load(key).then(function (cells) {
-              restoreState(cells).then(function () {
-                loaded(key);
-              });
-            }); 
-          } else {
-            restoreState(cells).then(function () {
-              loaded(key);
-            });
-          }
-        });
-      }
+      });
     }
+  }
+
+  function loadState(key, firebase) {
+    if (firebase) {
+      return Firebase.load(key);
+    }
+
+    var cells = JSON.parse(localStorage[prefix + key]);
+    var localVersion = cells.version || 0;
+    
+    return Firebase.loadVersion(key).then(function (remoteVersion) {
+      if (remoteVersion > localVersion) {
+        return Firebase.load(key); 
+      } else {
+        return Promise.resolve(cells);
+      }
+    });
   }
 
   function loaded(name) {
@@ -136,25 +135,76 @@ var Tiles = (function () {
   $("redo").onclick = Undo.redo;
 
   $("calculate").onclick = function () {
-    var rows = wall.length;
-    var cols = wall[0].length;
-    var table = {};
-    for (var row = 0; row < rows; row++) {
-      for (var col = 0; col < cols; col++) {
-        var idx = wall[row][col].idx;
-        table[idx] == undefined && (table[idx] = 0);
-        table[idx]++;
-      }
-    }
+    loadSaved().then(function (states) {
+      var div = $("calculateOptions");
+      div.innerHTML = "";
+      
+      states.forEach(function (state) {
+        var label = document.createElement("label");
+        var checkbox = document.createElement("input");
+        checkbox.type = "checkbox";
+        checkbox.id = state.key;
+        checkbox.firebase = state.firebase;
+        checkbox.checked = state.key == currentName;
+        label.for = checkbox.id;
+        label.appendChild(checkbox);
+        label.appendChild(document.createTextNode(state.key));
+        div.appendChild(label);
+      });
 
-    var div = $("calculations");
-    div.style.display = "block";
-    ["main", "controls", "tiles"].forEach(function (it) { $(it).style.display = "none"; });
-    div.innerHTML = Object.keys(table)
-      .map(function (it) {
-        return "<div class='tile" + it + "'><span>" + table[it] + "</span></div>";
-      })
-      .join("\n");
+      $("selectToCalculate").style.display = "inline-block";
+    });
+  };
+
+  $("doCalcualte").onclick = function () {
+    $("selectToCalculate").style.display = "none";
+
+    Promise.all(
+      $($("selectToCalculate").getElementsByTagName("input"))
+        .filter(function (checkbox) {
+          return checkbox.checked;
+        })
+        .map(function (checkbox) {
+          return loadState(checkbox.id, checkbox.firebase);
+        })
+    ).then(function (states) {
+      if (states.length == 0) {
+        $("selectToCalculate").style.display = "none";
+        return;
+      }
+
+      var table = {};
+
+      states.forEach(function (state) {
+        var wall = state.cells;
+        var tiles = state.tiles;
+
+        tiles.forEach(addCssStyle);
+
+        var rows = wall.length;
+        var cols = wall[0].length;
+        for (var row = 0; row < rows; row++) {
+          for (var col = 0; col < cols; col++) {
+            var idx = wall[row][col].idx;
+            table[idx] == undefined && (table[idx] = 0);
+            table[idx]++;
+          }
+        }
+      });
+  
+      var div = $("calculations");
+      div.style.display = "block";
+      ["main", "controls", "tiles"].forEach(function (it) { $(it).style.display = "none"; });
+      div.innerHTML = Object.keys(table)
+        .map(function (it) {
+          return "<div class='tile" + it + "'><span>" + table[it] + "</span></div>";
+        })
+        .join("\n");
+      });
+  };
+
+  $("closeCalculate").onclick = function () {
+    $("selectToCalculate").style.display = "none";
   };
 
   $("calculations").onclick = function () {
@@ -238,13 +288,13 @@ var Tiles = (function () {
   function disableControls() {
     $("save").disabled = true;
     $("saveAsJpeg").disabled = true;
-    $("calculate").disabled = true;
+    // $("calculate").disabled = true;
   }
 
   function enableControls() {
     $("save").disabled = false;
     $("saveAsJpeg").disabled = false;
-    $("calculate").disabled = false;
+    // $("calculate").disabled = false;
   }
 
   function saveFirst() {
@@ -483,15 +533,13 @@ var Tiles = (function () {
       .map(function (key) { return key.substr(prefix.length) ;});
   }
 
-  function loadStates() {
+  function loadSaved() {
     return new Promise(function (resolve) {
-      var select = $("saved");
-      select.innerHTML = "<option value='' selected>Загрузить</option>";
+      var states = [];
       storedKeys().forEach(function (key) {
-        var option = document.createElement("option");
-        option.value = key;
-        option.innerHTML = key;
-        select.appendChild(option);
+        states.push({
+          key: key
+        });
       });
 
       var localKeys = storedKeys();
@@ -499,13 +547,28 @@ var Tiles = (function () {
         keys.forEach(function (key) {
           if (localKeys.indexOf(key) != -1) return;
 
-          var option = document.createElement("option");
-          option.firebase = true;
-          option.value = key;
-          option.innerHTML = key;
-          select.appendChild(option);
+          states.push({
+            key: key,
+            firebase: true
+          });
         });
-      }).then(resolve).catch(resolve);
+
+        resolve(states);
+      }).catch(function () { resolve(states); });
+    });
+  }
+
+  function loadStates() {
+    return loadSaved().then(function (states) {
+      var select = $("saved");
+      select.innerHTML = "<option value='' selected>Загрузить</option>";
+      states.forEach(function (state) {
+        var option = document.createElement("option");
+        option.value = state.key;
+        option.innerHTML = state.key;
+        option.firebase = state.firebase;
+        select.appendChild(option);
+      });
     });
   }
 
@@ -548,13 +611,17 @@ var Tiles = (function () {
   }
 
   var currentTiles;
+  var cssStylesCreated = {};
+
+  function addCssStyle(it) {
+    cssStylesCreated[it.hash] || createCSSSelector(".tile" + it.hash, "background-image: url('" + it.uri + "')");
+    cssStylesCreated[it.hash] = true;
+  }
 
   function newTiles(tiles) {
     saveFirst();
     
-    tiles.forEach(function (it) {
-      createCSSSelector(".tile" + it.hash, "background-image: url('" + it.uri + "')");
-    });
+    tiles.forEach(addCssStyle);
 
     createPalete(tiles);
     create(0, 0);
@@ -574,9 +641,7 @@ var Tiles = (function () {
       return currentTiles.findIndex(function (existing) { return existing.hash == it.hash; }) == -1;
     });
 
-    tiles.forEach(function (it) {
-      createCSSSelector(".tile" + it.hash, "background-image: url('" + it.uri + "')");
-    });
+    tiles.forEach(addCssStyle);
 
     tiles.forEach(function (it) { currentTiles.push(it); });
 
@@ -591,5 +656,15 @@ var Tiles = (function () {
 }) ();
 
 function $(id) {
-  return document.getElementById(id);
+  if (typeof id === "string") {
+    return document.getElementById(id);
+  }
+  
+  if (id instanceof HTMLCollection) {
+    var a = [];
+    for (var i = 0; i < id.length; i++) a.push(id[i]);
+    return a;
+  }
+
+  return id;
 }
