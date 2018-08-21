@@ -614,7 +614,25 @@ var Tiles = (function () {
   var cssStylesCreated = {};
 
   function addCssStyle(it) {
-    cssStylesCreated[it.hash] || createCSSSelector(".tile" + it.hash, "background-image: url('" + it.uri + "')");
+    if (!it.width) it.width = 64;
+    if (!it.height) it.height = 64;
+
+    if (!cssStylesCreated[it.hash]) {
+      // using technique from here https://www.sitepoint.com/css3-transform-background-image/
+      createCSSSelector(".tile" + it.hash, 
+        "width: " + it.width + "px; height: " + it.height + "px;");
+      createCSSSelector(".tile" + it.hash + ".rotate90, " + ".tile" + it.hash + ".rotate270",
+        "width: " + it.height + "px; height: " + it.width + "px;");
+
+      createCSSSelector(".tile" + it.hash + ":before",
+        "border: 1px solid black; content: ''; position: absolute; z-index: 900; background-image: url('" + it.uri + "'); width: " + it.width + "px; height: " + it.height + "px;");
+
+      createCSSSelector(".tile" + it.hash + ".rotate90:before",
+        "top: -" + it.height + "px; transform-origin: bottom left;");
+
+      createCSSSelector(".tile" + it.hash + ".rotate270:before",
+        "top: " + it.width + "px; transform-origin: top left;");
+    }
     cssStylesCreated[it.hash] = true;
   }
 

@@ -30,8 +30,7 @@
   line-height: 0;
 }
 .container div, .tiles div, #calculations div {
-  width: 64px;
-  height: 64px;
+  position: relative;
   background-size: contain;
   margin: 1px;
   padding: 0;
@@ -50,15 +49,20 @@
 
 .tileempty {
   background-color: white;
+  width: 64px;
+  height: 64px;
 }
 
-.container .rotate90 {
+.container div:before {
+  border: 0;
+}
+.container div.rotate90:before {
   transform: rotate(90deg);
 }
-.container .rotate180 {
+.container div.rotate180:before {
   transform: rotate(180deg);
 }
-.container .rotate270 {
+.container div.rotate270:before {
   transform: rotate(270deg);
 }
 

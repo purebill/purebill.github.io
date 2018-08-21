@@ -51,11 +51,6 @@ var Files = (function () {
     return true;
   }
 
-  var c = document.createElement("canvas");
-  c.width = 64;
-  c.height = 64;
-  var ctx = c.getContext("2d");
-
   function toDataUri(file) {
     // see https://stackoverflow.com/questions/23150333/html5-javascript-dataurl-to-blob-blob-to-dataurl
     return new Promise(function (resolve) {
@@ -68,13 +63,29 @@ var Files = (function () {
     });
   }
 
+  const maxSize = 64;
+
   function downscale(file, dataUri) {
-    return new Promise(function (resolve, reject) {
+    return new Promise(function (resolve) {
       var img = new Image;
       img.onload = function() {
+        const w = img.naturalWidth;
+        const h = img.naturalHeight;
+        var c = document.createElement("canvas");
+        if (w >= h) {
+          c.width = maxSize;
+          c.height = Math.round(h/w * maxSize);
+        } else {
+          c.width = Math.round(w/h * maxSize);
+          c.height = maxSize;
+        }
+        var ctx = c.getContext("2d");
+
         ctx.drawImage(this, 0, 0, c.width, c.height);
         resolve({
           name: file.name,
+          width: c.width,
+          height: c.height,
           uri: c.toDataURL("image/jpeg", 0.90),
           hash: sha256.hex(dataUri)
         });
