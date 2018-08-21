@@ -50,9 +50,11 @@ var saveAsFile = (function () {
           let div = wall[row][col];
           let img = tiles[div.idx];
           let angle = div.angle;
-          rowWidth += img.naturalWidth + 1;
-          if (img.naturalHeight + 1 > rowHeight) {
-            rowHeight = img.naturalHeight + 1;
+          let w = angle == 0 || angle == 180 ? img.naturalWidth + 1 : img.naturalHeight + 1;
+          let h = angle == 0 || angle == 180 ? img.naturalHeight + 1 : img.naturalWidth + 1;
+          rowWidth += w;
+          if (h > rowHeight) {
+            rowHeight = h;
           }
         }
         if (rowWidth > width) {
