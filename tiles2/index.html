@@ -12,10 +12,14 @@
 <body>
   <div id="calculations"></div>
   <div id="tilesEditor">
+    <p>Задай ширину плтики или оставь пустой, если все плитки одинакогого размера.</p>
     <div id="tilesEditorTiles"></div>
     <div id="tilesEditorControls">
-      <button id="saveTiles">Сохранить</button>
-      <button id="cancelTiles">Отмена</button>
+      <label ="tilesEditorTileSize">Масштаб: <input type="range" id="tilesEditorTileSize" class="noselection"></label>
+      <div>
+        <button id="saveTiles">Сохранить</button>
+        <button id="cancelTiles">Отмена</button>
+      </div>
     </div>
   </div>
 
@@ -65,6 +69,7 @@
   </div>
 </body>
 
+<script src="utils.js?v1"></script>
 <script src="config.js?v2"></script>
 <script src="error-reporter.js?v=1"></script>
 <script src="file-saver.js"></script>

@@ -469,21 +469,9 @@ var Tiles = (function () {
     addRightLink.title = "Добавить столбец справа";
     addRightLink.onclick = e => {
       e.stopPropagation();
-      Undo.do(addColRightAction(colIdx));
+      Undo.do(addColRightAction(div));
     };
     div.appendChild(addRightLink);
-
-    if (colIdx == 0) {
-      let addLeftLink = document.createElement("a");
-      addLeftLink.innerHTML = "←";
-      addLeftLink.className = "add add-left";
-      addLeftLink.title = "Добавить столблец слева";
-      addLeftLink.onclick = e => {
-        e.stopPropagation();
-        Undo.do(addColLeftAction());
-      };
-      div.appendChild(addLeftLink);
-    }
 
     let addBottomLink = document.createElement("a");
     addBottomLink.innerHTML = "↓";
@@ -491,14 +479,15 @@ var Tiles = (function () {
     addBottomLink.title = "Добавить строку снизу";
     addBottomLink.onclick = e => {
       e.stopPropagation();
-      Undo.do(addRowBelowAction(rowIdx));
+      Undo.do(addRowBelowAction(div));
     };
     div.appendChild(addBottomLink);
 
     return div;
   }
 
-  function addRowBelowAction(rowIdx) {
+  function addRowBelowAction(div) {
+    let {rowIdx, } = findDiv(div);
     return {
       do: () => {
         let span = document.createElement("span");
@@ -517,29 +506,9 @@ var Tiles = (function () {
     };
   }
 
-  function addColLeftAction() {
-    return {
-      do: () => {
-        for (let i = 0; i < wall.length; i++) {
-          let row = wall[i];
-          let div = row[0];
-          let newDiv = createCellDiv(div.idx, div.angle, i, 0);
-          row.unshift(newDiv);
-          div.parentElement.insertBefore(newDiv, div);
-        }
-      },
-      undo: () => {
-        for (let i = 0; i < wall.length; i++) {
-          let row = wall[i];
-          let div = row[0];
-          row.shift(div);
-          div.parentElement.removeChild(div);
-        }
-      }
-    };
-  }
+  function addColRightAction(div) {
+    let {colIdx, } = findDiv(div);
 
-  function addColRightAction(colIdx) {
     return {
       do: () => {
         for (let rowIdx = 0; rowIdx < wall.length; rowIdx++) {
@@ -559,6 +528,18 @@ var Tiles = (function () {
         }
       }
     };
+  }
+
+  function findDiv(theDiv) {
+    for (let rowIdx = 0; rowIdx < wall.length; rowIdx++) {
+      for (let colIdx = 0; colIdx < wall[rowIdx].length; colIdx++) {
+        if (wall[rowIdx][colIdx] === theDiv) {
+          return {rowIdx, colIdx};
+        }
+      }
+    }
+
+    throw new Error("Can't find div", div);
   }
 
   function rotateAction(e) {
@@ -797,26 +778,3 @@ var Tiles = (function () {
   };
 }) ();
 
-function $(id) {
-  if (typeof id === "string") {
-    return document.getElementById(id);
-  }
-  
-  if (id instanceof HTMLCollection) {
-    var a = [];
-    for (var i = 0; i < id.length; i++) a.push(id[i]);
-    return a;
-  }
-
-  return id;
-}
-
-function addClass(e, className) {
-  var classes = e.className.trim().split(/\s+/).filter(function (it) { return it != className; });
-  classes.push(className);
-  e.className = classes.join(" ");
-}
-
-function removeClass(e, className) {
-  e.className = e.className.trim().split(/\s+/).filter(function (it) { return it != className; }).join(" ");
-}

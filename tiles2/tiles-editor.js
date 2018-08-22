@@ -1,17 +1,26 @@
 var TilesEditor = (function () {
   let currentTiles;
+  let tileSize = Config.tileSize;
+  $("tilesEditorTileSize").max = tileSize;
+  $("tilesEditorTileSize").min = Math.min(64, tileSize << 1);
+  $("tilesEditorTileSize").value = tileSize;
 
   $("saveTiles").onclick = function () {
-    if (currentTiles.filter(it => !it.physicalWidth).length > 0) {
-      alert("Нужно указать ширину для всех плиток");
+    let valuesCount = currentTiles.filter(it => !!it.physicalWidth).length;
+    if (valuesCount == 0) {
+      currentTiles.forEach(it => it.physicalWidth = 1);
+      valuesCount = currentTiles.length;
+    }
+    if (valuesCount != currentTiles.length) {
+      alert("Нужно указать ширину для всех плиток или не указывать для всех");
       return;
     }
 
     hide();
     
     currentTiles.forEach(it => {
-      let c = Config.tileSize / it.width;
-      it.width = Config.tileSize;
+      let c = tileSize / it.width;
+      it.width = tileSize;
       it.height = it.height * c;
     });
 
@@ -25,7 +34,7 @@ var TilesEditor = (function () {
     let maxWidth = Math.max.apply(null, currentTiles.map(it => it.width));
     let maxHeight = Math.max.apply(null, currentTiles.map(it => it.height));
     let maxSize = Math.max(maxWidth, maxHeight);
-    let c = Config.tileSize / maxSize;
+    let c = tileSize / maxSize;
     currentTiles.forEach(it => {
       it.width = Math.round(it.width * c);
       it.height = Math.round(it.height * c);
@@ -46,6 +55,11 @@ var TilesEditor = (function () {
     hide();
   };
 
+  $("tilesEditorTileSize").onchange = function (event) {
+    tileSize = parseInt(event.target.value);
+    edit(currentTiles);
+  }
+
   function downscale(tile) {
     return new Promise(function (resolve) {
       var img = new Image;
@@ -63,7 +77,7 @@ var TilesEditor = (function () {
           width: tile.width,
           height: tile.height,
           uri: c.toDataURL("image/jpeg", 0.90),
-          hash: tile.hash
+          hash: tile.hash + "-" + tile.width + "x" + tile.height
         });
       };
       img.src = tile.uri;
@@ -95,8 +109,8 @@ var TilesEditor = (function () {
       let label = document.createElement("label");
 
       let wrap = document.createElement("div");
-      wrap.style.width = Config.tileSize + "px";
-      wrap.style.height = Config.tileSize + "px";
+      wrap.style.width = tileSize + "px";
+      wrap.style.height = tileSize + "px";
 
       let img = document.createElement("img");
       img.src = tile.uri;

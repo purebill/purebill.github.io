@@ -80,10 +80,6 @@
   right: 0;
   top: 50%;
 }
-.container div .add.add-left {
-  left: 0;
-  top: 50%;
-}
 .container div .add.add-below {
   left: 50%;
   bottom: 0;
@@ -223,4 +219,14 @@
   clear: both;
   margin: 10px;
   padding: 10px;
+}
+
+#tilesEditorTileSize {
+  margin-bottom: 20px;
+  display: block;
+}
+
+.noselection {
+  user-select: none;
+  cursor: default;
 }
