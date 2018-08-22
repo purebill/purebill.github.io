@@ -17,7 +17,7 @@ var Tiles = (function () {
     $("version").innerHTML = "v" + version;
   });
 
-  Version.subscribe(function (newVersion, oldVersion) {
+  Version.subscribe(function () {
     $("newVersion").style.display = "";
   });
 
@@ -38,7 +38,11 @@ var Tiles = (function () {
   }
 
   $("newEmpty").onclick = function () {
-    newDocument("empty");
+    let empty = currentTiles
+      .filter(it => it.empty)
+      .sort((a, b) => a.width * a.height > b.width * b.height ? -1 : (a.width * a.height == b.width * b.height ? 0 : 1))
+      [0].name;
+    newDocument(empty);
   }
 
   $("saveAsJpeg").onclick = function () {
@@ -138,17 +142,26 @@ var Tiles = (function () {
     loadSaved().then(function (states) {
       var div = $("calculateOptions");
       div.innerHTML = "";
+
+      if (!currentName) {
+        states.push({
+          key: currentName
+        });
+      }
       
       states.forEach(function (state) {
         var label = document.createElement("label");
+        
         var checkbox = document.createElement("input");
         checkbox.type = "checkbox";
-        checkbox.id = state.key;
+        checkbox.currentName = state.key;
         checkbox.firebase = state.firebase;
         checkbox.checked = state.key == currentName;
+        
         label.for = checkbox.id;
         label.appendChild(checkbox);
-        label.appendChild(document.createTextNode(state.key));
+        label.appendChild(document.createTextNode(state.key ? state.key : "<Текущиц>"));
+        
         div.appendChild(label);
       });
 
@@ -161,12 +174,8 @@ var Tiles = (function () {
 
     Promise.all(
       $($("selectToCalculate").getElementsByTagName("input"))
-        .filter(function (checkbox) {
-          return checkbox.checked;
-        })
-        .map(function (checkbox) {
-          return loadState(checkbox.id, checkbox.firebase);
-        })
+        .filter(checkbox => checkbox.checked)
+        .map(checkbox => checkbox.currentName == currentName ? Promise.resolve(getState()) : loadState(checkbox.currentName, checkbox.firebase))
     ).then(function (states) {
       if (states.length == 0) {
         $("selectToCalculate").style.display = "none";
@@ -308,7 +317,7 @@ var Tiles = (function () {
   }
 
   function onResize(e) {
-    $("main").style.width = (window.innerWidth - 120).toString() + "px";
+    $("main").style.width = (window.innerWidth - 180).toString() + "px";
     $("main").style.height = (window.innerHeight - 50).toString() + "px";
     $("tiles").style.height = (window.innerHeight - 50).toString() + "px";
   }
@@ -333,33 +342,43 @@ var Tiles = (function () {
       selectedIdx = this.idx;
       select($("tile" + selectedIdx));
     };
-    div.oncontextmenu = function (e) {
-      e.preventDefault();
+    
+    if (!idx.startsWith("empty")) {
+      let a = document.createElement("a");
+      a.innerHTML = "X";
+      a.className = "delete";
+      a.title = "Удалить";
+      a.onclick = function (event) {
+        event.preventDefault();
+        event.stopPropagation();
 
-      if (idx == "empty") return;
+        if (idx.startsWith("empty")) return;
 
-      if (confirm("Удалить?")) {
-        var used = false;
-        var rows = wall.length;
-        for (var row = 0; row < rows; row++) {
-          var cols = wall[row].length;
-          for (var col = 0; col < cols; col++) {
-            if (wall[row][col].idx == idx) {
-              used = true;
-              break;
+        if (confirm("Удалить?")) {
+          var used = false;
+          var rows = wall.length;
+          for (var row = 0; row < rows; row++) {
+            var cols = wall[row].length;
+            for (var col = 0; col < cols; col++) {
+              if (wall[row][col].idx == idx) {
+                used = true;
+                break;
+              }
             }
           }
+          if (!used) {
+            unselect(div);
+            delete palete[idx];
+            currentTiles =  currentTiles.filter(function (it) { return it.hash != idx;});
+            $("tiles").removeChild(div);
+          } else {
+            alert("Не могу. Используется");
+          }
         }
-        if (!used) {
-          unselect(div);
-          delete palete[idx];
-          currentTiles =  currentTiles.filter(function (it) { return it.hash != idx;});
-          $("tiles").removeChild(div);
-        } else {
-          alert("Не могу. Используется");
-        }
-      }
-    };
+      };
+      div.appendChild(a);
+    }
+
     $("tiles").appendChild(div);
   }
 
@@ -369,11 +388,6 @@ var Tiles = (function () {
     selectedIdx = undefined;
 
     tiles.forEach(addTile);
-
-    addTile({
-      name: "empty",
-      hash: "empty"
-    });
 
     $("newRandom").disabled = false;
     $("newEmpty").disabled = false;
@@ -389,59 +403,162 @@ var Tiles = (function () {
     container.innerHTML = "";
     wall = [];
 
+    // do not include 'empty' tiles
+    let maxRand = Object.keys(palete).filter(it => !it.startsWith("empty")).length - 1;
+
     for (var row = 0; row < M; row++) {
       wall[row] = [];
       
       var span = document.createElement("span");
 
-      for (var i = 0; i < N; i++) {
-        var div = document.createElement("div");
-        
+      for (var col = 0; col < N; col++) {
         var idx, angle;
-        if (cells === "empty") {
-          idx = "empty";
+        if (typeof cells === "string") {
+          idx = cells;
           angle = 0;
         } else if (!cells) {
-          // do not include 'empty' tile
-          idx = Object.keys(palete)[rand(0, Object.keys(palete).length - 2)];
+          idx = Object.keys(palete)[rand(0, maxRand)];
           angle = 0;
         } else {
-          idx = Bootstrap.fromLegacyIdx(cells[row][i].idx);
-          angle = cells[row][i].angle;
+          idx = Bootstrap.fromLegacyIdx(cells[row][col].idx);
+          angle = cells[row][col].angle;
         }
 
-        div.idx = idx;
-        div.angle = angle;
-        addClass(div, "tile" + idx);
-        addClass(div, "rotate" + angle);
-        
-        div.oncontextmenu = function (e) {
-          e.preventDefault();
+        let div = createCellDiv(idx, angle, row, col);
 
-          palete[this.idx].scrollIntoView();
-          palete[this.idx].onclick();
-        };
-
-        div.onclick = function (e) {
-          e.preventDefault();
-
-          if (!selectedIdx || selectedIdx == this.idx) {
-            Undo.do(rotateAction(this));
-            return;
-          }
-          
-          if (selectedIdx) {
-            Undo.do(changeAction(this));
-          }
-        };
         span.appendChild(div);
 
-        wall[row][i] = div;
+        wall[row][col] = div;
       }
       container.appendChild(span);
     }
 
     if (N > 0) enableControls();
+  }
+
+  function createCellDiv(idx, angle, rowIdx, colIdx) {
+    var div = document.createElement("div");
+    div.idx = idx;
+    div.angle = angle;
+    addClass(div, "tile" + idx);
+    addClass(div, "rotate" + angle);
+    
+    div.oncontextmenu = function (e) {
+      e.preventDefault();
+
+      palete[this.idx].scrollIntoView();
+      palete[this.idx].onclick();
+    };
+
+    div.onclick = function (e) {
+      e.preventDefault();
+
+      if (!selectedIdx || selectedIdx == this.idx) {
+        Undo.do(rotateAction(this));
+        return;
+      }
+      
+      if (selectedIdx) {
+        Undo.do(changeAction(this));
+      }
+    };
+
+    let addRightLink = document.createElement("a");
+    addRightLink.innerHTML = "→";
+    addRightLink.className = "add add-right";
+    addRightLink.title = "Добавить столбец справа";
+    addRightLink.onclick = e => {
+      e.stopPropagation();
+      Undo.do(addColRightAction(colIdx));
+    };
+    div.appendChild(addRightLink);
+
+    if (colIdx == 0) {
+      let addLeftLink = document.createElement("a");
+      addLeftLink.innerHTML = "←";
+      addLeftLink.className = "add add-left";
+      addLeftLink.title = "Добавить столблец слева";
+      addLeftLink.onclick = e => {
+        e.stopPropagation();
+        Undo.do(addColLeftAction());
+      };
+      div.appendChild(addLeftLink);
+    }
+
+    let addBottomLink = document.createElement("a");
+    addBottomLink.innerHTML = "↓";
+    addBottomLink.className = "add add-below";
+    addBottomLink.title = "Добавить строку снизу";
+    addBottomLink.onclick = e => {
+      e.stopPropagation();
+      Undo.do(addRowBelowAction(rowIdx));
+    };
+    div.appendChild(addBottomLink);
+
+    return div;
+  }
+
+  function addRowBelowAction(rowIdx) {
+    return {
+      do: () => {
+        let span = document.createElement("span");
+        let newRow = wall[rowIdx].map((div, colIdx) => {
+          let newDiv = createCellDiv(div.idx, div.angle, rowIdx, colIdx);
+          span.appendChild(newDiv);
+          return newDiv;
+        });
+        let rowSpan = wall[rowIdx][0].parentElement;
+        rowSpan.parentElement.insertBefore(span, rowSpan.nextSibling);
+        wall.splice(rowIdx, 0, newRow);
+      },
+      undo: () => {
+
+      }
+    };
+  }
+
+  function addColLeftAction() {
+    return {
+      do: () => {
+        for (let i = 0; i < wall.length; i++) {
+          let row = wall[i];
+          let div = row[0];
+          let newDiv = createCellDiv(div.idx, div.angle, i, 0);
+          row.unshift(newDiv);
+          div.parentElement.insertBefore(newDiv, div);
+        }
+      },
+      undo: () => {
+        for (let i = 0; i < wall.length; i++) {
+          let row = wall[i];
+          let div = row[0];
+          row.shift(div);
+          div.parentElement.removeChild(div);
+        }
+      }
+    };
+  }
+
+  function addColRightAction(colIdx) {
+    return {
+      do: () => {
+        for (let rowIdx = 0; rowIdx < wall.length; rowIdx++) {
+          let row = wall[rowIdx];
+          let div = row[colIdx];
+          let newDiv = createCellDiv(div.idx, div.angle, rowIdx, colIdx + 1);
+          div.parentElement.insertBefore(newDiv, colIdx == row.length - 1 ? null : row[colIdx + 1]);
+          row.splice(colIdx + 1, 0, newDiv);
+        }
+      },
+      undo: () => {
+        for (let i = 0; i < wall.length; i++) {
+          let row = wall[i];
+          let div = row[colIdx + 1];
+          row.splice(colIdx + 1, 1);
+          div.parentElement.removeChild(div);
+        }
+      }
+    };
   }
 
   function rotateAction(e) {
@@ -502,7 +619,7 @@ var Tiles = (function () {
   }
 
   function restoreState(state) {
-    return new Promise(function (resolve, reject) {
+    return new Promise(function (resolve) {
       var tiles = state.tiles;
 
       var c = function () {
@@ -596,16 +713,6 @@ var Tiles = (function () {
     addClass(e, "rotate" + e.angle);
   }
 
-  function addClass(e, className) {
-    var classes = e.className.trim().split(/\s+/).filter(function (it) { return it != className; });
-    classes.push(className);
-    e.className = classes.join(" ");
-  }
-
-  function removeClass(e, className) {
-    e.className = e.className.trim().split(/\s+/).filter(function (it) { return it != className; }).join(" ");
-  }
-
   function rand(min, max) {
     return Math.round(Math.random() * (max - min) + min);
   }
@@ -614,30 +721,47 @@ var Tiles = (function () {
   var cssStylesCreated = {};
 
   function addCssStyle(it) {
-    if (!it.width) it.width = 64;
-    if (!it.height) it.height = 64;
+    if (!it.width) it.width = Config.legacyTileSize;
+    if (!it.height) it.height = Config.legacyTileSize;
 
     if (!cssStylesCreated[it.hash]) {
-      // using technique from here https://www.sitepoint.com/css3-transform-background-image/
-      createCSSSelector(".tile" + it.hash, 
-        "width: " + it.width + "px; height: " + it.height + "px;");
-      createCSSSelector(".tile" + it.hash + ".rotate90, " + ".tile" + it.hash + ".rotate270",
-        "width: " + it.height + "px; height: " + it.width + "px;");
+      if (it.empty) {
+        createCSSSelector(".tile" + it.hash, 
+          "width: " + it.width + "px; height: " + it.height + "px; background-color: white;");
+        createCSSSelector(".tile" + it.hash + ".rotate90, " + ".tile" + it.hash + ".rotate270",
+          "width: " + it.height + "px; height: " + it.width + "px;");
+      } else {
+        // using technique from here https://www.sitepoint.com/css3-transform-background-image/
+        createCSSSelector(".tile" + it.hash, 
+          "width: " + it.width + "px; height: " + it.height + "px;");
+        createCSSSelector(".tile" + it.hash + ".rotate90, " + ".tile" + it.hash + ".rotate270",
+          "width: " + it.height + "px; height: " + it.width + "px;");
 
-      createCSSSelector(".tile" + it.hash + ":before",
-        "border: 1px solid black; content: ''; position: absolute; z-index: 900; background-image: url('" + it.uri + "'); width: " + it.width + "px; height: " + it.height + "px;");
+        createCSSSelector(".tile" + it.hash + ":before",
+          "border: 1px solid black; content: ''; position: absolute; z-index: 900; background-image: url('" + it.uri + "'); width: " + it.width + "px; height: " + it.height + "px;");
 
-      createCSSSelector(".tile" + it.hash + ".rotate90:before",
-        "top: -" + it.height + "px; transform-origin: bottom left;");
+        createCSSSelector(".tile" + it.hash + ".rotate90:before",
+          "top: -" + it.height + "px; transform-origin: bottom left;");
 
-      createCSSSelector(".tile" + it.hash + ".rotate270:before",
-        "top: " + it.width + "px; transform-origin: top left;");
+        createCSSSelector(".tile" + it.hash + ".rotate270:before",
+          "top: " + it.width + "px; transform-origin: top left;");
+      }
     }
     cssStylesCreated[it.hash] = true;
   }
 
   function newTiles(tiles) {
     saveFirst();
+
+    if (tiles.filter(it => it.empty).length === 0) {
+      tiles.push({
+        empty: true,
+        name: "empty",
+        hash: "empty",
+        width: 64,
+        height: 64
+      })
+    }
     
     tiles.forEach(addCssStyle);
 
@@ -685,4 +809,14 @@ function $(id) {
   }
 
   return id;
+}
+
+function addClass(e, className) {
+  var classes = e.className.trim().split(/\s+/).filter(function (it) { return it != className; });
+  classes.push(className);
+  e.className = classes.join(" ");
+}
+
+function removeClass(e, className) {
+  e.className = e.className.trim().split(/\s+/).filter(function (it) { return it != className; }).join(" ");
 }

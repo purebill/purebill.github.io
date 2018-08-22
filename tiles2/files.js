@@ -32,13 +32,9 @@ var Files = (function () {
 
     Promise.all(dataUris).then(function (uris) {
       ev.dataTransfer.items.clear();
-      if (Tiles.isEmpty() || !confirm("Добавить к существующим?")) {
-        Tiles.newTiles(uris);
-      } else {
-        Tiles.addTiles(uris);
-      }
+
       Message.hide();
-      ev.dataTransfer.items.clear();
+      TilesEditor.edit(uris);
     });
   };
 
@@ -57,36 +53,21 @@ var Files = (function () {
       var converter = new FileReader();
       converter.onload = function(e) {
         var dataUri = e.target.result;
-        downscale(file, dataUri).then(resolve);
+        fillSize(file, dataUri).then(resolve);
       };
       converter.readAsDataURL(file);
     });
   }
 
-  const maxSize = 64;
-
-  function downscale(file, dataUri) {
+  function fillSize(file, dataUri) {
     return new Promise(function (resolve) {
       var img = new Image;
       img.onload = function() {
-        const w = img.naturalWidth;
-        const h = img.naturalHeight;
-        var c = document.createElement("canvas");
-        if (w >= h) {
-          c.width = maxSize;
-          c.height = Math.round(h/w * maxSize);
-        } else {
-          c.width = Math.round(w/h * maxSize);
-          c.height = maxSize;
-        }
-        var ctx = c.getContext("2d");
-
-        ctx.drawImage(this, 0, 0, c.width, c.height);
         resolve({
           name: file.name,
-          width: c.width,
-          height: c.height,
-          uri: c.toDataURL("image/jpeg", 0.90),
+          width: img.naturalWidth,
+          height: img.naturalHeight,
+          uri: dataUri,
           hash: sha256.hex(dataUri)
         });
       };
@@ -95,6 +76,6 @@ var Files = (function () {
   }
 
   return {
-    toDataUri: toDataUri
+    toDataUri
   }
 }) ();

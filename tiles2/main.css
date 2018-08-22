@@ -1,5 +1,5 @@
 .tiles {
-  width: 100px;
+  width: 160px;
   height: 800px;
   position: absolute;
   overflow: auto;
@@ -10,8 +10,26 @@
   border: 2px solid #ff0000;
   margin: 0;
 }
+
+.tiles .delete {
+  background-color: black;
+  color: white;
+  position: absolute;
+  z-index: 10000;
+  display: none;
+}
+.tiles .delete:hover {
+  background-color: red;
+  color: white;
+  cursor: pointer;
+}
+
+.tiles div:hover .delete {
+  display: inline;
+}
+
 #main {
-  margin-left: 100px;
+  margin-left: 160px;
   width: 1000px;
   overflow: auto;
   height: 800px;
@@ -38,6 +56,47 @@
   display: inline-block;
 }
 
+.container div:hover {
+  outline: 2px solid black;
+}
+
+.container div .add {
+  line-height: 100%;
+  background-color: black;
+  color: white;
+  position: absolute;
+  z-index: 10000;
+  display: none;
+}
+.container div:hover .add {
+  display: inline;
+}
+.container div .add:hover {
+  background-color: red;
+  color: white;
+  cursor: pointer;
+}
+.container div .add.add-right {
+  right: 0;
+  top: 50%;
+}
+.container div .add.add-left {
+  left: 0;
+  top: 50%;
+}
+.container div .add.add-below {
+  left: 50%;
+  bottom: 0;
+}
+
+.container div:before, .tiles div:before,  #calculations div:before {
+  background-size: contain;
+}
+
+.tiles div {
+  display: block;
+}
+
 .tiles {
   background-color: gray;
 }
@@ -45,12 +104,6 @@
 .tiles div {
   border: 1px solid black;
   padding: 1px;
-}
-
-.tileempty {
-  background-color: white;
-  width: 64px;
-  height: 64px;
 }
 
 .container div:before {
@@ -67,7 +120,7 @@
 }
 
 .controls {
-  margin-left: 100px;
+  margin-left: 160px;
 }
 
 .controls input {
@@ -119,6 +172,8 @@
   font-weight: bold;
   background-color: black;
   padding: 3px;
+  position: absolute;
+  z-index: 30000;
 }
 
 #calculations div:nth-of-type(4n+1) {
@@ -137,4 +192,35 @@
   vertical-align: middle;
   line-height: 300px;
   z-index: 1000;
+}
+
+#tilesEditor {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  display: none;
+  background-color: white;
+  z-index: 1000;
+}
+
+#tilesEditorTiles div {
+  display: inline-block;
+  margin-right: 10px;
+  border: 1px solid #cccccc;
+}
+
+#tilesEditorTiles label {
+  display: table;
+  padding: 10px;
+  margin: 10px;
+  border-bottom: 1px solid #cccccc;
+}
+
+#tilesEditorControls {
+  display: block;
+  clear: both;
+  margin: 10px;
+  padding: 10px;
 }

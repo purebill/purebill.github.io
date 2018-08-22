@@ -5,12 +5,19 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Плиткач</title>
     <link rel="stylesheet" type="text/css" href="reset.css" />
-    <link rel="stylesheet" type="text/css" href="main.css?v=10" />
+    <link rel="stylesheet" type="text/css" href="main.css?v=12" />
     <link rel="stylesheet" type="text/css" href="print.css?v=6" />
   </head>
 
 <body>
   <div id="calculations"></div>
+  <div id="tilesEditor">
+    <div id="tilesEditorTiles"></div>
+    <div id="tilesEditorControls">
+      <button id="saveTiles">Сохранить</button>
+      <button id="cancelTiles">Отмена</button>
+    </div>
+  </div>
 
   <div class="controls" id="controls">
     <input type="text" value="5" id="N">
@@ -58,6 +65,7 @@
   </div>
 </body>
 
+<script src="config.js?v2"></script>
 <script src="error-reporter.js?v=1"></script>
 <script src="file-saver.js"></script>
 <script src="sha256.js"></script>
@@ -69,7 +77,8 @@
 <script src="undo.js?v=5"></script>
 <script src="bootstrap.js?v=6"></script>
 <script src="version.js?v=6"></script>
-<script src="save-as-file.js?v=1"></script>
-<script src="main.js?v=16"></script>
-<script src="files.js?v=8"></script>
+<script src="save-as-file.js?v=2"></script>
+<script src="main.js?v=17"></script>
+<script src="tiles-editor.js?v=1"></script>
+<script src="files.js?v=9"></script>
 </html>
