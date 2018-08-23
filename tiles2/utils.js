@@ -2,6 +2,10 @@ function $(id) {
   if (typeof id === "string") {
     return document.getElementById(id);
   }
+
+  if (typeof id === "function") {
+    return window.addEventListener("load", id);
+  }
   
   if (id instanceof HTMLCollection) {
     var a = [];

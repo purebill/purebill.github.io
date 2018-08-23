@@ -3,16 +3,6 @@
 var Tiles = (function () {
   var prefix = "#tilesman#";
 
-  // one time localStorage migration
-  if (!localStorage['tilesman-version']) {
-    Object.keys(localStorage).forEach(function (key) {
-      localStorage[prefix + key] = localStorage[key];
-    });
-    Version.get().then(function (version) {
-      localStorage['tilesman-version'] = version;
-    })
-  }
-  
   Version.get().then(function (version) {
     $("version").innerHTML = "v" + version;
   });
@@ -29,6 +19,7 @@ var Tiles = (function () {
     saveFirst();
     create(parseInt($("N").value), parseInt($("M").value), cells);
     loaded("");
+    State.add("");
     currentVersion = 0;
     Undo.reset();
   }
@@ -75,8 +66,7 @@ var Tiles = (function () {
       }).catch(nop);
       Firebase.saveVersion(name, JSON.stringify(state.version)).catch(nop);
 
-      window.location.hash = "#" + name;
-      changed = false;
+      loaded(name);
       loadStates();
     }
   }
@@ -84,6 +74,7 @@ var Tiles = (function () {
   $("saved").onchange = function () {
     if (this.value != "") {
       load(this.value);
+      State.add(this.value);
     }
   }
 
@@ -107,6 +98,8 @@ var Tiles = (function () {
           loaded(key);
         });
       });
+    } else {
+      Message.hide();
     }
   }
 
@@ -115,24 +108,28 @@ var Tiles = (function () {
       return Firebase.load(key);
     }
 
-    var cells = JSON.parse(localStorage[prefix + key]);
-    var localVersion = cells.version || 0;
-    
-    return Firebase.loadVersion(key).then(function (remoteVersion) {
-      if (remoteVersion > localVersion) {
-        return Firebase.load(key); 
-      } else {
-        return Promise.resolve(cells);
-      }
-    });
+    try {
+      var cells = JSON.parse(localStorage[prefix + key]);
+      var localVersion = cells.version || 0;
+      
+      return Firebase.loadVersion(key).then(function (remoteVersion) {
+        if (remoteVersion > localVersion) {
+          return Firebase.load(key); 
+        } else {
+          return Promise.resolve(cells);
+        }
+      });
+    } catch (e) {
+      console.error(e);
+    }
   }
 
   function loaded(name) {
     currentName = name;
     changed = false;
-    window.location.hash = "#" + name;
     $("saved").selectedIndex = 0;
     Message.hide();
+    window.document.title = "Плиткач :: " + name;
   }
 
   $("undo").onclick = Undo.undo;
@@ -221,24 +218,39 @@ var Tiles = (function () {
     ["main", "controls", "tiles"].forEach(function (it) { $(it).style.display = "block"; });
   };
 
-  Uid.uid().then(function (uid) {
-    $("uid").value = uid;
+  State.init(hash => {
+    let uidPrefix = "uid/";
+    if (hash.startsWith(uidPrefix)) {
+      Uid.set(hash.substr(uidPrefix.length));
+      State.replace("");
+      loadStates();
+      return;
+    }
+
+    if (hash.length > 0) {
+      load(hash);
+    }
+  });
+
+  Uid.uid().then(function () {
+    // as soon as the uid is available, allow to copy it
     $("copyUid").disabled = false;
   });
 
   $("copyUid").onclick = function () {
-    Clipboard.copy($("uid").value);
-  }
-
-  $("newUid").onclick = function () {
-    var newUid = prompt("Новый идентификатор");
-    if (newUid != null) {
-      Uid.set(newUid);
-      $("uid").value = newUid;
-      loadStates();
-      loaded("");
-    }
-  }
+    Uid.uid().then(function (uid) {
+      let l = window.location;
+      $("uidUrl").value = l.protocol + "//" + l.host + l.pathname + "#uid/" + uid;
+      $("copyUidForm").style.display = "table-cell";
+    });
+  };
+  $("copyUidUrl").onclick = function () {
+    Clipboard.copy($("uidUrl").value);
+    $("copyUidForm").style.display = "none";
+  };
+  $("copyUidUrlClose").onclick = function () {
+    $("copyUidForm").style.display = "none";
+  };
 
   // every action should set 'changed' as the model staus and reset it to the previous value on undo
   let originalDo = Undo.do;
@@ -281,12 +293,12 @@ var Tiles = (function () {
   window.onbeforeunload = function (e) {
     var message = "Не сохранено. Всё равно уйти?";
 
-    if (!changed) message = null;
+    if (!changed) return;//message = undefined;
 
     e = e || window.event;
     if (e) {
       e.preventDefault();
-      if (message != null) {
+      if (message !== undefined) {
         e.returnValue = message;
       }
     }
@@ -300,15 +312,20 @@ var Tiles = (function () {
   var currentVersion = 0;
   var changed = false;
   var currentTiles;
+  var wall;
 
-  onResize();
-  loadStates().then(function () {
-    if (window.location.hash != "") {
-      load(decodeURIComponent(window.location.hash).substr(1));
-    } else {
-      Message.show("Перетяните сюда изображения плитки или загрузите сохранённый дизайн.");
-    }
+  $(() => {
+    onResize();
+    loadStates().then(function () {
+      let name = State.get();
+      if (name) {
+        load(name);
+      } else {
+        Message.show("Перетяните сюда изображения плитки или загрузите сохранённый дизайн.");
+      }
+    });      
   });
+
   disableControls();
 
   function disableControls() {
@@ -410,8 +427,6 @@ var Tiles = (function () {
     $("newEmpty").disabled = false;
   }
 
-  var wall;
-
   function create(N, M, cells) {
     changed = !cells;
 
@@ -484,8 +499,8 @@ var Tiles = (function () {
 
     addHoverLink(div, "add-right", "→", "Добавить столбец справа", addColRightAction);
     addHoverLink(div, "add-below", "↓", "Добавить строку снизу", addRowBelowAction);
-    addHoverLink(div, "remove-row", "X", "Удалить строку", removeRowAction);
-    addHoverLink(div, "remove-col", "X", "Удалить столбец", removeColAction);
+    addHoverLink(div, "remove-row", "X", "Удалить эту строку", removeRowAction);
+    addHoverLink(div, "remove-col", "X", "Удалить этот столбец", removeColAction);
 
     return div;
   }
@@ -831,4 +846,3 @@ var Tiles = (function () {
     addTiles: addTiles
   };
 }) ();
-

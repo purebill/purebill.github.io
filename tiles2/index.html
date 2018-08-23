@@ -17,8 +17,8 @@
     <div id="tilesEditorControls">
       <label ="tilesEditorTileSize">Масштаб: <input type="range" id="tilesEditorTileSize" class="noselection"></label>
       <div>
-        <button id="saveTiles">Сохранить</button>
-        <button id="cancelTiles">Отмена</button>
+        <button id="saveTiles">ОК</button>
+        <button id="cancelTiles">Закрыть</button>
       </div>
     </div>
   </div>
@@ -51,9 +51,16 @@
     </div>
 
     <span></span>
-    <button id="copyUid" disabled title="Скопировать идентификатор в буфер обмена">&#x1F63C;</button>
-    <input type="text" id="uid" readonly style="display: none">
-    <button id="newUid" title="Ввести новый идентификатор">&#128100;</button>
+    <button id="copyUid" disabled title="Войти под собой на другом компьютере\браузере">&#128100;</button>
+    <div id="copyUidForm">
+      <p><strong>Любой</strong>, у кого есть эта ссылка, может видеть и менять твои дизайны.<br />
+      Не публикуй её ни в каких общедоступных местах.</p>
+      <div>
+        <input type="text" id="uidUrl" readonly>
+      </div>
+      <button id="copyUidUrl">Скопировать</button>
+      <button id="copyUidUrlClose">Закрыть</button>
+    </div>
 
     <span></span>
     <label id="version"></label>
@@ -72,6 +79,7 @@
 <script src="utils.js?v1"></script>
 <script src="config.js?v2"></script>
 <script src="error-reporter.js?v=1"></script>
+<script src="state.js?v1"></script>
 <script src="events-to-css-classes.js?v1"></script>
 <script src="file-saver.js"></script>
 <script src="sha256.js"></script>

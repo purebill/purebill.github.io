@@ -129,6 +129,7 @@
 }
 
 .controls {
+  position: relative;
   margin-left: 160px;
 }
 
@@ -160,6 +161,30 @@
 .controls #selectToCalculate button {
   margin-top: 20px;
   margin-left: 15px;
+}
+
+.controls #copyUidForm {
+  position: absolute;
+  display: none;
+  left: 500px;
+  z-index: 4000;
+  padding: 10px;
+  border: 1px solid black;
+  background-color: white;
+}
+.controls #copyUidForm input {
+  width: 100%;
+  box-sizing: border-box;
+}
+.controls #copyUidForm p {
+  margin: 10px 0;
+}
+.controls #copyUidForm strong {
+  font-weight: bold;
+}
+.controls #copyUidForm button {
+  margin-top: 20px;
+  margin-right: 15px;
 }
 
 #calculations {
