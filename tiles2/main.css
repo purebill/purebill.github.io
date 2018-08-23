@@ -60,29 +60,42 @@
   outline: 2px solid black;
 }
 
-.container div .add {
+.container div .hover {
   line-height: 100%;
   background-color: black;
   color: white;
   position: absolute;
   z-index: 10000;
   display: none;
+  padding: 3px;
 }
-.container div:hover .add {
+.keyboard-17-pressed #main div:hover:before {
+  background-image: none !important;
+  background-color: white !important;
+}
+.keyboard-17-pressed .container div:hover .hover {
   display: inline;
 }
-.container div .add:hover {
+.container div .hover:hover {
   background-color: red;
   color: white;
   cursor: pointer;
 }
-.container div .add.add-right {
+.container div .add-right {
   right: 0;
   top: 50%;
 }
-.container div .add.add-below {
+.container div .add-below {
   left: 50%;
   bottom: 0;
+}
+.container div .remove-row {
+  left: 50%;
+  top: 0;
+}
+.container div .remove-col {
+  left: 0;
+  top: 59%;
 }
 
 .container div:before, .tiles div:before,  #calculations div:before {

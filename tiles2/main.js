@@ -240,6 +240,22 @@ var Tiles = (function () {
     }
   }
 
+  // every action should set 'changed' as the model staus and reset it to the previous value on undo
+  let originalDo = Undo.do;
+  Undo.do = (o) => {
+    var oldChanged = changed;
+    return originalDo({
+      do: () => {
+        changed = true;
+        o.do();
+      },
+      undo: () => {
+        o.undo();
+        changed = oldChanged;
+      }
+    });
+  };
+
   Undo.onChange(updateUndo);
   updateUndo();
 
@@ -283,6 +299,7 @@ var Tiles = (function () {
   var currentName;
   var currentVersion = 0;
   var changed = false;
+  var currentTiles;
 
   onResize();
   loadStates().then(function () {
@@ -424,7 +441,7 @@ var Tiles = (function () {
           angle = cells[row][col].angle;
         }
 
-        let div = createCellDiv(idx, angle, row, col);
+        let div = createCellDiv(idx, angle);
 
         span.appendChild(div);
 
@@ -436,7 +453,7 @@ var Tiles = (function () {
     if (N > 0) enableControls();
   }
 
-  function createCellDiv(idx, angle, rowIdx, colIdx) {
+  function createCellDiv(idx, angle) {
     var div = document.createElement("div");
     div.idx = idx;
     div.angle = angle;
@@ -453,37 +470,83 @@ var Tiles = (function () {
     div.onclick = function (e) {
       e.preventDefault();
 
+      let {rowIdx, colIdx} = findDiv(this);
+
       if (!selectedIdx || selectedIdx == this.idx) {
-        Undo.do(rotateAction(this));
+        Undo.do(rotateAction(rowIdx, colIdx));
         return;
       }
       
       if (selectedIdx) {
-        Undo.do(changeAction(this));
+        Undo.do(changeAction(rowIdx, colIdx));
       }
     };
 
-    let addRightLink = document.createElement("a");
-    addRightLink.innerHTML = "→";
-    addRightLink.className = "add add-right";
-    addRightLink.title = "Добавить столбец справа";
-    addRightLink.onclick = e => {
-      e.stopPropagation();
-      Undo.do(addColRightAction(div));
-    };
-    div.appendChild(addRightLink);
-
-    let addBottomLink = document.createElement("a");
-    addBottomLink.innerHTML = "↓";
-    addBottomLink.className = "add add-below";
-    addBottomLink.title = "Добавить строку снизу";
-    addBottomLink.onclick = e => {
-      e.stopPropagation();
-      Undo.do(addRowBelowAction(div));
-    };
-    div.appendChild(addBottomLink);
+    addHoverLink(div, "add-right", "→", "Добавить столбец справа", addColRightAction);
+    addHoverLink(div, "add-below", "↓", "Добавить строку снизу", addRowBelowAction);
+    addHoverLink(div, "remove-row", "X", "Удалить строку", removeRowAction);
+    addHoverLink(div, "remove-col", "X", "Удалить столбец", removeColAction);
 
     return div;
+  }
+
+  function addHoverLink(div, className, text, title, action) {
+    let hoverAction = document.createElement("a");
+    hoverAction.innerHTML = text;
+    hoverAction.className = "hover " + className;
+    hoverAction.title = title;
+    hoverAction.onclick = e => {
+      e.stopPropagation();
+      Undo.do(action(div));
+    };
+    div.appendChild(hoverAction);
+  }
+
+  function removeColAction(div) {
+    let {_, colIdx} = findDiv(div);
+    let oldCol;
+    return {
+      do: () => {
+        oldCol = [];
+        for (let i = 0; i < wall.length; i++) {
+          let row = wall[i];
+          let div = row[colIdx];
+          row.splice(colIdx, 1);
+          oldCol.push(div);
+          div.parentElement.removeChild(div);
+        }
+      },
+      undo: () => {
+        for (let rowIdx = 0; rowIdx < wall.length; rowIdx++) {
+          let newDiv = oldCol[rowIdx];
+          // let newDiv = createCellDiv(oldDiv.idx, oldDiv.angle);
+          let row = wall[rowIdx];
+          let span = row[0].parentElement;
+          span.insertBefore(newDiv, colIdx == row.length ? null : row[colIdx]);
+          row.splice(colIdx, 0, newDiv);
+        }
+      }
+    };
+  }
+
+  function removeRowAction(div) {
+    let {rowIdx, } = findDiv(div);
+    let oldRow;
+    return {
+      do: () => {
+        let span = wall[rowIdx][0].parentElement;
+        oldRow = wall.splice(rowIdx, 1)[0];
+        span.parentElement.removeChild(span);
+      },
+      undo: () => {
+        let span = document.createElement("span");
+        let newRow = oldRow;//oldRow.map(div => createCellDiv(div.idx, div.angle));
+        newRow.forEach(div => span.appendChild(div));
+        let rowSpan = rowIdx < wall.length ? wall[rowIdx][0].parentElement : null;
+        wall[0][0].parentElement.parentElement.insertBefore(span, rowSpan);
+        wall.splice(rowIdx, 0, newRow);
+      }
+    };
   }
 
   function addRowBelowAction(div) {
@@ -491,17 +554,16 @@ var Tiles = (function () {
     return {
       do: () => {
         let span = document.createElement("span");
-        let newRow = wall[rowIdx].map((div, colIdx) => {
-          let newDiv = createCellDiv(div.idx, div.angle, rowIdx, colIdx);
-          span.appendChild(newDiv);
-          return newDiv;
-        });
+        let newRow = wall[rowIdx].map(div => createCellDiv(div.idx, div.angle));
+        newRow.forEach(div => span.appendChild(div));
         let rowSpan = wall[rowIdx][0].parentElement;
         rowSpan.parentElement.insertBefore(span, rowSpan.nextSibling);
         wall.splice(rowIdx, 0, newRow);
       },
       undo: () => {
-
+        let span = wall[rowIdx + 1][0].parentElement;
+        span.parentElement.removeChild(span);
+        wall.splice(rowIdx + 1, 1);
       }
     };
   }
@@ -514,7 +576,7 @@ var Tiles = (function () {
         for (let rowIdx = 0; rowIdx < wall.length; rowIdx++) {
           let row = wall[rowIdx];
           let div = row[colIdx];
-          let newDiv = createCellDiv(div.idx, div.angle, rowIdx, colIdx + 1);
+          let newDiv = createCellDiv(div.idx, div.angle);
           div.parentElement.insertBefore(newDiv, colIdx == row.length - 1 ? null : row[colIdx + 1]);
           row.splice(colIdx + 1, 0, newDiv);
         }
@@ -542,37 +604,28 @@ var Tiles = (function () {
     throw new Error("Can't find div", div);
   }
 
-  function rotateAction(e) {
-    var oldChanged = changed;
-
+  function rotateAction(rowIdx, colIdx) {
     return {
-      do: function () {
-        rotate(e);
-        changed = true;
-      },
-      undo: function () {
-        unrotate(e);
-        changed = oldChanged;
-      }
+      do: () => rotate(rowIdx, colIdx),
+      undo: () => unrotate(rowIdx, colIdx)
     };
   }
 
-  function changeAction(e) {
-    var oldChanged = changed;
-    var oldIdx = e.idx;
+  function changeAction(rowIdx, colIdx) {
+    var oldIdx = wall[rowIdx][colIdx].idx;
     
     return {
       do: function () {
+        let e = wall[rowIdx][colIdx];
         removeClass(e, "tile" + e.idx);
         e.idx = selectedIdx;
         addClass(e, "tile" + e.idx);
-        changed = true;
       },
       undo: function () {
+        let e = wall[rowIdx][colIdx];
         removeClass(e, "tile" + e.idx);
         e.idx = oldIdx;
         addClass(e, "tile" + e.idx);
-        changed = oldChanged;
       }
     };
   }
@@ -682,13 +735,15 @@ var Tiles = (function () {
     addClass(e, "selected");
   }
 
-  function rotate(e) {
+  function rotate(rowIdx, colIdx) {
+    let e = wall[rowIdx][colIdx];
     removeClass(e, "rotate" + e.angle);
     e.angle = (e.angle + 90) % 360;
     addClass(e, "rotate" + e.angle);
   }
 
-  function unrotate(e) {
+  function unrotate(rowIdx, colIdx) {
+    let e = wall[rowIdx][colIdx];
     removeClass(e, "rotate" + e.angle);
     e.angle = (e.angle + 270) % 360;
     addClass(e, "rotate" + e.angle);
@@ -698,7 +753,6 @@ var Tiles = (function () {
     return Math.round(Math.random() * (max - min) + min);
   }
 
-  var currentTiles;
   var cssStylesCreated = {};
 
   function addCssStyle(it) {
