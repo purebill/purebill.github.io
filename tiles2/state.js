@@ -28,7 +28,7 @@ var State = (function () {
   }
 
   function get() {
-    return history.state.hash;
+    return history.state ? history.state.hash : null;
   }
 
   return {
