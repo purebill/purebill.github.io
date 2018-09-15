@@ -4,13 +4,14 @@ function Metrics(name) {
 	let totalTries = 0;
 	let tries = 0;
 	let lastTime = System.currentTimeMillis();
-	let lastSpeed = 0;
+  let lastSpeed = 0;
+  let startTime = lastTime;
 
 	return {
 		reset: function () {
 			totalTries = 0;
 			tries = 0;
-			lastTime = System.currentTimeMillis();
+			lastTime = startTime = System.currentTimeMillis();
 			lastSpeed = 0;
 		},
 		tick: function () {
@@ -20,14 +21,20 @@ function Metrics(name) {
 			if (totalTries % 1000 == 0) {
 				let currentTime = System.currentTimeMillis();
 				let currentSpeed = tries / (currentTime - lastTime) * 1000;
-				let avgSpeed = (lastSpeed + currentSpeed) / 2;
+				let avgSpeed = (9*lastSpeed + currentSpeed) / 10;
 				lastSpeed = avgSpeed;
 				System.out.print(name + ": " + totalTries + ". " + Math.round(avgSpeed) + " " + name + "/sec.                                       \r");
 
 				lastTime = System.currentTimeMillis();
 				tries = 0;
 			}
-		}
+    },
+    total: function () {
+      let currentTime = System.currentTimeMillis();
+      let seconds = (currentTime - startTime) / 1000;
+      let avgSpeed = Math.round(totalTries / seconds);
+      print(name + ": " + totalTries + " in " + Math.round(seconds) + " seconds. " + avgSpeed + " " + name + "/sec.                                       ");
+    }
 	};
 }
 
@@ -95,10 +102,10 @@ function findExpr(digits, EXPECTED, OPS) {
 
 function findExpr2(digits, EXPECTED, OPS) {
 	let found = new Map();
-	let exprMetrics = Metrics("tries");
-	let badExprMetrics = Metrics("errors");
+  let exprMetrics = Metrics("tries");
 
-	trySpaces(digits, new Map());
+  trySpaces(digits, new Map());
+  exprMetrics.total();
 	// let expr = [1, 2, '*', 3, 45, '/', '/']; print(toInfix(expr), evalPostfix(expr));
 
 	function trySpaces(digits, spaces) {
@@ -116,11 +123,14 @@ function findExpr2(digits, EXPECTED, OPS) {
 	function tryOps(numbers, opsMap, opsCount) {
 		if (opsCount > numbers.length - 1) return;
 
-		if (opsCount == numbers.length - 1) evalAndCheck(numbers, opsMap);
+		if (opsCount == numbers.length - 1) {
+      evalAndCheck(numbers, opsMap);
+      return;
+    }
 
-		for (let idx = numbers.length; idx > 1; idx--) {
+		for (let idx = numbers.length; idx > 0; idx--) {
 			for (let i = 0; i < OPS.length; i++) {
-				let op = OPS[i];		
+				let op = OPS[i];
 			
 				opsMap.has(idx) ? opsMap.get(idx).push(op) : opsMap.set(idx, [op]);
 				tryOps(numbers, opsMap, opsCount + 1);
@@ -139,29 +149,17 @@ function findExpr2(digits, EXPECTED, OPS) {
 		try {
 			exprMetrics.tick();
 
-			// let res = eval(toInfix(expr));
+      // let res = eval(toInfix(expr));
 			let res = evalPostfix(expr);
 
-			/*let res2;
-			try {
-				res2 = evalPostfix(expr);
-			} catch (e) {
-				print("ERROR", expr, res, res2);
-			}
-			if (res !== res2) {
-				print("NO MATCH", expr, typeof(res), res, typeof(res2), res2);
-				exit();
-			}*/
-
 			if (res == EXPECTED) {
-				let exprStr = toInfix(expr);
+				let exprStr = simplify(toInfix(expr));
 				if (!found.has(exprStr)) {
 					found.set(exprStr, true);
 					print(exprStr + " = " + EXPECTED + "                                                                            ");
 				}
 			}
 		} catch (e) {
-			//badExprMetrics.tick();
 		}
 	}	
 
@@ -171,7 +169,7 @@ function findExpr2(digits, EXPECTED, OPS) {
 			if (spaces.has(i)) expr += ' ';
 			expr += digits[i];
 		}
-		
+    
 		let numbers = expr.split(' ').map(function (it) {return parseInt(it); });
 		return numbers;
 	}
@@ -235,13 +233,17 @@ function findExpr2(digits, EXPECTED, OPS) {
 		}
 
 		let s = stack.pop();
-		if (stack.length > 0) throw "bad";
+    if (stack.length > 0) throw "bad";    
 		return s;
-	}
+  }
+  
+  function simplify(expr) {
+    return expr.replace(/(^\()|(\)$)/g, "");
+  }
 }
 
-// findExpr2([8, 8, 8, 8, 8, 8, 8, 8], 1000, ['+', '-', '*', '/']);
-findExpr2([1, 2, 3, 4, 5], 40, ['+', '-', '*', '/']);
+findExpr2([8, 8, 8, 8, 8, 8, 8, 8], 1000, ['+', '-', '*', '/']);
+// findExpr2([1, 2, 3, 4, 5], 40, ['+', '-', '*', '/']);
 
 //findExpr([1, 1, 1, 1, 1, 1, 1, 1], 999, ['+', '-', '*', '/']);
 
