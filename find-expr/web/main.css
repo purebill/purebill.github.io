@@ -1,0 +1,9 @@
+.spinner {
+  display: none;
+}
+.running .spinner {
+  display: block;
+}
+.spinner::before {
+  content: "In Progress...";
+}
