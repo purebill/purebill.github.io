@@ -33,6 +33,7 @@ function findExpr2(digits, EXPECTED, OPS) {
       document.body.classList.remove("running");
       print("Done in " + (new Date().getTime() - startTimeMs) / 1000.0 + "s");
       $("run").disabled = false;
+      $("stop").disabled = true;
     }
   }, 500);
 

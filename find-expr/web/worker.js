@@ -20,7 +20,10 @@ function calculate(numbers, EXPECTED, OPS) {
       return;
     }
 
-    for (let idx = numbers.length; idx > 0; idx--) {
+    for (let idx = 1; idx < numbers.length; idx++) {
+      let numbersCount = idx + 1;
+      if (numbersCount <= opsCount + 1) continue;
+
       for (let i = 0; i < OPS.length; i++) {
         let op = OPS[i];
       
@@ -35,7 +38,12 @@ function calculate(numbers, EXPECTED, OPS) {
     let expr = [];
     for (let i = 0; i < numbers.length; i++) {
       expr.push(numbers[i]);
-      if (opsMap.has(i)) opsMap.get(i).forEach(function (it) {expr.push(it);} );
+      if (opsMap.has(i)) {
+        let ops = opsMap.get(i);
+        for (let j = 0; j < ops.length; j++) {
+          expr.push(ops[j]);
+        }
+      }
     }
 
     let res = evalPostfix(expr);
@@ -120,8 +128,34 @@ function calculate(numbers, EXPECTED, OPS) {
     return s;
   }
 
-  function simplify(expr) {
-    return expr.replace(/(^\()|(\)$)/g, "");
+  function simplify(initialExpr) {
+    let expr = initialExpr.replace(/(^\()|(\)$)/g, "");
+
+    do {
+      prevExpr = expr;
+
+      // (a ? b) +/- (c ^- d) === a ? b +/- c ^- d
+      expr = expr.replace(/\(([^()]+)\)(\+|-)\(([^()-]+)\)/, "$1$2$3");
+      expr = expr.replace(/-\(([^()]+)\)/, function(match, p1) {
+        return "-" + p1.replace(/-|\+/, function(match) { return match  == '-' ? '+' : '-'; });
+      });
+
+      // (a+b)+-c === a+b+-c
+      // (a*b)+-c === a*b+-c
+      // (a/b)+-c === a/b+-c
+      // (a-b)+-c === a-b+-c
+      expr = expr.replace(/\(([^()]+)\)(\+|-[^()]+)/, "$1$2");
+      expr = expr.replace(/([^()]+)\+\(([^()]+)\)/, "$1+$2");
+      expr = expr.replace(/([^()]+)-\(([^()-]+)\)/, "$1-$2");
+
+      // (...)*+-(a*/b) === (...)*+-a*/b
+      expr  = expr.replace(/(\)|\d)(\*|\+|-)\(([0-9*/]+)\)/, "$1$2$3");
+      // (a*/b)*+-(...) === a*/b*+-(...)
+      expr  = expr.replace(/\(([0-9*/]+)\)(\*|\+|-)(\(|\d)/, "$1$2$3");
+
+    } while (prevExpr != expr);
+
+    return expr;
   }
 }
 

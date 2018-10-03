@@ -18,7 +18,7 @@ function Metrics(name) {
       tries += n;
       totalTries += n;
 
-      if (totalTries % 1000 == 0) {
+      if (totalTries % 10000 == 0) {
         let currentTime = System.currentTimeMillis();
         let currentSpeed = tries / (currentTime - lastTime) * 1000;
         let avgSpeed = (lastSpeed + currentSpeed) / 2;
@@ -59,6 +59,8 @@ if (typeof Map === "undefined") {
 }
 
 function findExpr2(digits, EXPECTED, OPS) {
+  print("Finding: [" + digits + "], " + EXPECTED + ", [" + OPS + "]");
+
   let found = new Map();
   let foundIdx = 1;
   let exprMetrics = Metrics("tries");
@@ -86,7 +88,10 @@ function findExpr2(digits, EXPECTED, OPS) {
       return;
     }
 
-    for (let idx = numbers.length; idx > 0; idx--) {
+    for (let idx = 1; idx < numbers.length; idx++) {
+      let numbersCount = idx + 1;
+      if (numbersCount <= opsCount + 1) continue;
+
       for (let i = 0; i < OPS.length; i++) {
         let op = OPS[i];
       
@@ -101,7 +106,12 @@ function findExpr2(digits, EXPECTED, OPS) {
     let expr = [];
     for (let i = 0; i < numbers.length; i++) {
       expr.push(numbers[i]);
-      if (opsMap.has(i)) opsMap.get(i).forEach(function (it) {expr.push(it);} );
+      if (opsMap.has(i)) {
+        let ops = opsMap.get(i);
+        for (let j = 0; j < ops.length; j++) {
+          expr.push(ops[j]);
+        }
+      }
     }
 
     exprMetrics.tick(1);
@@ -113,7 +123,8 @@ function findExpr2(digits, EXPECTED, OPS) {
       let exprStr = simplify(toInfix(expr, true));
       if (!found.has(exprStr)) {
         found.set(exprStr, foundIdx);
-        print(foundIdx + ". " + simplify(toInfix(expr, false)) + " = " + EXPECTED + "                                                                            ");
+        print(foundIdx + ". " + simplify(toInfix(expr, false)) + " = " + EXPECTED
+          + "                                                                            ");
         foundIdx++;
       }
     }
@@ -173,7 +184,10 @@ function findExpr2(digits, EXPECTED, OPS) {
     }
 
     let s = stack.pop();
-    if (stack.length > 0) return NaN;
+    if (stack.length > 0) {
+      print("ERROR: " + expr);
+      return NaN;
+    }
     return s;
   }
 
@@ -197,7 +211,10 @@ function findExpr2(digits, EXPECTED, OPS) {
     }
 
     let s = stack.pop();
-    if (stack.length > 0) return null;
+    if (stack.length > 0) {
+      print("ERROR: " + expr);
+      return null;
+    }
     return s;
   }
 
@@ -226,20 +243,42 @@ function findExpr2(digits, EXPECTED, OPS) {
     return s;
   }
  
-  function simplify(expr) {
-    return expr.replace(/(^\()|(\)$)/g, "");
+  function simplify(initialExpr) {
+    let expr = initialExpr.replace(/(^\()|(\)$)/g, "");
+
+    do {
+      prevExpr = expr;
+
+      // (a ? b) +/- (c ^- d) === a ? b +/- c ^- d
+      expr = expr.replace(/\(([^()]+)\)(\+|-)\(([^()-]+)\)/, "$1$2$3");
+      expr = expr.replace(/-\(([^()]+)\)/, function(match, p1) {
+        return "-" + p1.replace(/-|\+/, function(match) { return match  == '-' ? '+' : '-'; });
+      });
+
+      // (a+b)+-c === a+b+-c
+      // (a*b)+-c === a*b+-c
+      // (a/b)+-c === a/b+-c
+      // (a-b)+-c === a-b+-c
+      expr = expr.replace(/\(([^()]+)\)(\+|-[^()]+)/, "$1$2");
+      expr = expr.replace(/([^()]+)\+\(([^()]+)\)/, "$1+$2");
+      expr = expr.replace(/([^()]+)-\(([^()-]+)\)/, "$1-$2");
+
+      // (...)*+-(a*/b) === (...)*+-a*/b
+      expr  = expr.replace(/(\)|\d)(\*|\+|-)\(([0-9*/]+)\)/, "$1$2$3");
+      // (a*/b)*+-(...) === a*/b*+-(...)
+      expr  = expr.replace(/\(([0-9*/]+)\)(\*|\+|-)(\(|\d)/, "$1$2$3");
+
+    } while (prevExpr != expr);
+
+    return expr;
   }
 }
 
-// findExpr2([8, 8, 8, 8, 8, 8, 8, 8], 1000, ['+', '-', '*', '/']);
-findExpr2([1, 2, 3, 4, 5], 40, ['+', '-', '*', '/', '^']);
-// findExpr2([1, 2, 3, 4, 5], 123, ['+', '-', '*', '/', '^']);
-
-//findExpr([1, 1, 1, 1, 1, 1, 1, 1], 999, ['+', '-', '*', '/']);
-
-/*for (let i = 100; i < 1000; i++) {
-  //findExpr([1, 1, 1, 1, 1, 1, 1, 1], i, ['+', '-', '*', '/']);
-  findExpr([1, 2, 3, 4, 5], i, ['+', '-', '*', '/']);
-  //findExpr([8, 8, 8, 8, 8, 8, 8, 8], 1000, ['+', '-', '*', '/']);
+if (arguments && arguments.length == 3) {
+  findExpr2(arguments[0].split(/\s+/), parseInt(arguments[1]), arguments[2].split(''));
+} else {
+  // findExpr2([8, 8, 8, 8, 8, 8, 8, 8], 1000, ['+', '-', '*', '/']);
+  findExpr2([1, 2, 3, 4, 5], 40, ['+', '-', '*', '/', '^']);
+  // findExpr2([1, 2, 3, 4, 5], 123, ['+', '-', '*', '/', '^']);
+  // findExpr2([1, 1, 1, 1, 1, 1, 1, 1], 999, ['+', '-', '*', '/']);
 }
-*/

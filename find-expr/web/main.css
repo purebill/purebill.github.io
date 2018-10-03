@@ -1,8 +1,11 @@
 .spinner {
   display: none;
+  color: #990000;
+  background-color: #ffeeee;
+  padding: 5px;
 }
 .running .spinner {
-  display: block;
+  display: table-cell;
 }
 .spinner::before {
   content: "In Progress...";
