@@ -18,7 +18,7 @@ function Metrics(name) {
       tries += n;
       totalTries += n;
 
-      if (totalTries % 10000 == 0) {
+      if (totalTries % 100000 == 0) {
         let currentTime = System.currentTimeMillis();
         let currentSpeed = tries / (currentTime - lastTime) * 1000;
         let avgSpeed = (lastSpeed + currentSpeed) / 2;
@@ -58,24 +58,38 @@ if (typeof Map === "undefined") {
   };
 }
 
-function findExpr2(digits, EXPECTED, OPS) {
-  print("Finding: [" + digits + "], " + EXPECTED + ", [" + OPS + "]");
+function findExpr2(digits, EXPECTED, OPS, group) {
+  print("Finding: [" + digits + "], " + EXPECTED + ", [" + OPS + "]" + (group ? " with grouping" : " no grouping"));
 
   let found = new Map();
   let foundIdx = 1;
   let exprMetrics = Metrics("tries");
 
-  trySpaces(digits, new Map());
+  // reuse the same arrays for expr and stack for performance sake
+  let expr = [];
+  let exprIdx = 0;
+  let stack = [];
+  let stackIdx = 0;
+
+  trySpaces(digits, new Map(), group);
   exprMetrics.total();
 
-  function trySpaces(digits, spaces) {
+  function trySpaces(digits, spaces, group) {
+    if (!group) {
+      for (let i = 1; i < digits.length; i++) {
+        spaces.set(i, true);
+      }
+    }
+
     tryOps(toNumbers(digits, spaces), new Map(), 0);
     
-    for (let i = 1; i < digits.length; i++) {
-      if (!spaces.has(i)) {
-        spaces.set(i, true);
-        trySpaces(digits, spaces);
-        spaces.delete(i);
+    if (group) {
+      for (let i = 1; i < digits.length; i++) {
+        if (!spaces.has(i)) {
+          spaces.set(i, true);
+          trySpaces(digits, spaces, group);
+          spaces.delete(i);
+        }
       }
     }
   }
@@ -103,27 +117,29 @@ function findExpr2(digits, EXPECTED, OPS) {
   }
 
   function evalAndCheck(numbers, opsMap) {
-    let expr = [];
+    exprIdx = 0;
+
     for (let i = 0; i < numbers.length; i++) {
-      expr.push(numbers[i]);
+      expr[exprIdx++] = numbers[i];
       if (opsMap.has(i)) {
         let ops = opsMap.get(i);
         for (let j = 0; j < ops.length; j++) {
-          expr.push(ops[j]);
+          expr[exprIdx++] = ops[j];
         }
       }
     }
 
     exprMetrics.tick(1);
 
+    // print(expr.slice(0, exprIdx));
     // let res = eval(toJsExpr(expr));
-    let res = evalPostfix(expr);
+    let res = evalPostfix(expr, exprIdx);
 
     if (res == EXPECTED) {
-      let exprStr = simplify(toInfix(expr, true));
+      let exprStr = simplify(toInfix(expr, exprIdx, true));
       if (!found.has(exprStr)) {
         found.set(exprStr, foundIdx);
-        print(foundIdx + ". " + simplify(toInfix(expr, false)) + " = " + EXPECTED
+        print(foundIdx + ". " + simplify(toInfix(expr, exprIdx, false)) + " = " + EXPECTED
           + "                                                                            ");
         foundIdx++;
       }
@@ -149,14 +165,14 @@ function findExpr2(digits, EXPECTED, OPS) {
     return op == '+' || op == '*';
   }
 
-  function evalPostfix(expr) {  
-    let stack = [];
+  function evalPostfix(expr, exprLength) {
+    stackIdx = 0;
 
-    for (let i = 0; i < expr.length; i++) {
+    for (let i = 0; i < exprLength; i++) {
       let current = expr[i];
       if (isOp(current)) {
-        let right = stack.pop();
-        let left = stack.pop();
+        let right = stack[--stackIdx];
+        let left = stack[--stackIdx];
         let value = 0;
         switch (current) {
           case '+':
@@ -177,24 +193,24 @@ function findExpr2(digits, EXPECTED, OPS) {
           default:
             throw "bad";
         }
-        stack.push(value);
+        stack[stackIdx++] = value;
       } else {
-        stack.push(current);
+        stack[stackIdx++] = current;
       }
     }
 
-    let s = stack.pop();
-    if (stack.length > 0) {
-      print("ERROR: " + expr);
+    let s = stack[--stackIdx];
+    if (stackIdx > 0) {
+      print("ERROR: " + expr + " : " + exprLength);
       return NaN;
     }
     return s;
   }
 
-  function toInfix(expr, normalize) {
+  function toInfix(expr, exprLength, normalize) {
     let stack = [];
 
-    for (let i = 0; i < expr.length; i++) {
+    for (let i = 0; i < exprLength; i++) {
       let current = expr[i];
       if (isOp(current)) {
         let right = stack.pop();
@@ -274,11 +290,11 @@ function findExpr2(digits, EXPECTED, OPS) {
   }
 }
 
-if (arguments && arguments.length == 3) {
-  findExpr2(arguments[0].split(/\s+/), parseInt(arguments[1]), arguments[2].split(''));
+if (arguments && arguments.length >= 3) {
+  findExpr2(arguments[0].split(/\s+/), parseInt(arguments[1]), arguments[2].split(''), arguments[3] == 'group');
 } else {
-  // findExpr2([8, 8, 8, 8, 8, 8, 8, 8], 1000, ['+', '-', '*', '/']);
-  findExpr2([1, 2, 3, 4, 5], 40, ['+', '-', '*', '/', '^']);
-  // findExpr2([1, 2, 3, 4, 5], 123, ['+', '-', '*', '/', '^']);
-  // findExpr2([1, 1, 1, 1, 1, 1, 1, 1], 999, ['+', '-', '*', '/']);
+  // findExpr2([8, 8, 8, 8, 8, 8, 8, 8], 1000, ['+', '-', '*', '/'], true);
+  findExpr2([1, 2, 3, 4, 5], 40, ['+', '-', '*', '/', '^'], true);
+  // findExpr2([1, 2, 3, 4, 5], 123, ['+', '-', '*', '/', '^'], true);
+  // findExpr2([1, 1, 1, 1, 1, 1, 1, 1], 999, ['+', '-', '*', '/'], true);
 }
