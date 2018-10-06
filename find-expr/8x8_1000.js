@@ -81,7 +81,7 @@ function findExpr2(digits, EXPECTED, OPS, group) {
       }
     }
 
-    tryOps(toNumbers(digits, spaces), new Map(), 0);
+    tryOps(toNumbers(digits, spaces), new Map(), 1, 0);
     
     if (group) {
       for (let i = 1; i < digits.length; i++) {
@@ -94,7 +94,7 @@ function findExpr2(digits, EXPECTED, OPS, group) {
     }
   }
 
-  function tryOps(numbers, opsMap, opsCount) {
+  function tryOps(numbers, opsMap, startIdx, opsCount) {
     if (opsCount > numbers.length - 1) return;
 
     if (opsCount == numbers.length - 1) {
@@ -102,7 +102,7 @@ function findExpr2(digits, EXPECTED, OPS, group) {
       return;
     }
 
-    for (let idx = 1; idx < numbers.length; idx++) {
+    for (let idx = startIdx; idx < numbers.length; idx++) {
       let numbersCount = idx + 1;
       if (numbersCount <= opsCount + 1) continue;
 
@@ -110,7 +110,7 @@ function findExpr2(digits, EXPECTED, OPS, group) {
         let op = OPS[i];
       
         opsMap.has(idx) ? opsMap.get(idx).push(op) : opsMap.set(idx, [op]);
-        tryOps(numbers, opsMap, opsCount + 1);
+        tryOps(numbers, opsMap, idx, opsCount + 1);
         opsMap.get(idx).pop();
       }
     }

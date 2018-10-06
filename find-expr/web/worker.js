@@ -8,11 +8,18 @@ function calculate(numbers, EXPECTED, OPS) {
   let found = new Map();
   let foundExprs = [];
 
-  tryOps(numbers, opsMap, opsCount);
+  // reuse the same arrays for expr and stack for performance sake
+  let expr = [];
+  let exprIdx = 0;
+  let stack = [];
+  let stackIdx = 0;
+
+
+  tryOps(numbers, opsMap, 1, opsCount);
 
   return foundExprs;
 
-  function tryOps(numbers, opsMap, opsCount) {
+  function tryOps(numbers, opsMap, startIdx, opsCount) {
     if (opsCount > numbers.length - 1) return;
 
     if (opsCount == numbers.length - 1) {
@@ -20,7 +27,7 @@ function calculate(numbers, EXPECTED, OPS) {
       return;
     }
 
-    for (let idx = 1; idx < numbers.length; idx++) {
+    for (let idx = startIdx; idx < numbers.length; idx++) {
       let numbersCount = idx + 1;
       if (numbersCount <= opsCount + 1) continue;
 
@@ -28,31 +35,32 @@ function calculate(numbers, EXPECTED, OPS) {
         let op = OPS[i];
       
         opsMap.has(idx) ? opsMap.get(idx).push(op) : opsMap.set(idx, [op]);
-        tryOps(numbers, opsMap, opsCount + 1);
+        tryOps(numbers, opsMap, idx, opsCount + 1);
         opsMap.get(idx).pop();
       }
     }
   }
 
   function evalAndCheck(numbers, opsMap) {
-    let expr = [];
+    exprIdx = 0;
+
     for (let i = 0; i < numbers.length; i++) {
-      expr.push(numbers[i]);
+      expr[exprIdx++] = numbers[i];
       if (opsMap.has(i)) {
         let ops = opsMap.get(i);
         for (let j = 0; j < ops.length; j++) {
-          expr.push(ops[j]);
+          expr[exprIdx++] = ops[j];
         }
       }
     }
 
-    let res = evalPostfix(expr);
+    let res = evalPostfix(expr, exprIdx);
 
     if (res == EXPECTED) {
-      let exprStr = simplify(toInfix(expr, true));
+      let exprStr = simplify(toInfix(expr, exprIdx, true));
       if (!found.has(exprStr)) {
         found.set(exprStr, true);
-        foundExprs.push(simplify(toInfix(expr, false)));
+        foundExprs.push(simplify(toInfix(expr, exprIdx, false)));
       }
     }
   } 
@@ -65,14 +73,14 @@ function calculate(numbers, EXPECTED, OPS) {
     return op == '+' || op == '*';
   }
 
-  function evalPostfix(expr) {  
-    let stack = [];
+  function evalPostfix(expr, exprLength) {
+    stackIdx = 0;
 
-    for (let i = 0; i < expr.length; i++) {
+    for (let i = 0; i < exprLength; i++) {
       let current = expr[i];
       if (isOp(current)) {
-        let right = stack.pop();
-        let left = stack.pop();
+        let right = stack[--stackIdx];
+        let left = stack[--stackIdx];
         let value = 0;
         switch (current) {
           case '+':
@@ -93,21 +101,24 @@ function calculate(numbers, EXPECTED, OPS) {
           default:
             throw "bad";
         }
-        stack.push(value);
+        stack[stackIdx++] = value;
       } else {
-        stack.push(current);
+        stack[stackIdx++] = current;
       }
     }
 
-    let s = stack.pop();
-    if (stack.length > 0) return NaN;
+    let s = stack[--stackIdx];
+    if (stackIdx > 0) {
+      throw "ERROR: " + expr + " : " + exprLength;
+    }
     return s;
   }
 
-  function toInfix(expr, normalize) {
+
+  function toInfix(expr, exprLength, normalize) {
     let stack = [];
 
-    for (let i = 0; i < expr.length; i++) {
+    for (let i = 0; i < exprLength; i++) {
       let current = expr[i];
       if (isOp(current)) {
         let right = stack.pop();
