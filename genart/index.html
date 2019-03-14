@@ -19,6 +19,10 @@
         #controlsContainer label {
             display: block;
         }
+        #controlsContainer label.checkbox input {
+            display: inline-block;
+            margin-bottom: 20px;
+        }
         #controlsContainer label input {
             display: block;
             margin-bottom: 20px;
@@ -34,15 +38,19 @@
     <label for="roughness">Roughness <input type="range" min="0.5" max="1" step="0.01" id="roughness" data-type="float"></label>
     <label for="amplitude">Amplitude <input type="range" min="0.01" max="1" step="0.01" id="amplitude" data-type="float"></label>
     <label for="maxLevel">Max Level <input type="range" min="2" max="15" id="maxLevel"></label>
-    <label for="layers">Layers <input type="range" min="1" max="30" id="layers"></label>
+    <label for="layers">Layers <input type="range" min="1" max="50" id="layers"></label>
     <label for="spacing">Spacing <input type="range" min="0" max="0.05" step="any" id="spacing" data-type="float"></label>
     <label for="shift">Shift <input type="range" min="-0.01" max="0.01" id="shift" step="any" data-type="float"></label>
     <label for="scale">Scale <input type="range" min="0.5" max="2" step="0.01" id="scale" data-type="float"></label>
     <label for="wobbliness">Wobbliness <input type="range" min="0" max="0.5" step="any" id="wobbliness" data-type="float"></label>
+    <label for="lineWidth">Line width <input type="range" min="0.01" max="3" step="any" id="lineWidth" data-type="float"></label>
 
     <label for="color1">Color1 <input type="color" id="color1"></label>
     <label for="color2">Color2 <input type="color" id="color2"></label>
     <label for="bgColor">Background color <input type="color" id="bgColor"></label>
+
+    <label for="stroke" class="checkbox">Stroke <input type="checkbox" id="stroke"></label>
+    <label for="fill" class="checkbox">Fill <input type="checkbox" id="fill"></label>
 
     <button id="save">Save</button>
     <button id="reset">New Seed</button>

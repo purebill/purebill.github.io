@@ -14,7 +14,10 @@ let state = {
   seed: randomGenerator.seed,
   bgColor: "#ffffff",
   color1: "#ffffff",
-  color2: "#000000"
+  color2: "#000000",
+  stroke: true,
+  fill: true,
+  lineWidth: 1
 };
 
 function getState() {
@@ -88,13 +91,8 @@ function toCanvasCoords(points) {
 }
 
 function renderPoints(ctx, points) {
-  ctx.lineWidth = 1;
-
   ctx.beginPath();
   ctx.moveTo(points[0][0], points[0][1]);
-  /*for (let i = 1; i < points.length - points.length % 3 - 2; i += 3) {
-    ctx.bezierCurveTo(points[i][0], points[i][1], points[i+1][0], points[i+1][1], points[i+2][0], points[i+2][1]);
-  }*/
   points.slice(1).forEach(point => ctx.lineTo(point[0], point[1]));
   ctx.fill();
   ctx.stroke();
@@ -126,8 +124,16 @@ function render(canvas) {
   models.forEach((points, idx) => {
     let fg = [color1[0] + step[0] * idx, color1[1] + step[1] * idx, color1[2] + step[2] * idx];
     let bg = [color1[0] + step[0] * (N - idx), color1[1] + step[1] * (N - idx), color1[2] + step[2] * (N - idx)];
-    ctx.fillStyle = "rgb(" + bg[0] + ", " + bg[1] + ", " + bg[2] +")";
-    ctx.strokeStyle = "rgb(" + fg[0] + ", " + fg[1] + ", " + fg[2] +")";
+    if (state.fill) {
+      ctx.fillStyle = "rgb(" + bg[0] + ", " + bg[1] + ", " + bg[2] +")";
+    } else {
+      ctx.fillStyle = state.bgColor;
+    }
+    ctx.lineWidth = state.lineWidth;
+    if (!state.stroke) {
+      ctx.strokeStyle = state.bgColor;
+      ctx.lineWidth = 0.01;
+    }
     renderPoints(ctx, points)
   });
 }
@@ -149,6 +155,10 @@ function updateStateAndRender() {
     state[it.id] = it.value;
   });
 
+  document.querySelectorAll("input[type=checkbox]").forEach(it => {
+    state[it.id] = it.checked;
+  });
+
   State.clear();
   renderPreview();
 }
@@ -159,6 +169,9 @@ function updateUi() {
   });
   document.querySelectorAll("input[type=color]").forEach(it => {
     $(it.id).value  = state[it.id];
+  });
+  document.querySelectorAll("input[type=checkbox]").forEach(it => {
+    $(it.id).checked  = state[it.id];
   });
 }
 
@@ -177,3 +190,4 @@ $("reset").onclick = () => {
 
 document.querySelectorAll("input[type=range]").forEach(it => it.oninput = updateStateAndRender);
 document.querySelectorAll("input[type=color]").forEach(it => it.onchange = updateStateAndRender);
+document.querySelectorAll("input[type=checkbox]").forEach(it => it.onchange = updateStateAndRender);
