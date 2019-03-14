@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Lens Blur</title>
+    <style type="text/css">
+        body {
+            border: 0;
+            padding: 0;
+            margin: 0;
+        }
+        div {
+            margin-left: 10px;
+        }
+        #message {
+            display: none;
+        }
+        summary {
+            cursor: pointer;
+        }
+        #kernel {
+            width: 100%;
+        }
+        body, input, button {
+            font-size: 15pt;
+            box-sizing: border-box;
+        }
+    </style>
+</head>
+<body>
+<div id="message"></div>
+<div>
+    <label for="kernel">Kernel
+        <input id="kernel" value="Math.sqrt((x - 0.5) * (x - 0.5) + (y - 0.5) * (y - 0.5)) <= 0.5 ? 1 : 0"/></label>
+</div>
+<div>
+    <label for="kernelSize">Kernel Size
+        <input id="kernelSize" value="17"/></label>
+</div>
+<div>
+    <label for="kernelMultiplier">Kernel Multiplier
+        <input id="kernelMultiplier" value="1.0"/></label>
+</div>
+<div>
+    <canvas id="kernelCanvas" width="0" height="0" style="border: 0"></canvas>
+</div>
+<div>
+    <button id="applyButton">Apply</button>
+    <button id="stop" onclick="stop()">Stop</button>
+</div>
+
+<div class="result" id="lensblur">
+    <p>Result</p>
+    <canvas id="result"></canvas>
+</div>
+<div class="result" id="original-div">
+    <p>Original</p>
+    <canvas id="original"></canvas>
+</div>
+
+<script src="state.js"></script>
+<script src="workerp.js"></script>
+<script src="message.js"></script>
+<script src="files.js"></script>
+<script src="lensblur.js?v=3"></script>
+<script>
+    var lensblur = true;
+    function toggle() {
+        document.getElementById("lensblur").style.display = lensblur ? "block" : "none";
+        document.getElementById("original-div").style.display = !lensblur ? "block" : "none";
+        lensblur = !lensblur;
+    }
+
+    function stop() {
+        workers.forEach(w => w.reset());
+    }
+
+    document.getElementById("lensblur").onclick = toggle;
+    document.getElementById("original-div").onclick = toggle;
+    
+    document.getElementById("applyButton").onclick = function () {
+        State.save();
+
+        stop();
+        blur(lastFile);
+    };
+    toggle();
+
+    function getState() {
+        let kernel = $("kernel").value;
+        let kernelSize = $("kernelSize").value;
+        let kernelMultiplier = $("kernelMultiplier").value;
+        return {
+            kernel,
+            kernelSize,
+            kernelMultiplier
+        };
+    }
+
+    function setState(newState) {
+        $("kernel").value = newState.kernel;
+        $("kernelSize").value = newState.kernelSize;
+        $("kernelMultiplier").value = newState.kernelMultiplier;
+        blur(lastFile);
+    }
+
+    if (!State.init(getState, setState)) blur();
+</script>
+</body>
+</html>
