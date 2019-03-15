@@ -1,8 +1,12 @@
 var State = (function () {
   var stateGetter, stateSetter;
 
+  function getState() {
+    return btoa(JSON.stringify(stateGetter()));
+  }
+
   function saveState() {
-    var newState = btoa(JSON.stringify(stateGetter()));
+    var newState = getState();
 
     if (document.location.hash != newState) {
       document.location.hash = newState;
@@ -32,6 +36,8 @@ var State = (function () {
     },
 
     save: saveState,
+
+    getState: getState,
 
     clear: function () {
       document.location.hash = "";

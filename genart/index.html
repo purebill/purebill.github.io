@@ -16,16 +16,37 @@
             margin-left: 20px;
             float: left;
         }
-        #controlsContainer label {
+        #controlsContainer label, #controlsContainer > .group {
             display: block;
+            margin: 10px 0;
+        }
+        #controlsContainer > .group label {
+            display: inline-block;
+            margin: 0 10px;
+        }
+        #controlsContainer .group button {
+            margin-left: 10px;
+            margin-right: 0;
+        }
+        #controlsContainer .group button:first-child {
+            margin-left: 0;
+        }
+        #controlsContainer > .group label:first-child {
+            margin: 0;
+        }
+        #controlsContainer > .group label.checkbox:first-child {
+            margin-right: 10px;
         }
         #controlsContainer label.checkbox input {
             display: inline-block;
-            margin-bottom: 20px;
+            margin-bottom: 10px;
         }
         #controlsContainer label input {
+            margin-right: 10px;
             display: block;
-            margin-bottom: 20px;
+        }
+        #controlsContainer label input:last-child {
+            margin: 0;
         }
         #controlsContainer label input[type=range] {
             width: 200px;
@@ -33,7 +54,8 @@
     </style>
 </head>
 <body>
-<div id="canvasContainer"><canvas id="canvas"></canvas></div>
+<div id="canvasContainer"><canvas id="canvas" width="800" height="600"></canvas></div>
+
 <div id="controlsContainer">
     <label for="roughness">Roughness <input type="range" min="0.5" max="1" step="0.01" id="roughness" data-type="float"></label>
     <label for="amplitude">Amplitude <input type="range" min="0.01" max="1" step="0.01" id="amplitude" data-type="float"></label>
@@ -45,21 +67,37 @@
     <label for="wobbliness">Wobbliness <input type="range" min="0" max="0.5" step="any" id="wobbliness" data-type="float"></label>
     <label for="lineWidth">Line width <input type="range" min="0.01" max="3" step="any" id="lineWidth" data-type="float"></label>
 
-    <label for="color1">Color1 <input type="color" id="color1"></label>
-    <label for="color2">Color2 <input type="color" id="color2"></label>
-    <label for="bgColor">Background color <input type="color" id="bgColor"></label>
+    <div class="group">
+        <label for="color1">Color 1 <input type="color" id="color1"></label>
+        <button id="swapColors" title="Swap colors">⬌</button>
+        <label for="color2">Color 2 <input type="color" id="color2"></label>
+        <label for="bgColor">Bg color <input type="color" id="bgColor"></label>
+    </div>
+    <div class="group">
+        <label for="sunColor1">Sun 1<input type="color" id="sunColor1"></label>
+        <label for="sunColor2">Sun 2<input type="color" id="sunColor2"></label>
+    </div>
+    <div class="group">
+        <label for="stroke" class="checkbox">Stroke <input type="checkbox" id="stroke"></label>
+        <label for="fill" class="checkbox">Fill <input type="checkbox" id="fill"></label>
+        <label for="haze" class="checkbox">Haze <input type="checkbox" id="haze"></label>
+    </div>
 
-    <label for="stroke" class="checkbox">Stroke <input type="checkbox" id="stroke"></label>
-    <label for="fill" class="checkbox">Fill <input type="checkbox" id="fill"></label>
-
-    <button id="save">Save</button>
-    <button id="reset">New Seed</button>
+    <div class="group">
+        <button id="createLink" title="Create a link">🔗</button>
+        <button id="save">Save</button>
+        <button id="reset">New Seed</button>
+    </div>
 </div>
 
 <script src="md5.js"></script>
 <script src="random.js"></script>
 <script src="state.js"></script>
 <script src="workerp.js"></script>
+<script src="clipboard.js"></script>
+<script src="file-saver.js"></script>
+<script src="generate.js"></script>
+<script src="render.js"></script>
 <script src="index.js"></script>
 </body>
 </html>
