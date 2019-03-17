@@ -13,15 +13,21 @@ let state = {
   bgColor: "#ffffff",
   color1: "#000000",
   color2: "#ffffff",
+  colorShift: 0,
   stroke: true,
   fill: true,
-  lineWidth: 1,
+  lineWidth: 0.5,
   haze: false,
   sunCount: 10,
   sunPoints: 100,
   sunSize: 0.1,
-  sunColor1: "#ffffff",
-  sunColor2: "#000000"
+  sunOpacity: 1.0,
+  sunColor1: "#000000",
+  sunColor2: "#ffffff",
+  sunColorShift: 0,
+  frameColor: "#aaaaaa",
+  frameWidth: 0,
+  frameSpacing: 0
 };
 
 let defaultState = {};
@@ -33,7 +39,7 @@ function getState() {
 
 function renderPreview() {
   let canvas = $("canvas");
-  render(canvas, state);
+  render(canvas, state, 1, 1);
 }
 
 function setState(newState) {
@@ -100,7 +106,9 @@ function saveToFile() {
   canvas.width = 1920;
   canvas.height = sourceCanvas.height / sourceCanvas.width * canvas.width;
 
-  render(canvas, state)
+  let scale = canvas.width / sourceCanvas.width;
+
+  render(canvas, state, scale)
     .then(canvasToBlob)
     .then(blob => saveAs(blob, randomGenerator.seed + ".jpg"));
 }

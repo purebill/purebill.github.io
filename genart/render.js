@@ -31,16 +31,23 @@ function renderBg(canvas, state) {
   });
 }
 
-function renderFrame(canvas, state) {
+function renderFrame(canvas, state, scale) {
   return new Promise(resolve => {
     const ctx = canvas.getContext("2d");
 
-    const bg = parseColor(state.bgColor);
-    bg[0] = 255 - bg[0]; bg[1] = 255 - bg[1]; bg[2] = 255 - bg[2];
+    if (state.frameSpacing > 0) {
+      ctx.strokeStyle = state.bgColor;
+      ctx.lineWidth = (state.frameSpacing + state.frameWidth) * scale;
+      let pad = (state.frameSpacing + state.frameWidth) / 2 * scale;   
+      ctx.strokeRect(pad, pad, canvas.width - 2*pad, canvas.height - 2*pad);
+    }
 
-    ctx.strokeStyle = rgba(bg, 1);
-    ctx.lineWidth = 10;
-    ctx.strokeRect(0, 0, canvas.width, canvas.height);
+    if (state.frameWidth > 0) {
+      ctx.strokeStyle = state.frameColor;
+      ctx.lineWidth = state.frameWidth * scale;
+      ctx.strokeRect(state.frameWidth/2 * scale, state.frameWidth/2 * scale, 
+        canvas.width - state.frameWidth * scale, canvas.height - state.frameWidth * scale);
+    }
 
     resolve(canvas);
   });
@@ -74,6 +81,7 @@ function renderMountains(canvas, state) {
 
     let color1 = parseColor(state.color1);
     let color2 = parseColor(state.color2);
+    let bgColor = parseColor(state.bgColor);
 
     if (!state.fill) {
       let tmp = color1;
@@ -81,19 +89,22 @@ function renderMountains(canvas, state) {
       color2 = tmp;
     }
 
-    let step = [(color2[0] - color1[0]) / N, (color2[1] - color1[1]) / N, (color2[2] - color1[2]) / N];
+    let bgColorPart = animate([0], [1], 0, N, 0);
+    let strokeAnimation = animate(color2, color1, 0, N, state.colorShift);
+    let fillAnimation = animate(color1, color2, 0, N, state.colorShift);
 
     mountains.forEach((points, i) => {
       let idx = N - i;
 
-      let fill = [color1[0] + step[0] * idx,
-        color1[1] + step[1] * idx,
-        color1[2] + step[2] * idx];
-      let stroke = [color1[0] + step[0] * (N - idx),
-        color1[1] + step[1] * (N - idx),
-        color1[2] + step[2] * (N - idx)];
+      let fill = fillAnimation(idx);
+      let stroke = strokeAnimation(idx);
+      if (state.haze) {
+        let p = bgColorPart(idx);
+        fill = fill.map((c, i) => (1-p)*c + p*bgColor[i]);
+        stroke = stroke.map((c, i) => (1-p)*c + p*bgColor[i]);
+      }
 
-      let alpha = state.haze ? (N - idx) / N : 1;
+      let alpha = 1;//state.haze ? (N - idx) / N : 1;
 
       if (state.stroke) {
         ctx.strokeStyle = rgba(stroke, alpha);
@@ -129,18 +140,15 @@ function renderSun(canvas, state) {
     let color1 = parseColor(state.sunColor1);
     let color2 = parseColor(state.sunColor2);
     let N = state.sunCount;
-    let step = [(color2[0] - color1[0]) / N, (color2[1] - color1[1]) / N, (color2[2] - color1[2]) / N];
+    let strokeAnimation = animate(color1, color2, 0, N, state.sunColorShift);
 
     generateSun(cx, cy, canvas.height / canvas.width, 1, state)
       .map(circle => toCanvasCoords(circle, width, height, state))
       .forEach((circle, i) => {
         let idx = state.sunCount - i;
-        ctx.strokeStyle = rgba([color1[0] + step[0] * idx,
-          color1[1] + step[1] * idx,
-          color1[2] + step[2] * idx],
-          1);
+        ctx.strokeStyle = rgba(strokeAnimation(idx), state.sunOpacity);
         ctx.lineWidth = state.lineWidth;
-        ctx.fillStyle = state.bgColor;
+        ctx.fillStyle = ctx.strokeStyle;
         renderPoints(ctx, circle, true, true);
       });
 
@@ -148,9 +156,9 @@ function renderSun(canvas, state) {
   });
 }
 
-function render(canvas, state) {
+function render(canvas, state, scale) {
   return renderBg(canvas, state)
     .then(renderSun(canvas, state))
     .then(renderMountains(canvas, state))
-    .then(renderFrame(canvas, state));
+    .then(renderFrame(canvas, state, scale));
 }
