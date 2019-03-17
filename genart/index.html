@@ -69,14 +69,20 @@
 <div id="canvasContainer"><canvas id="canvas" width="800" height="600"></canvas></div>
 
 <div id="controlsContainer">
-    <label for="roughness">Roughness <input type="range" min="0.5" max="1" step="0.01" id="roughness" data-type="float"></label>
-    <label for="amplitude">Hight <input type="range" min="0.01" max="1" step="0.01" id="amplitude" data-type="float"></label>
-    <label for="maxLevel">Details <input type="range" min="2" max="10" id="maxLevel"></label>
+    <div class="group">
+      <label for="roughness">Roughness <input type="range" min="0.5" max="1" step="0.01" id="roughness" data-type="float"></label>
+      <label for="wobbliness">Wobbliness <input type="range" min="0" max="0.5" step="any" id="wobbliness" data-type="float"></label>
+    </div>
+    <div class="group">
+      <label for="amplitude">Hight <input type="range" min="0.01" max="1" step="0.01" id="amplitude" data-type="float"></label>
+      <label for="maxLevel">Details <input type="range" min="2" max="10" id="maxLevel"></label>
+    </div>
     <label for="layers">Layers <input type="range" min="1" max="50" id="layers"></label>
-    <label for="spacing">Spacing <input type="range" min="0" max="0.05" step="any" id="spacing" data-type="float"></label>
-    <label for="shift">Shift <input type="range" min="-0.01" max="0.01" id="shift" step="any" data-type="float"></label>
+    <div class="group">
+      <label for="spacing">Spacing <input type="range" min="0" max="0.05" step="any" id="spacing" data-type="float"></label>
+      <label for="shift">Shift <input type="range" min="-0.01" max="0.01" id="shift" step="any" data-type="float"></label>
+    </div>
     <label for="scale">Scale <input type="range" min="0.5" max="2" step="0.01" id="scale" data-type="float"></label>
-    <label for="wobbliness">Wobbliness <input type="range" min="0" max="0.5" step="any" id="wobbliness" data-type="float"></label>
     <label for="lineWidth">Line width <input type="range" min="0.01" max="3" step="any" id="lineWidth" data-type="float"></label>
     <div class="group">
       <label for="frameColor">Frame <input type="color" id="frameColor"></label>
@@ -90,8 +96,13 @@
           <button id="swapColors" title="Swap colors">⬌</button>
         </div>
         <label for="color2">Color 2 <input type="color" id="color2"></label>
-        <label for="bgColor">Bg color <input type="color" id="bgColor"></label>
+        <label for="stroke" class="checkbox">Stroke <input type="checkbox" id="stroke"></label>
+        <label for="fill" class="checkbox">Fill <input type="checkbox" id="fill"></label>
     </div>
+    <div class="group">
+      <label for="haze" class="checkbox">Haze <input type="checkbox" id="haze"></label>
+      <label for="bgColor"><input type="color" id="bgColor"></label>
+    </div>  
     <div class="group">
         <label for="sunColor1">Sun<input type="color" id="sunColor1"></label>
         <label for="sunColorShift"><input class="small" type="range" min="-1" max="1" step="any" id="sunColorShift" data-type="float"></label>
@@ -99,9 +110,9 @@
         <label for="sunOpacity">Opacity <input type="range" min="0" max="1" step="any" id="sunOpacity" data-type="float"></label>
     </div>
     <div class="group">
-        <label for="stroke" class="checkbox">Stroke <input type="checkbox" id="stroke"></label>
-        <label for="fill" class="checkbox">Fill <input type="checkbox" id="fill"></label>
-        <label for="haze" class="checkbox">Haze <input type="checkbox" id="haze"></label>
+      <label for="skyColor1">Sky<input type="color" id="skyColor1"></label>
+      <label for="skyColorShift"><input class="small" type="range" min="-1" max="1" step="any" id="skyColorShift" data-type="float"></label>
+      <label for="skyColor2"><input type="color" id="skyColor2"></label>
     </div>
 
     <div class="group">

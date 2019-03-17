@@ -25,6 +25,9 @@ let state = {
   sunColor1: "#000000",
   sunColor2: "#ffffff",
   sunColorShift: 0,
+  skyColor1: "#ffffff",
+  skyColor2: "#ffffff",
+  skyColorShift: 0,
   frameColor: "#aaaaaa",
   frameWidth: 0,
   frameSpacing: 0

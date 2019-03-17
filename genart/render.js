@@ -156,8 +156,27 @@ function renderSun(canvas, state) {
   });
 }
 
+function renderSky(canvas, state) {
+  return new Promise(resolve => {
+    const ctx = canvas.getContext("2d");
+    const gradient = ctx.createLinearGradient(0, canvas.height - 1, 0, 0);
+    gradient.addColorStop(0, state.skyColor1);
+    if (state.skyColorShift < 0) 
+      gradient.addColorStop(-state.skyColorShift, state.skyColor1);
+    if (state.skyColorShift > 0) 
+      gradient.addColorStop(1 - state.skyColorShift, state.skyColor2);
+    gradient.addColorStop(1, state.skyColor2);
+
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    resolve(canvas);
+  });
+}
+
 function render(canvas, state, scale) {
   return renderBg(canvas, state)
+    .then(renderSky(canvas, state))
     .then(renderSun(canvas, state))
     .then(renderMountains(canvas, state))
     .then(renderFrame(canvas, state, scale));
