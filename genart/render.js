@@ -9,7 +9,7 @@ function toCanvasCoords(points, width, height, state) {
     sx = (sx - width/2) * state.scale + width/2;
     sy = (sy - height/2) * state.scale + height/2;
 
-    return [Math.round(sx), Math.round(sy)];
+    return [Math.round(sx) + state.offsetX, Math.round(sy) + state.offsetY];
   })
 }
 

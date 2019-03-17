@@ -30,7 +30,9 @@ let state = {
   skyColorShift: 0,
   frameColor: "#aaaaaa",
   frameWidth: 0,
-  frameSpacing: 0
+  frameSpacing: 0,
+  offsetX: 0,
+  offsetY: 0
 };
 
 let defaultState = {};
@@ -61,6 +63,13 @@ if (!State.init(getState, setState)) {
 
 function $(id) {
   return document.getElementById(id);
+}
+
+function updateUiAndRender() {
+  randomGenerator = new Random(state.seed);
+  updateUi();
+  State.clear();
+  renderPreview();
 }
 
 function updateStateAndRender() {
@@ -111,9 +120,10 @@ function saveToFile() {
 
   let scale = canvas.width / sourceCanvas.width;
 
+  randomGenerator = new Random(state.seed);
   render(canvas, state, scale)
     .then(canvasToBlob)
-    .then(blob => saveAs(blob, randomGenerator.seed + ".jpg"));
+    .then(blob => saveAs(blob, state.seed + ".jpg"));
 }
 
 function canvasToBlob(canvas) {
@@ -161,3 +171,43 @@ $("createLink").onclick = () => {
   let url = l.protocol + "//" + l.host + l.pathname + "#" + State.getState();
   Clipboard.copy(url);
 };
+
+
+var moving = false;
+var x1, y1;
+$("canvas").onmousedown = e => {
+  if (moving) return;
+  x1 = e.offsetX;
+  y1 = e.offsetY;
+  moving = true;
+};
+
+$("canvas").onmousemove = e => {
+  if (moving) {
+    var x2 = e.offsetX;
+    var y2 = e.offsetY;
+
+    state.offsetX = x2 - x1;
+    state.offsetY = y2 - y1;
+
+    updateUiAndRender();
+  }
+};
+
+$("canvas").onmouseup = e => moving = false;
+
+var mousewheelevt = (/Firefox/i.test(navigator.userAgent))
+  ? "DOMMouseScroll"
+  : "mousewheel";
+
+if (window.attachEvent) 
+  $("canvas").attachEvent("on" + mousewheelevt, onmousewheel);
+else if (window.addEventListener) 
+  $("canvas").addEventListener(mousewheelevt, onmousewheel, false);
+
+function onmousewheel(e) {
+  var zoomIn = e.detail ? e.detail < 0 : e.deltaY < 0;
+  state.scale = Math.max(0, state.scale + (zoomIn ? 0.03 : -0.03));
+  updateUiAndRender();
+  e.preventDefault();
+}
