@@ -177,8 +177,8 @@ var moving = false;
 var x1, y1;
 $("canvas").onmousedown = e => {
   if (moving) return;
-  x1 = e.offsetX;
-  y1 = e.offsetY;
+  x1 = e.offsetX - state.offsetX;
+  y1 = e.offsetY - state.offsetY;
   moving = true;
 };
 
