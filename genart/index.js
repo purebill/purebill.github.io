@@ -32,7 +32,8 @@ let state = {
   frameWidth: 0,
   frameSpacing: 0,
   offsetX: 0,
-  offsetY: 0
+  offsetY: 0,
+  closeLines: true
 };
 
 let defaultState = {};

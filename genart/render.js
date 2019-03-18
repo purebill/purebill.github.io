@@ -74,7 +74,12 @@ function renderMountains(canvas, state) {
       let y = i * spacing;
       let x1 = shift * i;
       let x2 = 1 + shift * i;
-      mountains.push(toCanvasCoords(generateMountain(x1, y, x2, y, state), width, height, state));
+      var points = toCanvasCoords(generateMountain(x1, y, x2, y, state), width, height, state);
+      if (state.closeLines) {
+        points.unshift([0, points[0][1]]);
+        points.push([canvas.width, points[points.length - 1][1]]);
+      }
+      mountains.push(points);
     }
 
     const ctx = canvas.getContext("2d");
