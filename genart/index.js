@@ -18,6 +18,7 @@ let state = {
   fill: true,
   lineWidth: 0.5,
   haze: false,
+  sun: true,
   sunCount: 10,
   sunPoints: 100,
   sunSize: 0.1,
@@ -25,6 +26,7 @@ let state = {
   sunColor1: "#000000",
   sunColor2: "#ffffff",
   sunColorShift: 0,
+  sunFill: true,
   skyColor1: "#ffffff",
   skyColor2: "#ffffff",
   skyColorShift: 0,
@@ -44,22 +46,22 @@ function getState() {
 }
 
 function renderPreview() {
-  let canvas = $("canvas");
-  render(canvas, state, 1, 1);
+  localStorage.setItem("state", State.getState());
+
+  render($("canvas"), state, 1, 1);
 }
 
 function setState(newState) {
   for (k in newState) {
     state[k] = newState[k];
   }
-  randomGenerator = new Random(state.seed);
-  updateUi();
-  renderPreview();
+  updateUiAndRender();
 }
 
 if (!State.init(getState, setState)) {
-  updateUi();
-  renderPreview();
+  if (!State.setState(localStorage.getItem("state"))) {
+    updateUiAndRender();
+  }
 }
 
 function $(id) {
@@ -67,9 +69,9 @@ function $(id) {
 }
 
 function updateUiAndRender() {
+  document.location.hash = "";
   randomGenerator = new Random(state.seed);
   updateUi();
-  State.clear();
   renderPreview();
 }
 
@@ -96,7 +98,7 @@ function updateStateAndRender() {
     state[it.id] = it.checked;
   });
 
-  State.clear();
+  document.location.hash = "";
   renderPreview();
 }
 
@@ -135,13 +137,17 @@ function canvasToBlob(canvas) {
 
 $("save").onclick = saveToFile;
 
-$("reset").onclick = () => {
-  State.clear();
+$("newScene").onclick = () => {
+  document.location.hash = "";
 
   let randomGenerator = new Random();
   state.seed = randomGenerator.seed;
 
   updateStateAndRender();
+};
+
+$("reset").onclick = () => {
+  setState(defaultState);
 };
 
 document.querySelectorAll("input[type=range]").forEach(it => it.oninput = updateStateAndRender);

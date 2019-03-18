@@ -14,8 +14,12 @@ var State = (function () {
   }
 
   function loadState() {
+    return setState(document.location.hash.substr(1));
+  }
+
+  function setState(encodedState) {
     try {
-      var state = JSON.parse(atob(document.location.hash.substr(1)));
+      var state = JSON.parse(atob(encodedState));
       if (!state) return false;
       stateSetter(state);
       return true;
@@ -38,9 +42,6 @@ var State = (function () {
     save: saveState,
 
     getState: getState,
-
-    clear: function () {
-      document.location.hash = "";
-    }
+    setState: setState
   };
 })();

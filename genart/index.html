@@ -12,9 +12,10 @@
         #canvasContainer {
             float: left;
             cursor: all-scroll;
+            margin: 5px;
         }
         #controlsContainer {
-            margin-left: 20px;
+            margin-left: 10px;
             float: left;
         }
         #controlsContainer label, #controlsContainer > .group {
@@ -31,11 +32,13 @@
         }
         #controlsContainer > .group label {
             display: inline-block;
-            margin: 0 10px;
+            margin: 0;
+            margin-left: 10px;
         }
         #controlsContainer .group button {
             margin-left: 10px;
             margin-right: 0;
+            margin-top: 5px;
         }
         #controlsContainer .group button:first-child {
             margin-left: 0;
@@ -63,6 +66,7 @@
         #controlsContainer label input.small[type=range] {
             width: 50px;
             display: inline-block;
+            vertical-align: middle;
         }
     </style>
 </head>
@@ -105,10 +109,12 @@
       <label for="bgColor"><input type="color" id="bgColor"></label>
     </div>  
     <div class="group">
-        <label for="sunColor1">Sun<input type="color" id="sunColor1"></label>
+        <label for="sun" class="checkbox">Sun <input type="checkbox" id="sun"></label>
+        <label for="sunColor1"><input type="color" id="sunColor1"></label>
         <label for="sunColorShift"><input class="small" type="range" min="-1" max="1" step="any" id="sunColorShift" data-type="float"></label>
         <label for="sunColor2"><input type="color" id="sunColor2"></label>
-        <label for="sunOpacity">Opacity <input type="range" min="0" max="1" step="any" id="sunOpacity" data-type="float"></label>
+        <label for="sunFill" class="checkbox">Fill <input type="checkbox" id="sunFill"></label>
+        <label for="sunOpacity">Opacity <input class="small" type="range" min="0" max="1" step="any" id="sunOpacity" data-type="float"></label>
     </div>
     <div class="group">
       <label for="skyColor1">Sky<input type="color" id="skyColor1"></label>
@@ -119,7 +125,8 @@
     <div class="group">
         <button id="createLink" title="Copy the link to Clipboard">Copy Link</button>
         <button id="save">Save JPEG</button>
-        <button id="reset">New Scene</button>
+        <button id="newScene">New Scene</button>
+        <button id="reset">Reset</button>
     </div>
 </div>
 

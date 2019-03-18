@@ -150,11 +150,13 @@ function renderSun(canvas, state) {
     generateSun(cx, cy, canvas.height / canvas.width, 1, state)
       .map(circle => toCanvasCoords(circle, width, height, state))
       .forEach((circle, i) => {
+        if (!state.sun) return; // generate Sun anyway to not break the order of random numbers
+
         let idx = state.sunCount - i;
         ctx.strokeStyle = rgba(strokeAnimation(idx), state.sunOpacity);
         ctx.lineWidth = state.lineWidth;
         ctx.fillStyle = ctx.strokeStyle;
-        renderPoints(ctx, circle, true, true);
+        renderPoints(ctx, circle, state.sunFill, true);
       });
 
     resolve(canvas);
