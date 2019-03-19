@@ -35,7 +35,8 @@ let state = {
   frameSpacing: 0,
   offsetX: 0,
   offsetY: 0,
-  closeLines: true
+  closeLines: true,
+  perspective: 0
 };
 
 let defaultState = {};

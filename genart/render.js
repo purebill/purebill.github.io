@@ -70,10 +70,16 @@ function renderMountains(canvas, state) {
     let N = state.layers;
     let spacing = state.spacing;
     let shift = state.shift;
+    let perspective = animate([0], [state.perspective], 0, N, 0);
     for (let i = N; i >= 0; i--) {
-      let y = i * spacing;
+      let y = i * spacing * (1 - perspective(i)[0]);
       let x1 = shift * i;
       let x2 = 1 + shift * i;
+
+      let perspectiveX = (x2 - x1) / 2 * perspective(i)[0];
+      x1 += perspectiveX;
+      x2 -= perspectiveX;
+
       var points = toCanvasCoords(generateMountain(x1, y, x2, y, state), width, height, state);
       if (state.closeLines) {
         points.unshift([0, points[0][1]]);
