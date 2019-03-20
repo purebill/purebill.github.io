@@ -61,6 +61,8 @@ function rgba(rgb, alpha) {
   return "rgba(" + rgb[0] + ", " + rgb[1] + ", " + rgb[2] + ", " + alpha + ")";
 }
 
+const epsilon = 1e-6;
+
 function renderMountains(canvas, state) {
   return new Promise(function (resolve) {
     let width = canvas.width;
@@ -68,15 +70,18 @@ function renderMountains(canvas, state) {
 
     let mountains = [];
     let N = state.layers;
-    let spacing = state.spacing;
+    let s = state.spacing;
     let shift = state.shift;
-    let perspective = animate([0], [state.perspective], 0, N, 0);
-    for (let i = N; i >= 0; i--) {
-      let y = i * spacing * (1 - perspective(i)[0]);
+    let p = state.perspective;
+
+    let h = p > epsilon ? 2*N*s/p/(N+1) : s;
+
+    let y = 0;
+    for (let i = 0; i <= N; i++) {
       let x1 = shift * i;
       let x2 = 1 + shift * i;
 
-      let perspectiveX = (x2 - x1) / 2 * perspective(i)[0];
+      let perspectiveX = (x2 - x1) / 2 * p/N*i;
       x1 += perspectiveX;
       x2 -= perspectiveX;
 
@@ -86,6 +91,8 @@ function renderMountains(canvas, state) {
         points.push([canvas.width, points[points.length - 1][1]]);
       }
       mountains.push(points);
+
+      y += p > epsilon ? h * p/N*(N-i) : s;
     }
 
     const ctx = canvas.getContext("2d");
@@ -104,6 +111,7 @@ function renderMountains(canvas, state) {
     let strokeAnimation = animate(color2, color1, 0, N, state.colorShift);
     let fillAnimation = animate(color1, color2, 0, N, state.colorShift);
 
+    mountains.reverse();
     mountains.forEach((points, i) => {
       let idx = N - i;
 
