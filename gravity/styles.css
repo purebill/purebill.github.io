@@ -1,0 +1,60 @@
+body {
+    border: 0;
+    padding: 0;
+    margin: 0;
+}
+#controlsContainer {
+    position: fixed;
+    left: 0;
+    top: 0;
+}
+#controlsContainer label, #controlsContainer > .group {
+    display: block;
+    margin: 10px 0;
+}
+.subgroup {
+    display: inline-block;
+}
+.subgroup button {
+    display: block;
+    padding-top: 0;
+    padding-bottom: 0;
+}
+#controlsContainer > .group label {
+    display: inline-block;
+    margin: 0;
+    margin-left: 10px;
+}
+#controlsContainer .group button {
+    margin-left: 10px;
+    margin-right: 0;
+    margin-top: 5px;
+}
+#controlsContainer .group button:first-child {
+    margin-left: 0;
+}
+#controlsContainer > .group label:first-child {
+    margin: 0;
+}
+#controlsContainer > .group label.checkbox:first-child {
+    margin-right: 10px;
+}
+#controlsContainer label.checkbox input {
+    display: inline-block;
+    margin-bottom: 10px;
+}
+#controlsContainer label input {
+    margin-right: 10px;
+    display: block;
+}
+#controlsContainer label input:last-child {
+    margin: 0;
+}
+#controlsContainer label input[type=range] {
+    width: 200px;
+}
+#controlsContainer label input.small[type=range] {
+    width: 50px;
+    display: inline-block;
+    vertical-align: middle;
+}
