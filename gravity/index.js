@@ -1,30 +1,53 @@
 let state = {
   scale: 1,
   timeScale: 1,
-  paused: false
+  paused: false,
+  createEarthMass: 1,
+  createStatic: false,
+  modelSecondsPerRealSecond: 3600 * 24 * 10,
+  modelStepSeconds: 3600 * 20
 };
 
 let physics = {
   G: 6.67e-11,
+  width: 1e12, // m
+  height: 1e12, // m
   sun: {
     m: 2e30 // kg
   },
   earth: {
     m: 6e24, // kg
-    orbital: {
+    orbit: {
       size: 150e9, // m
       velocity: 30000 // m/s
     }
   },
-  width: 1e12,
-  height: 1e12
+  mars: {
+    m: 6.4e24, // kg
+    orbit: {
+      size: 228e9, // m
+      velocity: 24000 // m/s
+    }
+  },
+  mercury: {
+    m: 3.3e23, // kg
+    orbit: {
+      size: 58e9, // m
+      velocity: 47000 // m/s
+    }
+  },
+  venus: {
+    m: 4.87e24,
+    orbit: {
+      size: 108e9,
+      velocity: 35000
+    }
+  }
 };
 
 let model = [];
 let ship = null;
 let calcFutureForIdx = null;
-
-setInterval(() => calcFutureForIdx !== null && console.debug(model[calcFutureForIdx]), 1000);
 
 function selectShip(b) {
   model.filter(b => b === ship).forEach(b => b.ship = false);
@@ -58,11 +81,16 @@ function swapBuffers() {
   otherCanvas = tmp;
 }
 
-let start;
+let start, last;
 function loop(ts) {
-  if (!start) start = ts;
+  if (!start) {
+    start = ts;
+    last = ts;
+  }
 
-  renderFrame(ts);
+  renderFrame(ts, ts - last);
+  last = ts;
+
   swapBuffers();
 
   requestAnimationFrame(loop);
@@ -78,11 +106,16 @@ function clone(o) {
   return JSON.parse(JSON.stringify(o));
 }
 
-function renderFrame(t) {
+function dist(p1, p2) {
+  return Math.sqrt(Math.pow(p1[0] - p2[0], 2) + Math.pow(p1[1] - p2[1], 2));
+}
+
+function renderFrame(t, sinceLastTimeMs) {
   if (!state.paused) {
-    let c = 10;
-    for (let i = 0; i < state.timeScale * 10 * c; i++) {
-      let dt = 3600 / c;
+    let sinceLastTimeSeconds = sinceLastTimeMs / 1000;
+    let dt = state.modelStepSeconds;
+    let steps = Math.ceil(sinceLastTimeSeconds * state.modelSecondsPerRealSecond / dt * state.timeScale);
+    for (let i = 0; i < steps; i++) {
       progressModel(model, dt);
     }
   }
@@ -90,17 +123,29 @@ function renderFrame(t) {
   model.forEach(b => {
     if (b.static) return;
 
-    if (!b.ts) b.ts = t;
-    if (t - b.ts > 50/state.timeScale) {
-      b.ts = t;
-      b.trail.unshift([b.p[0], b.p[1]]);
-      if (b.trail.length > 100) b.trail.pop();
+    if (b.trail.length == 0) b.trail.push([b.p[0], b.p[1]]);
+    else {
+      let p1 = toCanvasCoords(b.p);
+      let p2 = toCanvasCoords(b.trail[0]);
+      let d = dist(p1, p2);
+      if (d > 10) b.trail.unshift([b.p[0], b.p[1]]);
     }
+    if (b.trail.length > 20) b.trail.pop();
   });
 
   let ctx = canvas.getContext("2d");
 
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  renderField(model, ctx);
+
+  ctx.save();
+  renderOrbits(ctx);
+  ctx.restore();
+
+  ctx.save();
   renderModel(model, ctx);
+  ctx.restore();
 
   if (calcFutureForIdx != null) {
     let futureModel = clone(model);
@@ -116,7 +161,23 @@ function renderFrame(t) {
     }
   }
 
-  renderCallbacks.forEach(callback => callback.call(null, t, ctx));
+  renderCallbacks.forEach(callback => {
+    ctx.save();
+    callback.call(null, t, ctx);
+    ctx.restore();
+  });
+}
+
+function renderOrbits(ctx) {
+  let c = toCanvasCoords([0, 0]);
+  ["mercury", "venus", "earth", "mars"].forEach(planet => {
+    let o = toCanvasCoords([physics[planet].orbit.size, 0]);
+    let r = Math.sqrt(Math.pow(c[0] - o[0], 2) + Math.pow(c[1] - o[1], 2));
+    ctx.strokeStyle = "#999999";
+    ctx.beginPath();
+    ctx.arc(c[0], c[1], r, 0, Math.PI * 2);
+    ctx.stroke();
+  });
 }
 
 function line(ctx, x1, y1, x2, y2, color, lineWidth) {
@@ -135,13 +196,15 @@ function renderTrail(ctx, b) {
     let c1 = parseColor(b.color);
     let c2 = [255, 255, 255];
     let ca = animate(c1, c2, 0, b.trail.length, 0.3);
+    let alpha = animate([1], [0], 0, b.trail.length - 1, 0.3);
 
     ctx.beginPath();
     ctx.moveTo(pScreen[0], pScreen[1]);
     for (let i = 0; i < b.trail.length; i++) {
       let p = toCanvasCoords(b.trail[i]);
 
-      ctx.strokeStyle = rgba(ca(i), 1);
+      // ctx.strokeStyle = rgba(ca(i), 1);
+      ctx.strokeStyle = rgba(c1, alpha(i));
       ctx.lineTo(p[0], p[1]);
       ctx.stroke();
 
@@ -168,8 +231,6 @@ function renderModel(model, ctx, future) {
   ctx.strokeStyle = "#000000";
   ctx.lineWidth = 1;
   ctx.fillStyle = "#00ff00";
-
-  if (!future) ctx.clearRect(0, 0, canvas.width, canvas.height);
 
   if (!future) model.forEach(b => renderTrail(ctx, b));
   model.forEach(b => renderBody(ctx, b));
@@ -235,25 +296,13 @@ function progressModel(model, dt) {
 }
 
 function initModel() {
-  let sun = new Body([0, 0], physics.sun.m, [0, -physics.earth.orbital.velocity/2], "#ffff00");
+  let sun = new Body([0, 0], physics.sun.m, [0, -physics.earth.orbit.velocity/2], "#ffff00");
   sun.static = true;
   model.push(sun);
 
-  let sun2 = new Body([-physics.earth.orbital.size*4, 0], physics.sun.m, [0, physics.earth.orbital.velocity/2], "#ffff00");
-  sun2.static = true;
-  model.push(sun2);
-
-  let sun3 = new Body([-physics.earth.orbital.size*2, -physics.earth.orbital.size*2], physics.sun.m, [0, physics.earth.orbital.velocity/2], "#ffff00");
-  sun3.static = true;
-  model.push(sun3);
-
-  let earth = new Body([physics.earth.orbital.size, 0], physics.earth.m, [0, physics.earth.orbital.velocity], "#0000ff");
-  //selectShip(earth);
-  model.push(earth);
-
-  // model.push(new Body([physics.earth.orbital.size*1.1, 0], physics.earth.m, [0, physics.earth.orbital.velocity], "#0000ff"));
-  // model.push(new Body([-physics.earth.orbital.size, 0], physics.earth.m, [0, -physics.earth.orbital.velocity], "#0000ff"));
-  // model.push(new Body([0, physics.earth.orbital.size], physics.earth.m, [-physics.earth.orbital.velocity, 0], "#0000ff"));
+  ["mercury", "venus", "earth", "mars"].forEach(planet => {
+    model.push(new Body([physics[planet].orbit.size, 0], physics[planet].m, [0, physics[planet].orbit.velocity], "#0000ff"));
+  });
 }
 
 function Body(p, m, v, color) {
@@ -286,7 +335,7 @@ window.onmousedown = e => {
   }
 
   let screenP = [e.clientX, e.clientY];
-  newBody = new Body(toWorldCoords(screenP), physics.earth.m, [0, 0], "#ff00ff");
+  newBody = new Body(toWorldCoords(screenP), physics.earth.m * Math.pow(10, state.createEarthMass), [0, 0], "#ff00ff");
 
   newBody.screenP = newBody.client = screenP;
   newBody.static = true;
@@ -318,15 +367,15 @@ window.onmousemove = e => {
 
   newBody.client = [e.clientX, e.clientY];
 
-  newBody.v[0] = (newBody.screenP[0] - e.clientX) * physics.earth.orbital.velocity / 50;
-  newBody.v[1] = (e.clientY - newBody.screenP[1]) * physics.earth.orbital.velocity / 50;
+  newBody.v[0] = (newBody.screenP[0] - e.clientX) * physics.earth.orbit.velocity / 50;
+  newBody.v[1] = (e.clientY - newBody.screenP[1]) * physics.earth.orbit.velocity / 50;
 };
 
 window.onmouseup = e => {
   if (e.button != 0) return;
   if (newBody == null) return;
 
-  newBody.static = false;
+  newBody.static = state.createStatic;
   delete newBody.client;
   delete newBody.screenP;
   newBody = null;
@@ -357,6 +406,8 @@ function onmousewheel(e) {
 }
 
 window.onkeydown = (e) => {
+  if (ship == null) return;
+
   let unitForce = 2e22 / state.timeScale;
 
   let handled = true;
@@ -381,6 +432,12 @@ window.onkeydown = (e) => {
       ship.jet.top = true;
       e.preventDefault();
       break;
+    case "Delete":
+      if (ship !== null) {
+        model = model.filter(b => b !== ship);
+        ship = null;
+      }
+      break;
     default:
       handled = false;
   }
@@ -388,6 +445,8 @@ window.onkeydown = (e) => {
 };
 
 window.onkeyup = (e) => {
+  if (ship == null) return;
+  
   let handled = true;
   switch (e.code) {
     case "ArrowLeft":
