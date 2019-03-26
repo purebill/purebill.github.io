@@ -7,6 +7,7 @@ body {
     position: fixed;
     left: 0;
     top: 0;
+    z-index: 100;
 }
 #controlsContainer label, #controlsContainer > .group {
     display: block;
@@ -57,4 +58,14 @@ body {
     width: 50px;
     display: inline-block;
     vertical-align: middle;
+}
+
+#help {
+    position: fixed;
+    margin: auto;
+    background-color: white;
+    display: none;
+    border: 1px solid black;
+    padding: 10px;
+    z-index: 10000;
 }
