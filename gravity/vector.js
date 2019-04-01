@@ -1,25 +1,35 @@
-const Vector = {};
+const V = {};
 
-Vector.add = function (v1, v2) {
-  return v1.map((e, idx) => e + v2[idx]);
+V.add = (v1, v2) => v1.map((e, idx) => e + v2[idx]);
+
+V.negate = v => v.map(e => -e);
+
+V.subtract = (v1, v2) => V.add(v1, V.negate(v2));
+
+V.length = v => Math.sqrt(v.map(e => e*e).reduce((acc, e) => acc+e, 0));
+
+V.normalize = v => V.mulByScalar(v, 1/V.length(v));
+
+V.mulByScalar = (v, scalar) => v.map(e => e*scalar);
+
+V.dotProduct = (v1, v2) => v1.map((e, idx) => e*v2[idx]).reduce((acc, e) => acc+e, 0);
+
+V.clone = v => v.slice(0);
+
+V.random = (length) => {
+  let l = length === undefined ? 1 : length;
+  let alpha = Math.random()*Math.PI*2;
+  return [l * Math.sin(alpha), l * Math.cos(alpha)];
 };
 
-Vector.negate = function (v) {
-  return v.map(e => -e);
+V.normal = (v) => {
+  let d = V.length(v);
+  let vu = V.normalize(v);
+  return [d*-vu[1], d*vu[0]];
 };
 
-Vector.subtract = function (v1, v2) {
-  return Vector.add(v1, Vector.negate(v2));
-};
-
-Vector.length = function (v) {
-  return Math.sqrt(v.map(e => e*e).reduce((acc, e) => acc+e, 0));
-};
-
-Vector.normalize = function (v) {
-  return Vector.mulByScalar(v, 1/Vector.length(v));
-};
-
-Vector.mulByScalar = function (v, scalar) {
-  return v.map(e => e*scalar);
+V.rotate = (v, radians) => {
+  let x = v[0]*Math.cos(radians) - v[1]*Math.sin(radians);
+  let y = v[1]*Math.cos(radians) + v[0]*Math.sin(radians);
+  return [x, y];
 };

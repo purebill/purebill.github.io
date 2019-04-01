@@ -1,6 +1,6 @@
 function animate(v1, v2, t1, t2, shift) {
-  v1 = v1.slice(0);
-  v2 = v2.slice(0);
+  v1 = V.clone(v1);
+  v2 = V.clone(v2);
   
   let t1s = t1;
   let t2s = t2;
@@ -15,4 +15,40 @@ function animate(v1, v2, t1, t2, shift) {
     if (t >= t2s) return v2;
     return v1.map((c, idx) => c + step[idx] * (t-t1s));
   };
+}
+
+function animateOnTimer(v1, v2, intervalMs, tillMs, callback, cancelCallback) {
+  let a = animate(v1, v2, 0, tillMs);
+  let t = new Date().getTime();
+  let value = v1;
+  let intervalId = null;
+
+  let cancel = () => {
+    if (intervalId === null) return;
+
+    try { cancelCallback && cancelCallback(value); } catch (e) { console.error(e); }
+
+    clearInterval(intervalId);
+    intervalId = null;
+  };
+
+  let progress = () => {
+    let dt = new Date().getTime() - t;
+    value = a(dt);
+
+    try { callback && callback(value); } catch (e) { console.error(e); }
+
+    if (dt > tillMs) {
+      cancel();
+    }
+  };
+
+  progress();
+
+  intervalId = setInterval(progress, intervalMs);
+
+  let getValue = () => value;
+  getValue.cancel = cancel;
+
+  return getValue;
 }

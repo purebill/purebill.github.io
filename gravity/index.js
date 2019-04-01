@@ -3,10 +3,12 @@ const physics = {
   width: 1e12, // m
   height: 1e12, // m
   sun: {
-    m: 2e30 // kg
+    m: 2e30, // kg
+    r: 695510000 // m
   },
   earth: {
     m: 6e24, // kg
+    r: 6371000, // m
     orbit: {
       size: 150e9, // m
       velocity: 30000 // m/s
@@ -14,6 +16,7 @@ const physics = {
   },
   mars: {
     m: 6.4e24, // kg
+    r: 3389500, // m
     orbit: {
       size: 228e9, // m
       velocity: 24000 // m/s
@@ -21,6 +24,7 @@ const physics = {
   },
   mercury: {
     m: 3.3e23, // kg
+    r: 2439700,
     orbit: {
       size: 58e9, // m
       velocity: 47000 // m/s
@@ -28,6 +32,7 @@ const physics = {
   },
   venus: {
     m: 4.87e24,
+    r: 6051800,
     orbit: {
       size: 108e9,
       velocity: 35000
@@ -37,6 +42,8 @@ const physics = {
 
 let state = {
   scale: 1,
+  shiftX: 0,
+  shiftY: 0,
   timeScale: 1,
   paused: false,
   createEarthMass: 1,
@@ -46,29 +53,36 @@ let state = {
   showField: false,
   model: [],
   ship: null,
-  autopilot: {}
+  autopilot: {},
+  particles: {
+    N: 200
+  }
 };
 let defaultState = clone(state);
 
 let calcFutureForIdx = null;
 
 let canvas = document.createElement("canvas");
+let visibleCanvas = document.createElement("canvas");
 let aspect;
 function onResize() {
-  canvas.width = window.innerWidth - 50;
-  canvas.height = window.innerHeight - 50;
-  canvas.style.width = canvas.width + "px";
-  canvas.style.height = canvas.height + "px";
-  canvas.style.display = "";
-  canvas.style.position = "fixed";
-  canvas.style.left = 0;
-  canvas.style.top = 0;
+  visibleCanvas.width = window.innerWidth - 50;
+  visibleCanvas.height = window.innerHeight - 50;
+  visibleCanvas.style.width = visibleCanvas.width + "px";
+  visibleCanvas.style.height = visibleCanvas.height + "px";
+  visibleCanvas.style.display = "";
+  visibleCanvas.style.position = "fixed";
+  visibleCanvas.style.left = 0;
+  visibleCanvas.style.top = 0;
 
-  aspect = canvas.height / canvas.width;
+  aspect = visibleCanvas.height / visibleCanvas.width;
+
+  canvas.width = visibleCanvas.width;
+  canvas.height = visibleCanvas.height;
 }
 window.onresize = onResize;
 onResize();
-document.body.appendChild(canvas);
+document.body.appendChild(visibleCanvas);
 
 let start, last;
 function loop(ts) {
@@ -79,6 +93,10 @@ function loop(ts) {
 
   renderFrame(ts, ts - last);
   last = ts;
+
+  let ctx = visibleCanvas.getContext("2d");
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.drawImage(canvas, 0, 0);
 
   requestAnimationFrame(loop);
 }
@@ -94,6 +112,7 @@ if (saved) {
     loaded = true;
   } catch (e) {}
 }
+Keys.init(visibleCanvas);
 if (!loaded) initModel();
 StateUi(state);
 requestAnimationFrame(loop);
@@ -229,7 +248,13 @@ function renderBody(ctx, b) {
   ctx.fillStyle = color;
   ctx.lineWidth = 1;
   let pScreen = toCanvasCoords(b.p);
-  ctx.fillRect(pScreen[0] - 5, pScreen[1] - 5, 10, 10);
+
+  let r = b.r ? Math.max(sizeToCanvas(b.r), 5) : 5;
+  ctx.beginPath();
+  ctx.arc(pScreen[0], pScreen[1], r, 0, Math.PI*2);
+  ctx.fill();
+  /*if (b.static) ctx.strokeRect(pScreen[0] - r, pScreen[1] - r, 2*r, 2*r);
+  else ctx.fillRect(pScreen[0] - r, pScreen[1] - r, 2*r, 2*r);*/
 
   const size = 10;
   if (b.jet.left) line(ctx, pScreen[0] - 5, pScreen[1] - 5, pScreen[0] - 5, pScreen[1] + 5, "#ff0000", Math.random()*size + 1);
@@ -260,8 +285,8 @@ function renderFuture(context) {
 
     ctx.globalAlpha = 0.3;
     for (let i = 0; i < 100; i++) {
-      let dt = 360000;
-      progressModel(futureModel, dt);
+      let dt = 360000 / state.scale;
+      progressModel(futureModel, dt, true);
       renderModel({
         model: futureModel.filter((b, idx) => idx == calcFutureForIdx),
         ctx
@@ -270,16 +295,38 @@ function renderFuture(context) {
   }
 }
 
-function toCanvasCoords(p) {
+function toCanvasCoords(p, result) {
   let x = aspect * state.scale * canvas.width / physics.width * p[0] + canvas.width / 2;
   let y = canvas.height / 2 - state.scale * canvas.height / physics.height * p[1];
-  return [x, y];
+
+  if (result) {
+    result[0] = x + state.shiftX;
+    result[1] = y + state.shiftY;
+  } else result = [x + state.shiftX, y + state.shiftY];
+
+  return result;
 }
 
-function toWorldCoords(p) {
-  let x = (p[0] - canvas.width / 2)/aspect/state.scale/canvas.width*physics.width;
-  let y = (canvas.height / 2 - p[1])/state.scale/canvas.height*physics.height;
-  return [x, y];
+function sizeToCanvas(worldSize) {
+  let origin = toCanvasCoords([0, 0]);
+  let p = toCanvasCoords([worldSize, 0]);
+  return V.length(V.subtract(p, origin));
+}
+
+function sizeToWorld(canvasSize) {
+  let origin = toWorldCoords([0, 0]);
+  let p = toWorldCoords([canvasSize, 0]);
+  return V.length(V.subtract(p, origin));
+}
+
+function toWorldCoords(p, result) {
+  let x = ((p[0] - state.shiftX) - canvas.width / 2)/aspect/state.scale/canvas.width*physics.width;
+  let y = (canvas.height / 2 - (p[1] - state.shiftY))/state.scale/canvas.height*physics.height;
+  if (result) {
+    result[0] = x;
+    result[1] = y;
+  } else result = [x, y];
+  return result;
 }
 
 function rgba(rgb, alpha) {
@@ -287,34 +334,123 @@ function rgba(rgb, alpha) {
 }
 
 function parseColor(str) {
-  return str.match(/#(..)(..)(..)/).slice(1).map(hex => parseInt(hex, 16));
+  let a = str.match(/#(..)(..)(..)/);
+  if (a) return a.slice(1).map(hex => parseInt(hex, 16));
+  a = str.match("rgba\(([^,]+)\s*,\s*([^,]+)\s*,\s*\([^,]+)\s*,\s*([^,]+)\s*)");
+  return a.slice(1).map(v => parseInt(v));
 }
 
-function gravityF(p1, m1, p2, m2) {
+function gravityF(p1, m1, p2, m2, result) {
   let rSq = Math.pow(p2[0] - p1[0], 2) + Math.pow(p2[1] - p1[1], 2);
   let r = Math.sqrt(rSq);
   let cos = (p2[0] - p1[0]) / r;
   let sin = (p2[1] - p1[1]) / r;
 
   let f = physics.G * m1 * m2 / rSq;
-  return [f*cos, f*sin];
+  if (result) {
+    result[0] = f*cos;
+    result[1] = f*sin;
+  } else result = [f*cos, f*sin];
+
+  return result;
 }
 
-function progressModel(model, dt) {
-  model.forEach(b => {
-    b.a = [b.f[0] / b.m, b.f[1] / b.m];
+function newPosition(b, dt) {
+  if (b.static) return b.p;
 
-    if (b.static) return;
+  return [b.p[0] + b.v[0] * dt, b.p[1] + b.v[1] * dt];
+}
 
-    b.p[0] += b.v[0] * dt;
-    b.p[1] += b.v[1] * dt;
-  });
+function isCollapsing(b1, b2, dt) {
+  let v1 = V.subtract(b2.p, b1.p);
+  let d = V.length(v1);
 
+  if (d <= b1.r + b2.r) return true;
+
+  let criticalAlpha = Math.abs(Math.atan((b1.r + b2.r) / d));
+
+  let p1Next = newPosition(b1, dt);
+  let v2 = V.subtract(p1Next, b1.p);
+  let alpha = Math.abs(Math.acos(V.dotProduct(v1, v2) / d / V.length(v2)));
+
+  if (alpha <= criticalAlpha) {
+    let v1n = V.normal(v1);
+    let a = v1n[1] / v1n[0];
+    let b = -a*b2.p[0] + b2.p[1];
+
+    if (Math.sign(a*b1.p[0] + b - b1.p[1]) != Math.sign(a*p1Next[0] + b - p1Next[1])) return true;
+  }
+
+  return false;
+}
+
+function checkCollisions(model, dt) {
+  let collapse = {};
+  let collapsed = false;
   for (let i = 0; i < model.length; i++) {
     let b1 = model[i];
+    if (b1.particle) continue;
+
+    for (let j = i + 1; j < model.length; j++) {
+      let b2 = model[j];
+      if (b2.particle) continue;
+
+      if (!b1.collapsed && !b2.collapsed
+        && (isCollapsing(b1, b2, dt) || isCollapsing(b2, b1, dt))) {
+        collapsed = true;
+        if (!(i in collapse)) collapse[i] = [];
+        collapse[i].push(j);
+      }
+    }
+  }
+
+  if (collapsed) {
+    let toRemove = [];
+    for (let i in collapse) {
+      let b1 = model[i];
+      b1.collapsed = true;
+      collapse[i].forEach(j => {
+        let b2 = model[j];
+
+        let removing = b1.static ? b2 : (b1.m > b2.m ? b2 : b1);
+        if (toRemove.indexOf(removing) === -1) toRemove.push(removing);
+        b1 === removing ? b2.collapsed = false : b1.collapsed = false;
+
+        for (let k = 0; k < state.particles.N; k++) {
+          let particle = Body.builder()
+            .m(0)
+            .particle(true)
+            .p(V.mulByScalar(V.add(b1.p, b2.p), 0.5))
+            .v(V.random(physics.earth.orbit.velocity * (Math.random() + 1) * 2))
+            .color("#ff0000")
+            .build();
+
+          let c = parseColor(particle.color).slice(0, 3);
+          animateOnTimer([1], [0], 100, 1000, (v) => particle.color = rgba(c, v), () => {
+            let idx = model.indexOf(particle);
+            if (idx >= 0) model.splice(idx, 1);
+          });
+
+          model.push(particle);
+        }
+      });
+    }
+
+    toRemove.forEach(b => model.splice(model.indexOf(b), 1));
+  }
+}
+function progressModel(model, dt, future) {
+  // Jet and other non-gravity forces
+  model.forEach(b => b.a = V.mulByScalar(b.f, 1/b.m));
+
+  // Calculate gravity
+  for (let i = 0; i < model.length; i++) {
+    let b1 = model[i];
+    if (b1.particle) continue;
 
     for (let j = i+1; j < model.length; j++) {
       let b2 = model[j];
+      if (b2.particle) continue;
 
       let fV = gravityF(b1.p, b1.m, b2.p, b2.m);
 
@@ -330,239 +466,49 @@ function progressModel(model, dt) {
       b1.v[1] += b1.a[1] * dt;
     }
   }
+
+  if (!future) checkCollisions(model, dt);
+
+  // Calculate new position based on the current velocity
+  model.forEach(b => b.p = newPosition(b, dt));
 }
 
 function initModel() {
   state.model = [];
 
-  let sun = new Body([0, 0], physics.sun.m, [0, -physics.earth.orbit.velocity/2], "#ffff00");
-  sun.static = true;
+  let sun = Body.builder()
+    .p([0, 0])
+    .m(physics.sun.m)
+    .r(physics.sun.r)
+    .v([0, 0])
+    .color("#ffff00")
+    .static(true)
+    .build();
   state.model.push(sun);
 
-  ["mercury", "venus", "earth", "mars"].forEach(planet => {
-    state.model.push(new Body([physics[planet].orbit.size, 0], physics[planet].m, [0, physics[planet].orbit.velocity], "#0000ff"));
+  ["mercury", "venus", "earth", "mars"].forEach(name => {
+    let planet = physics[name];
+
+    state.model.push(Body.builder()
+      .p([planet.orbit.size, 0])
+      .m(planet.m)
+      .v([0, planet.orbit.velocity])
+      .color("#0000ff")
+      .build());
   });
 }
 
-function Body(p, m, v, color) {
-  this.p = p;
-  this.m = m;
-  this.v = v;
-  this.color = color;
-  this.f = [0, 0];
-  this.autopilot = {
-    on: false
-  };
-
-  this.jet = {
-    left: false,
-    right: false,
-    top: false,
-    bottom: false
-  };
-  this.static = false;
-  this.trail = [];
-}
-
-Body.prototype.applyForce = function(fx, fy) {
-  if (fx !== null) {
-    this.f[0] = fx;
-    this.jet.left = this.jet.right = false;
-    if (Math.abs(fx) > 1e-6) {
-      this.jet.left = fx > 0;
-      this.jet.right = fx < 0;
-    }
-  }
-  if (fy !== null) {
-    this.f[1] = fy;
-    this.jet.top = this.jet.bottom = false;
-    if (Math.abs(fy) > 1e-6) {
-      this.jet.top = fy < 0;
-      this.jet.bottom = fy > 0;
-    }
-  }
-};
-
-let newBody = null;
-let mouseMoveCallbackIdx = null;
-const unitForce = 2e22;
-
-Keys.key("ArrowLeft", "Accelerate LEFT selected body", () => {
-  if (state.ship == null) return;
-  state.ship.applyForce(-unitForce, null);
-  /*state.ship.f[0] = -unitForce;
-  state.ship.jet.right = true;*/
-}, () => {
-  if (state.ship == null) return;
-  state.ship.applyForce(0, null);
-  /*state.ship.f[0] = 0;
-  state.ship.jet.left = state.ship.jet.right = false;*/
-});
-
-Keys.key("ArrowRight", "Accelerate RIGHT selected body", () => {
-  if (state.ship == null) return;
-  state.ship.applyForce(unitForce, null);
-  /*state.ship.f[0] = unitForce;
-  state.ship.jet.left = true;*/
-}, () => {
-  if (state.ship == null) return;
-  state.ship.applyForce(0, null);
-  /*state.ship.f[0] = 0;
-  state.ship.jet.left = state.ship.jet.right = false;*/
-});
-
-Keys.key("ArrowUp", "Accelerate UP selected body", () => {
-  if (state.ship == null) return;
-  state.ship.applyForce(null, unitForce);
-  /*state.ship.f[1] = unitForce;
-  state.ship.jet.bottom = true;*/
-}, () => {
-  if (state.ship == null) return;
-  state.ship.applyForce(null, 0);
-  /*state.ship.f[1] = 0;
-  state.ship.jet.top = state.ship.jet.bottom = false;*/
-});
-
-Keys.key("ArrowDown", "Accelerate DOWN selected body", () => {
-  if (state.ship == null) return;
-  state.ship.applyForce(null, -unitForce);
-  /*state.ship.f[1] = -unitForce;
-  state.ship.jet.top = true;*/
-}, () => {
-  if (state.ship == null) return;
-  state.ship.applyForce(null, 0);
-  /*state.ship.f[1] = 0;
-  state.ship.jet.top = state.ship.jet.bottom = false;*/
-});
-
-Keys.key("Delete", "Delete selected body", () => {
-  if (state.ship !== null) {
-    state.model = state.model.filter(b => b !== state.ship);
-    state.ship = null;
-  }
-});
-
-Keys.key("KeyG", "Turn ON/OFF gravity field", () => state.showField = !state.showField);
-Keys.key("Space", "Pause ON/OFF", () => state.paused = !state.paused);
-
-Keys.mouse(0, "Select a body", () => {
-  let selected = state.model.filter(b => b.selected);
-  if (selected.length > 0) {
-    selectShip(selected[0]);
-  }
-});
-
-Keys.mouse(2, "Create a new body", (e) => {
-  let screenP = [e.clientX, e.clientY];
-  newBody = new Body(toWorldCoords(screenP), physics.earth.m * Math.pow(10, state.createEarthMass), [0, 0], "#ff00ff");
-
-  newBody.screenP = newBody.client = screenP;
-  newBody.static = true;
-  calcFutureForIdx = state.model.push(newBody) - 1;
-
-  mouseMoveCallbackIdx = renderPipeline.push((context) => {
-      if (newBody == null) return;
-
-      line(context.ctx, newBody.screenP[0], newBody.screenP[1], newBody.client[0], newBody.client[1], "#000000");
-    }) - 1;
-}, () => {
-  if (newBody == null) return;
-
-  newBody.static = state.createStatic;
-  delete newBody.client;
-  delete newBody.screenP;
-  newBody = null;
-  renderPipeline.splice(mouseMoveCallbackIdx, 1);
-  calcFutureForIdx = null;
-});
-
-Keys.mouseMove("With left button pressed drag to select the speed of the new body", (e) => {
-  if (newBody == null) {
-    state.model.forEach(b => {
-      let screenP = toCanvasCoords(b.p);
-      let d = Math.sqrt(Math.pow(screenP[0] - e.clientX, 2) + Math.pow(screenP[1] - e.clientY, 2));
-      if (d < 10) {
-        if (!b.selected) {
-          b.selected = true;
-        }
-      } else if (b.selected) {
-        b.selected = false;
-      }
-    });
-
-    return;
-  }
-
-  newBody.client = [e.clientX, e.clientY];
-
-  newBody.v[0] = (newBody.screenP[0] - e.clientX) * physics.earth.orbit.velocity / 50;
-  newBody.v[1] = (e.clientY - newBody.screenP[1]) * physics.earth.orbit.velocity / 50;
-});
-
-Keys.mouseZoom("Zoom IN/OUT", (e) => {
-  var zoomIn = e.detail ? e.detail < 0 : e.deltaY < 0;
-  state.scale = Math.max(0, state.scale * (zoomIn ? 1.1 : 1 / 1.1));
-  StateUi.updateUi();
-});
-
-Keys.key("F1", "Show this help message (F1 again to hide)", () => {
-  let el = document.getElementById("help");
-
-  if (el.style.display == "block") {
-    el.style.display = "none";
-    return;
-  }
-
-  let help = Keys.help();
-  el.innerHTML =
-    "<h2>Keyboard</h2>\n<pre>" + help.keys.join("\n</pre><pre>") + "</pre>" +
-    "<h2>Mouse</h2>\n<pre>" + help.mouse.join("\n</pre><pre>") + "</pre>";
-
-  el.style.display = "block";
-});
-
-Keys.key("Escape", "Recreate the Universe from defaults", () => {
-  Object.keys(defaultState).forEach(k => state[k] = defaultState[k]);
-  initModel();
-  StateUi(state);
-});
-
-Keys.key("KeyA", "Turn ON/OFF auto-pilot", () => {
-  if (state.ship === null) return;
-
-  let ship = state.ship;
-
-  ship.autopilot.on = !ship.autopilot.on;
-  if (ship.autopilot) {
-    ship.autopilot.p = ship.p.slice();
-  } else {
-    ship.applyForce(0, 0);
-  }
-});
-
-setInterval(autopilot, 100);
+//setInterval(autopilot, 100);
 
 function autopilot() {
   state.model.filter(b => b.autopilot.on).forEach(ship => {
-    let diff = Vector.subtract(ship.autopilot.p, ship.p);
-    let dir = Vector.normalize(Vector.add(Vector.normalize(diff), Vector.normalize(Vector.negate(ship.v))));
-    let f = Vector.mulByScalar(dir, unitForce);
+    let diff = V.subtract(ship.autopilot.p, ship.p);
+    let dir = V.normalize(V.add(V.normalize(diff), V.normalize(V.negate(ship.v))));
+    let f = V.mulByScalar(dir, unitForcePerKg);
 
-    // console.debug(Vector.length(diff), diff, f);
+    // console.debug(V.length(diff), diff, f);
 
-    if (Vector.length(diff) < 1e10) ship.applyForce(0, 0);
+    if (V.length(diff) < 1e10) ship.applyForce(0, 0);
     else ship.applyForce(f[0], f[1]);
   });
-
-  /*if (Math.abs(f[0]) > 1e3) {
-    state.ship.applyForce(f[0], null);
-  } else {
-    state.ship.applyForce(0, null);
-  }
-
-  if (Math.abs(f[1]) > 1e3) {
-    state.ship.applyForce(null, f[1]);
-  } else {
-    state.ship.applyForce(null, 0);
-  }*/
 }

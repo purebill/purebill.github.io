@@ -1,8 +1,10 @@
 var Keys = (function () {
   let keys = {};
+  let pressed = {};
   let mouseActions = {};
   let mouseMoveAction = null;
   let mouseZoomAction = null;
+  let canvas = null;
 
   window.onmousedown = e => {
     if (e.target != canvas) return;
@@ -54,20 +56,24 @@ var Keys = (function () {
   }
 
   window.onkeydown = (e) => {
+    if (pressed[e.code]) return;
+    pressed[e.code] = true;
+
     let mapping = keys[e.code];
     if (mapping && mapping.down) {
-      mapping.down();
+      mapping.down(e);
       e.preventDefault();
     }
-    //console.debug(e.code);
+    // console.debug(e.code);
   };
 
   window.onkeyup = (e) => {
     let mapping = keys[e.code];
     if (mapping && mapping.up) {
-      mapping.up();
+      mapping.up(e);
       e.preventDefault();
     }
+    pressed[e.code] = false;
   };
 
   return {
@@ -110,6 +116,9 @@ var Keys = (function () {
           .concat(mouseMoveAction ? ["Mouse move: " + mouseMoveAction.description] : [])
           .concat(mouseZoomAction ? ["Mouse zoom: " + mouseZoomAction.description] : [])
       };
+    },
+    init: function (target) {
+      canvas = target;
     }
   }
 }) ();

@@ -12,23 +12,23 @@
         <label for="createEarthMass">Create x Earth masses
           <input type="range" list="mass-values" min="-3" max="6" id="createEarthMass" step="any" data-type="float">
           <datalist id="mass-values">
-            <option value="1" label="1" />
-            <option value="2" label="10" />
-            <option value="3" label="100" />
-            <option value="4" label="1K" />
-            <option value="5" label="1K" />
-            <option value="6" label="1M" />
+            <option value="-1.26" label="Mercury" />
+            <option value="1" label="Earth" />
+            <option value="5.5" label="Sun" />
           </datalist>
         </label>
         <label for="createStatic" class="checkbox"><input type="checkbox" id="createStatic" /> static</label>
     </div>
 </div>
 <div id="help"></div>
+
 <script src="state-ui.js"></script>
 <script src="animation.js"></script>
+<script src="body.js"></script>
 <script src="render-field.js"></script>
 <script src="keys.js"></script>
 <script src="vector.js"></script>
+<script src="bindings.js"></script>
 <script src="index.js"></script>
 </body>
 </html>
