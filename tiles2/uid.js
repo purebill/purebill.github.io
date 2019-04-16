@@ -1,7 +1,7 @@
 "use strict";
 
 var Uid = (function () {
-  var url = "https://api.random.org/json-rpc/1/invoke";
+  var url = "https://api.random.org/json-rpc/2/invoke";
   var apiKey = "c39b179c-7559-4512-8db3-6cfccd63c748";
   var uidValue = localStorage["uid"];
 
@@ -35,7 +35,7 @@ var Uid = (function () {
         }
       };
 
-      xhr.setRequestHeader("Content-Type", "application/json-rpc");
+      xhr.setRequestHeader("Content-Type", "application/json");
       xhr.setRequestHeader("Accept", "application/json");
 
       xhr.send(JSON.stringify({
