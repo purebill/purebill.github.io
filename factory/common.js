@@ -7,21 +7,17 @@ function message(m) {
 }
 
 class TimeLockBox {
-  constructor(thing, state, timerId, duration) {
+  constructor(thing, state, timerId) {
     this.done = false;
     this.thing = thing;
     this.state = state;
     this.timerId = timerId;
-    this.start = new Date().getTime();
-    this.duration = duration;
   }
 
   get progress() {
     if (this.done) return 1.0;
 
-    let now = new Date().getTime();
-    let passed = now - this.start;
-    return this.duration === 0 ? 0 : passed / this.duration;
+    return Timer.getProgress(this.timerId);
   }
 }
 
@@ -41,12 +37,26 @@ class TimeLock {
       f();
       this.slots.splice(this.slots.findIndex(it => it.timerId === timerId), 1);
       box.done = true;
+      thing.timeLockBox = null;
     }, ms);
 
-    box = new TimeLockBox(thing, state, timerId, ms);
+    box = new TimeLockBox(thing, state, timerId);
+    thing.timeLockBox = box;
 
     this.slots.push(box);
 
     return box;
+  }
+
+  remove(box) {
+    let idx = this.slots.findIndex(it => it.timerId === box.timerId);
+    if (idx === -1) return;
+
+    Timer.clear(box.timerId);
+    this.slots.splice(idx, 1);
+  }
+
+  clear() {
+    this.slots.forEach(it => this.remove(it));
   }
 }

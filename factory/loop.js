@@ -15,20 +15,31 @@ var Loop = (function () {
     canvas.style.top = 0;
 
     aspect = canvas.height / canvas.width;
+
+    render();
   }
   window.onresize = onResize;
   onResize();
   document.body.appendChild(canvas);
 
+  let startTime = new Date().getTime();
+
   function loop() {
     if (paused) return;
 
+    Timer.progress(new Date().getTime() - startTime);
+    startTime = new Date().getTime();
+
+    render();
+
+    window.requestAnimationFrame(loop);
+  }
+
+  function render() {
     let ctx = canvas.getContext("2d");
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
     renders.forEach(render => render.call(null, ctx));
-
-    window.requestAnimationFrame(loop);
   }
 
   function add(f) {
@@ -42,6 +53,7 @@ var Loop = (function () {
   function resume() {
     if (!paused) return;
 
+    startTime = new Date().getTime();
     paused = false;
     loop();
   }

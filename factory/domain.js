@@ -2,10 +2,79 @@ class Thing {
   constructor(id) {
     this.id = id;
     this.dead = false;
+    this.powerSource = null;
+    this.node = null;
+  }
+
+  isPowered() {
+    return this.powerSource !== null && this.powerSource.isOn();
+  }
+
+  onPower(powerOn, powerSource) {
+    message("[" + this.id + "] Power " + (powerOn ? "ON" : "OFF"));
   }
 
   toString() {
     return "Thing: " + JSON.stringify(this);
+  }
+}
+
+class PowerConnection {
+  constructor(consumer, power) {
+    this.consumer = consumer;
+    this.power = power;
+  }
+}
+
+class PowerSource extends Thing {
+  constructor(maxPower) {
+    super("power-source")
+
+    this.maxPower = maxPower;
+    this.consumers = [];
+    this.powerLeft = maxPower;
+    this._on = true;
+  }
+
+  powerOff() {
+    this._on = false;
+    this._notifyConsumers();
+  }
+
+  powerOn() {
+    this._on = true;
+    this._notifyConsumers();
+  }
+
+  _notifyConsumers() {
+    this.consumers.forEach(box => box.consumer.onPower(this._on, this));
+  }
+
+  isOn() {
+    return this._on;
+  }
+
+  canAddConsumer(power) {
+    return this.powerLeft >= power;
+  }
+
+  addConsumer(consumer, power) {
+    if (this.canAddConsumer(power)) {
+      this.consumers.push(new PowerConnection(consumer, power));
+      this.powerLeft -= power;
+      consumer.powerSource = this;
+      consumer.onPower(this._on, this);
+      return true;
+    }
+    return false;
+  }
+
+  removeConsumer(consumer) {
+    let idx = this.consumers.findIndex(it => it.consumer === consumer);
+    assert(idx !== -1);
+    let powerConnection = this.consumers.splice(idx, 1)[0];
+    consumer.powerSource = null;
+    this.powerLeft += powerConnection.power;
   }
 }
 
@@ -39,7 +108,6 @@ class ThingSource extends InputOutput {
 
     super("thing-source", null);
     this.thingId = thingId;
-    this.output = null;
     this.suply = capacity;
     this.timeLock = new TimeLock();
     this.msPerThing = msPerThing;
@@ -47,9 +115,16 @@ class ThingSource extends InputOutput {
     this._prepare();
   }
 
+  onPower(powerOn) {
+    if (!powerOn) this.timeLock.clear();
+    this._prepare();
+  }
+
   _prepare() {
+    if (!this.isPowered()) return;
+
     let thing = new Thing(this.thingId);
-    this.timeLock.add(thing, "preparing", () => {
+    this.timeLock.add(thing, ThingSource.STATE_MINIG, () => {
       if (this.output !== null && this.suply > 0) {
         this.suply--;
         this._sendToOutput(thing);
@@ -59,6 +134,8 @@ class ThingSource extends InputOutput {
     }, this.msPerThing);
   }
 }
+
+ThingSource.STATE_MINIG = "mining";
 
 class Transporter extends InputOutput {
   constructor(output, length, speed, capacity) {
@@ -73,12 +150,20 @@ class Transporter extends InputOutput {
     this.timeLock = new TimeLock();
   }
 
+  onPower(powerOn) {
+    if (!powerOn) this.timeLock.clear();
+  }
+
   _in(thing) {
     assert(!thing.dead);
 
-    if (this.timeLock.slots.length > this.capacity) return false;
+    if (!this.isPowered()) return false;
+
+    if (this.timeLock.slots.length >= this.capacity) return false;
 
     this.timeLock.add(thing, Transporter.STATE_TRANSPORTED, () => this._sendToOutput(thing), this.length / this.speed);
+
+    return true;
   }
 }
 
@@ -97,7 +182,7 @@ class ConstructionFacility extends InputOutput {
     super("construction-facility", output);
     this.constructionPlan = constructionPlan;
     this.capacity = capacity;
-    this.boxes = []; // TODO should be a priority queue
+    this.boxes = [];
     this.readyBoxes = new TimeLock();
   }
 
@@ -109,8 +194,14 @@ class ConstructionFacility extends InputOutput {
       + "\nreadyBoxes: " + this.readyBoxes;
   }
 
+  onPower(powerOn) {
+    if (!powerOn) this.readyBoxes.clear();
+  }
+
   _in(thing) {
     assert(!thing.dead);
+
+    if (!this.isPowered()) return false;
 
     for (let box of this.boxes) {
       if (box.isRequired(thing)) {
@@ -137,12 +228,12 @@ class ConstructionFacility extends InputOutput {
     // mark all used things in the box as 'dead'
     constructionBox.slots.forEach((l) => l.forEach(it => it.dead = true));
 
-    // remove the box from the facility
-    constructionBox.constructionFacility = null;
-    this.boxes.splice(this.boxes.indexOf(constructionBox), 1);
-
     // produce the results from the box
     this.readyBoxes.add(constructionBox, ConstructionFacility.STATE_CONSTRUCTION, () => {
+      // remove the box from the facility
+      constructionBox.constructionFacility = null;
+      this.boxes.splice(this.boxes.indexOf(constructionBox), 1);
+
       this.constructionPlan.resultItems.forEach(item => {
         for (let i = 0; i < item.amount; i++) {
           this._sendToOutput(new Thing(item.id));
