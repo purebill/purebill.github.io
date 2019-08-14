@@ -54,14 +54,14 @@ class PowerSource extends Thing {
     return this._on;
   }
 
-  canAddConsumer(power) {
-    return this.powerLeft >= power;
+  canAddConsumer(consumer) {
+    return this.powerLeft >= consumer.powerNeeded;
   }
 
-  addConsumer(consumer, power) {
-    if (this.canAddConsumer(power)) {
-      this.consumers.push(new PowerConnection(consumer, power));
-      this.powerLeft -= power;
+  addConsumer(consumer) {
+    if (this.canAddConsumer(consumer)) {
+      this.consumers.push(new PowerConnection(consumer, consumer.powerNeeded));
+      this.powerLeft -= consumer.powerNeeded;
       consumer.powerSource = this;
       consumer.onPower(this._on, this);
       return true;
@@ -79,9 +79,10 @@ class PowerSource extends Thing {
 }
 
 class InputOutput extends Thing {
-  constructor(id, output) {
+  constructor(id, output, powerNeeded) {
     super(id);
     this.output = output;
+    this.powerNeeded = powerNeeded;
   }
 
   _in(thing) {
@@ -102,11 +103,12 @@ class InputOutput extends Thing {
 }
 
 class ThingSource extends InputOutput {
-  constructor(thingId, capacity, msPerThing) {
+  constructor(thingId, capacity, msPerThing, powerNeeded) {
     assert(msPerThing > 0);
     assert(capacity > 0);
+    assert(powerNeeded >= 0);
 
-    super("thing-source", null);
+    super("thing-source", null, powerNeeded);
     this.thingId = thingId;
     this.suply = capacity;
     this.timeLock = new TimeLock();
@@ -138,8 +140,8 @@ class ThingSource extends InputOutput {
 ThingSource.STATE_MINIG = "mining";
 
 class Transporter extends InputOutput {
-  constructor(output, length, speed, capacity) {
-    super("transporter", output);
+  constructor(output, length, speed, capacity, powerNeeded) {
+    super("transporter", output, powerNeeded);
 
     assert(speed > 0);
     assert(capacity > 0);
@@ -178,8 +180,8 @@ class TransportBox extends Thing {
 }
 
 class ConstructionFacility extends InputOutput {
-  constructor(constructionPlan, capacity, output) {
-    super("construction-facility", output);
+  constructor(constructionPlan, capacity, output, powerNeeded) {
+    super("construction-facility", output, powerNeeded);
     this.constructionPlan = constructionPlan;
     this.capacity = capacity;
     this.boxes = [];

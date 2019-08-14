@@ -43,10 +43,7 @@ var Keys = (function () {
     ? "DOMMouseScroll"
     : "mousewheel";
 
-  if (window.attachEvent)
-    document.body.attachEvent("on" + mousewheelevt, onmousewheel);
-  else if (window.addEventListener)
-    document.body.addEventListener(mousewheelevt, onmousewheel, false);
+  document.body.addEventListener(mousewheelevt, onmousewheel, false);
 
   function onmousewheel(e) {
     if (mouseZoomAction) {

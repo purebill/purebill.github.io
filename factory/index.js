@@ -1,3 +1,105 @@
+const STATE_BUILD_TRANSPORTER = "build-transporter";
+const STATE_CONNECT_TO_POWER = "connect-to-power";
+
+function defaultClick(cell) {
+  console.log("[state]", cell);
+  console.log("[state]", state.state, state.from);
+  try {
+    if (state.state == STATE_BUILD_TRANSPORTER) {
+      cell.things.filter(it => it instanceof ConstructionFacility)
+        .forEach(it => {
+          connect(state.from, it, 1);
+        });
+      state.state = null;
+      return;
+    }
+
+    if (state.state == STATE_CONNECT_TO_POWER) {
+      cell.things.filter(it => it instanceof ConstructionFacility || it instanceof Transporter || it instanceof ThingSource)
+        .forEach(it => {
+          state.from.addConsumer(it, 10);
+          console.log("Connected power", state.from, it);
+        });
+        state.state = null;
+        return;
+    }
+
+    for (let thing of cell.things) {
+      if (thing instanceof ThingSource || thing instanceof ConstructionFacility) {
+        state.state = STATE_BUILD_TRANSPORTER;
+        state.from = thing;
+        break;
+      }
+
+      if (thing instanceof PowerSource) {
+        state.state = STATE_CONNECT_TO_POWER;
+        state.from = thing;
+        break;
+      }
+    }
+  } finally {
+    console.log("[state]", state.state, state.from);
+  }
+}
+
+let state = {
+  click: defaultClick,
+  resetClick: () => state.click = defaultClick,
+
+  resetState: () => {
+    state.resetClick();
+    state.state = null;
+  },
+
+  startBuildIronFactory: () => {
+    state.click = (cell) => {
+      let plan = new ConstructionPlan([new PlanItem("iron-ore", 2)],
+        [new PlanItem("iron", 1), new PlanItem("slag", 1)],
+        5000);
+      let facility = buildFacility(cell.xc, cell.yc, plan, 2, null, 10);
+      cell.add(facility);
+
+      state.resetState();
+    };
+  },
+
+  startBuildTubeFactory: () => {
+    state.click = (cell) => {
+      let plan = new ConstructionPlan([new PlanItem("iron", 2)],
+        [new PlanItem("tube", 1)],
+        1000);
+      let facility = buildFacility(cell.xc, cell.yc, plan, 1, null, 10);
+
+      cell.add(facility);
+
+      state.resetState();
+    };
+  },
+
+  startBuildKhifeFactory: () => {
+    state.click = (cell) => {
+      let plan = new ConstructionPlan([new PlanItem("tube", 1), new PlanItem("plastic", 1)],
+        [new PlanItem("knife", 2)],
+        1000);
+      let facility = buildFacility(cell.xc, cell.yc, plan, 2, null, 10);
+
+      cell.add(facility);
+
+      state.resetState();
+    };
+  },
+
+  startBuildTransporter: () => {
+    console.log("transporter");
+  },
+
+  startBuildSource: () => {
+    console.log("source");
+  }
+};
+StateUi(state);
+
+let board;
 let nodes = [];
 let output = {
   _in: function (thing) {
@@ -12,39 +114,12 @@ Loop.add(render);
 Loop.start();
 
 function createWorld() {
-  let plan3 = new ConstructionPlan([new PlanItem("tube", 1), new PlanItem("plastic", 1)],
-  [new PlanItem("knife", 2)],
-  1000);
-  let facility3 = buildFacility(110, 110, plan3, 2);
-
-  let plan2 = new ConstructionPlan([new PlanItem("iron", 2)],
-    [new PlanItem("tube", 1)],
-    1000);
-  let facility2 = buildFacility(110, 300, plan2, 1, facility3);
-
-  let plan1 = new ConstructionPlan([new PlanItem("iron-ore", 2)],
-    [new PlanItem("iron", 1), new PlanItem("slag", 1)],
-    5000);
-  let facility1 = buildFacility(300, 300, plan1, 2, facility2);
-
-  let plasticSource = buildThingSource(10, 50, "plastic", 100, 10000);
-  let ironOreSource = buildThingSource(350, 370, "iron-ore", 100, 5000);
-
-  let transport1 = connect(plasticSource, facility3, 1);
-  let transport2 = connect(ironOreSource, facility1, 1);
-  let transport3 = connect(facility1, facility2, 1);
-  let transport4 = connect(facility2, facility3, 1);
-
-  let powerSource = buildPowerSource(300, 150, 100);
-  powerSource.addConsumer(plasticSource, 10);
-  powerSource.addConsumer(ironOreSource, 10);
-  powerSource.addConsumer(facility1, 20);
-  powerSource.addConsumer(facility2, 20);
-  powerSource.addConsumer(facility3, 30);
-  powerSource.addConsumer(transport1, 2);
-  powerSource.addConsumer(transport2, 2);
-  powerSource.addConsumer(transport3, 2);
-  powerSource.addConsumer(transport4, 2);
+  board = new HexaBoard(20, 25);
+  nodes.push(board);
+  
+  buildThingSource(0, 0, "plastic", 100, 10000, 10);
+  buildThingSource(15, 10, "iron-ore", 100, 5000, 10);
+  buildPowerSource(7, 5, 100);
 }
 
 function render(ctx) {
@@ -53,14 +128,15 @@ function render(ctx) {
 
 function buildPowerSource(x, y, maxPower) {
   let powerSource = new PowerSource(maxPower);
-  let node = new PowerSourceNode(powerSource, x, y);
+  const cell = board.add(x, y, powerSource);
+  let node = new PowerSourceNode(powerSource, cell.xc, cell.yc);
   powerSource.node = node;
   nodes.push(node);
 
   return powerSource;
 }
 
-function buildFacility(x, y, plan, capacity, output) {
+function buildFacility(x, y, plan, capacity, output, powerNeeded) {
   output = output || {
       _in: function (thing) {
         console.log(thing.id + " constructed");
@@ -68,7 +144,7 @@ function buildFacility(x, y, plan, capacity, output) {
       }
     };
 
-  let facility = new ConstructionFacility(plan, capacity, output);
+  let facility = new ConstructionFacility(plan, capacity, output, powerNeeded);
   let node = new FacilityNode(facility, x, y);
   facility.node = node;
   nodes.push(node);
@@ -76,9 +152,10 @@ function buildFacility(x, y, plan, capacity, output) {
   return facility;
 }
 
-function buildThingSource(x, y, thingId, capacity, msPerThing) {
-  let source = new ThingSource(thingId, capacity, msPerThing);
-  let node = new ThingSourceNode(source, x, y);
+function buildThingSource(x, y, thingId, capacity, msPerThing, powerNeeded) {
+  let source = new ThingSource(thingId, capacity, msPerThing, powerNeeded);
+  const cell = board.add(x, y, source);
+  let node = new ThingSourceNode(source, cell.xc, cell.yc);
   source.node = node;
   nodes.push(node);
 
@@ -87,14 +164,24 @@ function buildThingSource(x, y, thingId, capacity, msPerThing) {
 
 function connect(producer, consumer, capacity) {
   const speed = 0.1;
+  const powerPerUnitLength = 0.3;
 
-  let length = Math.sqrt(Math.pow(producer.node.x - consumer.node.x, 2) + Math.pow(producer.node.y - consumer.node.y, 2));
-  let transporter = new Transporter(consumer, length, speed, capacity);
+  let path = PathFinder.find(producer.hexaCell, consumer.hexaCell);
+  if (path.length == 0) {
+    message("No path found");
+    return null;
+  }
+
+  let transporter = new Transporter(consumer, 0, speed, capacity, path.length * powerPerUnitLength);
   producer.output = transporter;
 
-  let node = new TransporterNode(transporter, producer.node.x, producer.node.y, consumer.node.x, consumer.node.y);
+  path.forEach(it => it.add(transporter));
+
+  let node = new TransporterNode(transporter, path.map(it => { return {x: it.xc, y: it.yc} }));
   transporter.node = node;
   nodes.push(node);
+
+  console.log("connected", producer, consumer);
 
   return transporter;
 }

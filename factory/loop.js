@@ -11,8 +11,8 @@ var Loop = (function () {
     canvas.style.height = canvas.height + "px";
     canvas.style.display = "";
     canvas.style.position = "fixed";
-    canvas.style.left = 0;
-    canvas.style.top = 0;
+    canvas.style.left = '0';
+    canvas.style.top = '0';
 
     aspect = canvas.height / canvas.width;
 
@@ -21,6 +21,7 @@ var Loop = (function () {
   window.onresize = onResize;
   onResize();
   document.body.appendChild(canvas);
+  Keys.init(canvas);
 
   let startTime = new Date().getTime();
 
