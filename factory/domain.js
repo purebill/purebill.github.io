@@ -2,8 +2,23 @@ class Thing {
   constructor(id) {
     this.id = id;
     this.dead = false;
+    this.size = 1;
+
+    /**@type {PowerSource} */
     this.powerSource = null;
+    
+    /** @type {AbstractNode} */
     this.node = null;
+
+    /**@type {Set<HexaCell>} */
+    this.hexaCells = new Set();
+  }
+
+  destroy() {
+    this.hexaCells.forEach(hexaCell => hexaCell.remove(this));
+    this.node.destroy();
+    if (this.powerSource !== null) this.powerSource.removeConsumer(this);
+    console.log("[Thing]", this.id, "destroyed");
   }
 
   isPowered() {
@@ -36,6 +51,16 @@ class PowerSource extends Thing {
     this._on = true;
   }
 
+  destroy() {
+    // notify all consumers about the power off
+    this.powerOff();
+
+    // remove all consumer's connection to the source
+    this.consumers.forEach(box => this.removeConsumer(box.consumer));
+
+    super.destroy();
+  }
+
   powerOff() {
     this._on = false;
     this._notifyConsumers();
@@ -54,8 +79,12 @@ class PowerSource extends Thing {
     return this._on;
   }
 
+  contains(consumer) {
+    return this.consumers.findIndex(it => it.consumer === consumer) !== -1;
+  }
+
   canAddConsumer(consumer) {
-    return this.powerLeft >= consumer.powerNeeded;
+    return this.powerLeft >= consumer.powerNeeded && !this.contains(consumer);
   }
 
   addConsumer(consumer) {
@@ -81,20 +110,98 @@ class PowerSource extends Thing {
 class InputOutput extends Thing {
   constructor(id, output, powerNeeded) {
     super(id);
+    this._output = null;
     this.output = output;
     this.powerNeeded = powerNeeded;
+    this.timers = [];
+
+    /**@type {Set<Thing>} */
+    this.waitingThings = new Set();
+
+    /**@type {Set<InputOutput>} */
+    this.inputs = new Set();
+  }
+
+  set output(o) {
+    if (this._output !== null) this._output.removeInput(this);
+
+    if (o !== null) {
+      this._output = o;
+      o.addInput(this);
+    }
+  }
+
+  get output() {
+    return this._output;
+  }
+
+  destroy() {
+    this.__resetTimers();
+
+    // remove itself as an input from the output
+    this.output = null;
+
+    // remove itself from all inputs
+    this.inputs.forEach(input => input.output = null);
+
+    super.destroy();
+  }
+
+  __resetTimers() {
+    this.timers.forEach(it => Timer.clear(it));
+    this.timers = [];
+  }
+
+  /**
+   * @param {InputOutput} input 
+   */
+  addInput(input) {
+    this.inputs.add(input);
+  }
+
+  /**
+   * @param {InputOutput} input 
+   */
+  removeInput(input) {
+    this.inputs.delete(input);
+  }
+
+  onPower(powerOn) {
+    this.__resetTimers();
   }
 
   _in(thing) {
     throw new Error("_in() Not implemented");
   }
 
-  _sendToOutput(thing) {
-    assert(!thing.dead);
-    assert(this.output !== undefined);
+  __waitAndSendToOutput(thing, resolve, output) {
+    if (output === undefined) output = this.output;
 
-    let accepted = this.output._in(thing);
-    if (!accepted) this._drop(thing);
+    this.waitingThings.add(thing);
+
+    let timerId = Timer.set(() => {
+      if (output !== null && output._in(thing)) {
+        let idx = this.timers.indexOf(timerId);
+        assert(idx !== -1);
+        this.timers.splice(idx, 1);
+    
+        this.waitingThings.delete(thing);
+
+        resolve();
+      } else this.__waitAndSendToOutput(thing, resolve, output);
+    }, 500);
+
+    this.timers.push(timerId);
+  }
+
+  _sendToOutput(thing, output) {
+    assert(!thing.dead);
+    if (output === undefined) output = this.output;
+
+    return new Promise((resolve) => {
+      if (output !== null && output._in(thing)) resolve();
+      else this.__waitAndSendToOutput(thing, resolve, output);
+    });
   }
 
   _drop(thing) {
@@ -104,35 +211,48 @@ class InputOutput extends Thing {
 
 class ThingSource extends InputOutput {
   constructor(thingId, capacity, msPerThing, powerNeeded) {
+    super("thing-source", null, powerNeeded);
+
     assert(msPerThing > 0);
     assert(capacity > 0);
     assert(powerNeeded >= 0);
 
-    super("thing-source", null, powerNeeded);
     this.thingId = thingId;
     this.suply = capacity;
     this.timeLock = new TimeLock();
     this.msPerThing = msPerThing;
+    this.inProgress = false;
 
     this._prepare();
   }
 
+  destroy() {
+    this.timeLock.clear();
+
+    super.destroy();
+  }
+
   onPower(powerOn) {
+    super.onPower(powerOn);
+
     if (!powerOn) this.timeLock.clear();
     this._prepare();
   }
 
   _prepare() {
     if (!this.isPowered()) return;
+    if (this.inProgress) return;
+    this.inProgress = true;
 
     let thing = new Thing(this.thingId);
     this.timeLock.add(thing, ThingSource.STATE_MINIG, () => {
-      if (this.output !== null && this.suply > 0) {
+      if (this.suply > 0) {
         this.suply--;
-        this._sendToOutput(thing);
+        this._sendToOutput(thing).then(() => {
+          this.inProgress = false;
+          this._prepare();
+        });
       }
-
-      this._prepare();
     }, this.msPerThing);
   }
 }
@@ -140,20 +260,34 @@ class ThingSource extends InputOutput {
 ThingSource.STATE_MINIG = "mining";
 
 class Transporter extends InputOutput {
-  constructor(output, length, speed, capacity, powerNeeded) {
+  constructor(output, length, speed, powerNeeded) {
     super("transporter", output, powerNeeded);
 
     assert(speed > 0);
-    assert(capacity > 0);
 
     this.length = length;
     this.speed = speed;
-    this.capacity = capacity;
+    this.thingsInProgress = 0;
     this.timeLock = new TimeLock();
+    this.paused = false;
+  }
+
+  destroy() {
+    this.timeLock.clear();
+
+    super.destroy();
   }
 
   onPower(powerOn) {
+    super.onPower(powerOn);
+
     if (!powerOn) this.timeLock.clear();
+  }
+
+  __canAccept(thing) {
+    if (this.paused) return false;
+    let minProgress = thing.size / this.length;
+    return Math.min.apply(null, this.timeLock.slots.map(slot => slot.progress)) > minProgress;
   }
 
   _in(thing) {
@@ -161,9 +295,16 @@ class Transporter extends InputOutput {
 
     if (!this.isPowered()) return false;
 
-    if (this.timeLock.slots.length >= this.capacity) return false;
+    if (!this.__canAccept(thing)) return false;
 
-    this.timeLock.add(thing, Transporter.STATE_TRANSPORTED, () => this._sendToOutput(thing), this.length / this.speed);
+    this.thingsInProgress++;
+
+    this.timeLock.add(thing, Transporter.STATE_TRANSPORTED,
+      () => {
+        this.paused = true;
+        this._sendToOutput(thing).then(() => this.paused = false);
+      },
+      this.length / this.speed);
 
     return true;
   }
@@ -171,21 +312,27 @@ class Transporter extends InputOutput {
 
 Transporter.STATE_TRANSPORTED = "transported";
 
-class TransportBox extends Thing {
-  constructor(transporter, thing) {
-    super("transport-box");
-    this.transporter = transporter;
-    this.thing = thing;
-  }
-}
-
 class ConstructionFacility extends InputOutput {
-  constructor(constructionPlan, capacity, output, powerNeeded) {
-    super("construction-facility", output, powerNeeded);
+  /**
+   * @param {ConstructionPlan} constructionPlan
+   * @param {number} capacity
+   * @param {number} powerNeeded
+   */
+  constructor(constructionPlan, capacity, powerNeeded) {
+    super("construction-facility", null, powerNeeded);
     this.constructionPlan = constructionPlan;
     this.capacity = capacity;
+
+    /** @type {ConstructionBox[]} */
     this.boxes = [];
+
     this.readyBoxes = new TimeLock();
+  }
+
+  destroy() {
+    this.readyBoxes.clear();
+
+    super.destroy();
   }
 
   toString() {
@@ -197,6 +344,8 @@ class ConstructionFacility extends InputOutput {
   }
 
   onPower(powerOn) {
+    super.onPower(powerOn);
+
     if (!powerOn) this.readyBoxes.clear();
   }
 
@@ -227,19 +376,22 @@ class ConstructionFacility extends InputOutput {
     assert(constructionBox.constructionFacility === this);
     assert(this.boxes.indexOf(constructionBox) !== -1);
 
-    // mark all used things in the box as 'dead'
-    constructionBox.slots.forEach((l) => l.forEach(it => it.dead = true));
-
     // produce the results from the box
     this.readyBoxes.add(constructionBox, ConstructionFacility.STATE_CONSTRUCTION, () => {
-      // remove the box from the facility
-      constructionBox.constructionFacility = null;
-      this.boxes.splice(this.boxes.indexOf(constructionBox), 1);
-
+      let promises = [];
       this.constructionPlan.resultItems.forEach(item => {
         for (let i = 0; i < item.amount; i++) {
-          this._sendToOutput(new Thing(item.id));
+          promises.push(this._sendToOutput(new Thing(item.id)));
         }
+      });
+
+      Promise.all(promises).then(() => {
+        // mark all used things in the box as 'dead'
+        constructionBox.slots.forEach((l) => l.forEach(it => it.dead = true));
+
+        // remove the box from the facility
+        constructionBox.constructionFacility = null;
+        this.boxes.splice(this.boxes.indexOf(constructionBox), 1);
       });
     }, this.constructionPlan.constructionTimeMs);
   }
@@ -273,6 +425,9 @@ class ConstructionPlan {
 }
 
 class ConstructionBox extends Thing {
+  /**
+   * @param {ConstructionFacility} constructionFacility
+   */
   constructor (constructionFacility) {
     super("constructor-box");
 
@@ -322,8 +477,16 @@ class ConstructionBox extends Thing {
     if (!this.slots.has(thing.id)) throw new Error("Non-expected thing " + thing.id);
 
     let l = this.slots.get(thing.id);
-    assert(l.indexOf(thing) === -1, "the box already contains the thing");
-    l[idx] = thing;
+
+    let found = false;
+    for (let i = 0; i < l.length; i++) {
+      if (l[i] === null) {
+        l[i] = thing;
+        found = true;
+        break;
+      }
+    }
+    assert(found, "No free space for the thing");
     this.waitingForCount--;
 
     if (this.isSatisfied()) this.constructionFacility._done(this);
@@ -335,5 +498,104 @@ class ConstructionBox extends Thing {
 
   isSatisfied() {
     return this.waitingForCount === 0;
+  }
+}
+
+class Sink extends InputOutput {
+  constructor() {
+    super("sink", null, 0);
+
+    this.thingsSinked = 0;
+  }
+
+  _in(thing) {
+    this.thingsSinked++;
+    return true;
+  }
+}
+
+class AbstractRouter extends InputOutput {
+  constructor(powerNeeded) {
+    super("router", null, powerNeeded);
+
+    this._outputs = [];
+  }
+
+  _routeTo(thing) {
+    throw new Error("No implemented");
+  }
+
+  _in(thing) {
+    let output = this._routeTo(thing);
+    if (output === null) return false;
+    return this._sendToOutput(thing, output);
+  }
+}
+
+class ThingIdRouter extends AbstractRouter {
+  constructor(powerNeeded) {
+    super(powerNeeded);
+
+    /**@type {Map<String, InputOutput>} */
+    this.thingIdToOutput = new Map();
+  }
+
+  addRoute(thingId, output) {
+    this.thingIdToOutput.set(thingId, output);
+  }
+
+  removeRoute(thingId) {
+    this.thingIdToOutput.delete(thingId);
+  }
+
+  removeOutput(output) {
+    let thingIds = [];
+    for (let pair of this.thingIdToOutput) Keys.push(pair[0]);
+    thingIds.forEach(thingId => this.removeRoute(thingId));
+  }
+
+  _routeTo(thing) {
+    if (this.thingIdToOutput.has(thing.id)) return this.thingIdToOutput.get(thing.id);
+    else return null;
+  }
+}
+
+class ABRouter extends AbstractRouter {
+  constructor(powerNeeded) {
+    super(powerNeeded);
+
+    /**@type {InputOutput} */
+    this.aOutput = null;
+
+    /**@type {InputOutput} */
+    this.bOutput = null;
+
+    this._useA = true;
+  }
+
+  _routeTo(thing) {
+    if (this._useA) return this.aOutput;
+    else return this.bOutput;
+  }
+
+  setAOutput(output) {
+    this.aOutput = output;
+  }
+
+  setBOutput(output) {
+    this.bOutput = output;
+  }
+
+  useA() {
+    this._useA = true;
+  }
+
+  useB() {
+    this._useA = false;
+  }
+
+  flip() {
+    if (this._useA) this.useB();
+    else this.useA();
   }
 }

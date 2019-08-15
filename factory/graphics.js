@@ -4,8 +4,24 @@ class AbstractNode {
     this.y = undefined;
   }
 
+  destroy() {
+    Loop.remove(this);
+    console.log("[Node]", "destroyed", this);
+  }
+
   draw(ctx) {
     throw new Error("draw() not implemented");
+  }
+
+  static drawWaitingThings(thing, ctx, x, y) {
+    ctx.fillStyle = "#990000";
+    ctx.font = "12px serif";
+    let xx = x;
+    let yy = y + 20;
+    thing.waitingThings.forEach(thing => {
+      ctx.fillText(thing.id, xx, yy);
+      yy += 14;
+    });
   }
 
   static drawProgress(box, ctx, x, y) {
@@ -13,6 +29,7 @@ class AbstractNode {
     const space = 5;
 
     ctx.strokeStyle = "#000000";
+    ctx.lineWidth = 2;
     ctx.beginPath();
     ctx.arc(x + r + space, y + r, r, 0, 2 * Math.PI * box.progress);
     ctx.stroke();
@@ -20,7 +37,6 @@ class AbstractNode {
 
   static drawTimeLock(timeLock, ctx, x, y) {
     const r = 10;
-    const space = 5;
 
     for (let i = 0; i < timeLock.slots.length; i++) {
       AbstractNode.drawProgress(timeLock.slots[i], ctx, x + (2*r+5)*(i+1), y + 20);
@@ -51,8 +67,6 @@ class PowerSourceNode extends AbstractNode {
     ctx.fillStyle = "#000000";
     ctx.fillText(Math.round(this.powerSource.powerLeft) + " / " + this.powerSource.maxPower, this.x + 10, this.y + 10);
 
-    // if (this.powerSource.isOn()) ctx.strokeStyle = "rgba(0, 150, 0, .2)";
-    // else ctx.strokeStyle = "rgba(255, 0, 0, .2)";
     for (let box of this.powerSource.consumers) {
       if (this.powerSource.isOn()) ctx.strokeStyle = "rgba(0, 100, 0, .2)";
       else ctx.strokeStyle = "rgba(255, 0, 0, .2)";
@@ -80,6 +94,8 @@ class ThingSourceNode extends AbstractNode {
 
     ctx.font = "16px serif";
     ctx.fillText(this.thingSource.thingId + ": " + this.thingSource.suply, this.x + 10, this.y + 10);
+
+    AbstractNode.drawWaitingThings(this.thingSource, ctx, this.x, this.y);
 
     AbstractNode.drawTimeLock(this.thingSource.timeLock, ctx, this.x, this.y);
   }
@@ -113,10 +129,12 @@ class FacilityNode extends AbstractNode {
         });
       }
 
-      if (box.timeLockBox) AbstractNode.drawProgress(box.timeLockBox, ctx, x + 20, y + 10);
+      if (box.timeLockBox) AbstractNode.drawProgress(box.timeLockBox, ctx, x - 30, y + 10);
 
       y -= 5;
     }
+
+    AbstractNode.drawWaitingThings(this.facility, ctx, this.x, this.y);
   }
 }
 
@@ -143,6 +161,8 @@ class TransporterNode extends AbstractNode {
     let p = this.pointForProgress(0.5);
     this.x = p.x;
     this.y = p.y;
+
+    this.start = Timer.now();
   }
 
   pointForProgress(progress) {
@@ -187,6 +207,8 @@ class TransporterNode extends AbstractNode {
       ctx.font = "16px serif";
       ctx.fillText(box.thing.id, textPoint.x, textPoint.y);
     }
+
+    AbstractNode.drawWaitingThings(this.transporter, ctx, this.x, this.y);
   }
 }
 
@@ -203,16 +225,19 @@ class HexaCell {
 
   add(thing) {
     this.things.push(thing);
-    thing.hexaCell = this;
+    thing.hexaCells.add(this);
   }
 
+  /**
+   * Remove the thing from the cell.
+   * 
+   * @param {Thing} thing 
+   */
   remove(thing) {
-    assert(thing.hexaCell === this);
-
     let idx= this.things.findIndex(it => it === thing);
     if (idx !== -1) {
       this.things.splice(idx, 1);
-      thing.hexaCell = null;
+      thing.hexaCells.delete(this);
       return true;
     }
 
@@ -330,6 +355,7 @@ class HexaBoard {
     this.yShift = 2*this.r;
     this.selected = new Set();
 
+    /**@type {HexaCell[][]} */
     this.cells = [];
     for (let x = 0; x < width; x++) {
       this.cells[x] = [];
@@ -379,6 +405,13 @@ class HexaBoard {
     }
   }
 
+  /**
+   * Find a cell for the screen coordinates.
+   * 
+   * @param {number} screenX 
+   * @param {number} screenY
+   * @returns {HexaCell}
+   */
   fromCoords(screenX, screenY) {
     let x = Math.round((screenX - this.xShift) / 1.5 / this.r / 2);
     let y = Math.round((screenY - this.yShift) / this.h);
@@ -402,5 +435,49 @@ class HexaBoard {
     }
 
     return foundCell;
+  }
+}
+
+class SinkNode extends AbstractNode {
+  /**
+   * @param {Sink} sink
+   * @param {number} x
+   * @param {number} y
+   */
+  constructor(sink, x, y) {
+    super();
+
+    this.sink = sink;
+    this.x = x;
+    this.y = y;
+  }
+
+  draw(ctx) {
+    ctx.strokeStyle = "#cccccc";
+    ctx.strokeRect(this.x - 5, this.y - 5, 10, 10);
+
+    ctx.font = "16px serif";
+    ctx.fillText(this.sink.thingsSinked, this.x + 10, this.y + 10);
+  }
+}
+
+class ABRouterNode extends AbstractNode {
+  constructor(abRouter, x, y) {
+    super();
+
+    this.abRouter = abRouter;
+    this.x = x;
+    this.y = y;
+  }
+
+  draw(ctx) {
+    ctx.strokeStyle = "#000000";
+    ctx.beginPath();
+    ctx.moveTo(this.x + 4, this.y);
+    ctx.lineTo(this.x, this.y);
+    ctx.lineTo(this.x - 4, this.y - 4);
+    ctx.moveTo(this.x, this.y);
+    ctx.lineTo(this.x - 4, this.y + 4);
+    ctx.stroke();
   }
 }

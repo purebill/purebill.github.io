@@ -42,10 +42,30 @@ Keys.mouseMove("Move mouse to select a cell", (e) => {
   //cell.neighbours().forEach(it => board.select(it));
 
   if (state.state == STATE_BUILD_TRANSPORTER || state.state == STATE_CONNECT_TO_POWER) {
-    PathFinder.find(state.from.hexaCell, cell).forEach(it => board.select(it));
+    PathFinder.find(PathFinder.nearestCell(state.from.hexaCells, cell), cell)
+      .forEach(it => board.select(it));
   }
 });
 
 Keys.mouse(0, "Click to build", null, (e) => {
-  state.click(board.fromCoords(e.clientX, e.clientY));
+  const cell = board.fromCoords(e.clientX, e.clientY);
+  if (cell === null) return;
+
+  state.click(cell);
+});
+
+Keys.mouse(1, "Middle click to remove", null, (e) => {
+  const cell = board.fromCoords(e.clientX, e.clientY);
+  if (cell === null) return;
+  
+  cell.things.forEach(state.deleteThing);
+});
+
+Keys.mouse(2, "Right click to build", (e) => {
+  let el = document.getElementById("buildMenu");
+  el.onclick = () => el.style.display = "none";
+
+  el.style.left = e.clientX + "px";
+  el.style.top = e.clientY + "px";
+  el.style.display = "block";
 });

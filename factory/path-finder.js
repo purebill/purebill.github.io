@@ -1,6 +1,10 @@
 let PathFinder = (function () {
+  function d(fromCell, toCell) {
+    return Math.sqrt(Math.pow(fromCell.xc - toCell.xc, 2) + Math.pow(fromCell.yc - toCell.yc, 2))
+  }
+  
   function h(cell, cellTo) {
-    return Math.sqrt(Math.pow(cell.xc - cellTo.xc, 2) + Math.pow(cell.yc - cellTo.yc, 2));;
+    return d(cell, cellTo);
   }
 
   function addToOpenSet(openSet, openSetSet, it, score) {
@@ -71,7 +75,25 @@ let PathFinder = (function () {
     return [];
   }
 
+  /**
+   * @param {Set<HexaCell>} cells
+   * @param {HexaCell} toCell
+   */
+  function nearestCell(cells, toCell) {
+    let minDist = 1e20;
+    let minCell = null;
+    cells.forEach(cell => {
+      let dist = d(cell, toCell);
+      if (dist < minDist) {
+        minDist = dist;
+        minCell = cell;
+      }
+    });
+    return minCell;
+  }
+
   return {
-    find
+    find,
+    nearestCell
   }
 })();

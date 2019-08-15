@@ -21,7 +21,6 @@ var Loop = (function () {
   window.onresize = onResize;
   onResize();
   document.body.appendChild(canvas);
-  Keys.init(canvas);
 
   let startTime = new Date().getTime();
 
@@ -40,11 +39,18 @@ var Loop = (function () {
     let ctx = canvas.getContext("2d");
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    renders.forEach(render => render.call(null, ctx));
+    for (let node of renders) {
+      ctx.save();
+      try {
+        node.draw(ctx);
+      } finally {
+        ctx.restore();
+      }
+    }
   }
 
-  function add(f) {
-    renders.push(f);
+  function add(node) {
+    renders.push(node);
   }
 
   function pause() {
@@ -59,9 +65,18 @@ var Loop = (function () {
     loop();
   }
 
+  function remove(node) {
+    const idx = renders.indexOf(node);
+    if (idx !== -1) renders.splice(idx, 1);
+  }
+
   return {
-    start: loop,
+    start: () => {
+      Keys.init(canvas);
+      loop();
+    },
     add,
+    remove,
     pause,
     resume,
     paused: () => paused
