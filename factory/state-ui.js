@@ -56,3 +56,58 @@ StateUi.updateUi = function() {
     document.getElementById(it.id).checked  = state[it.id];
   });
 };
+
+
+class ContextMenu {
+  constructor() {
+    this.items = [];
+  }
+
+  add(text, callback) {
+    this.items.push({
+      text,
+      callback
+    });
+  }
+
+  addSepartor() {
+    this.items.push({
+      separator: true
+    })
+  }
+
+  showForCell(cell) {
+    if (this.items.length === 0) return;
+    
+    const el = document.getElementById("contextMenu");
+
+    this.items.forEach(item => {
+      if (item.separator) {
+        el.appendChild(document.createElement("hr"));
+        return;
+      }
+
+      const button = document.createElement("button");
+      button.innerHTML = item.text;
+      button.onclick = item.callback;
+
+      const p = document.createElement("p");
+      p.appendChild(button);
+
+      el.appendChild(p);
+    });
+
+    el.onclick = () => this.hide();
+
+    el.style.left = cell.xc + "px";
+    el.style.top = cell.yc + "px";
+    el.style.display = "block";
+  }
+
+  hide() {
+    this.items = [];
+    const el = document.getElementById("contextMenu");
+    el.innerHTML = "";
+    el.style.display = "none";
+  }
+}

@@ -52,9 +52,6 @@ class PowerSource extends Thing {
   }
 
   destroy() {
-    // notify all consumers about the power off
-    this.powerOff();
-
     // remove all consumer's connection to the source
     this.consumers.forEach(box => this.removeConsumer(box.consumer));
 
@@ -82,7 +79,6 @@ class PowerSource extends Thing {
   contains(consumer) {
     return this.consumers.findIndex(it => it.consumer === consumer) !== -1;
   }
-
   canAddConsumer(consumer) {
     return this.powerLeft >= consumer.powerNeeded && !this.contains(consumer);
   }
@@ -104,14 +100,15 @@ class PowerSource extends Thing {
     let powerConnection = this.consumers.splice(idx, 1)[0];
     consumer.powerSource = null;
     this.powerLeft += powerConnection.power;
+    consumer.onPower(false, this);
   }
 }
 
 class InputOutput extends Thing {
   constructor(id, output, powerNeeded) {
     super(id);
-    this._output = null;
-    this.output = output;
+    this._outputs = [];
+    this.addOutput(output);
     this.powerNeeded = powerNeeded;
     this.timers = [];
 
@@ -122,27 +119,40 @@ class InputOutput extends Thing {
     this.inputs = new Set();
   }
 
-  set output(o) {
-    if (this._output !== null) this._output.removeInput(this);
+  _canAddOutput() {
+    return this._outputs.length === 0;
+  }
 
-    if (o !== null) {
-      this._output = o;
+  addOutput(o) {
+    if (o !== null && this._canAddOutput()) {
+      this._outputs.push(o);
       o.addInput(this);
     }
   }
 
+  removeOutput(o) {
+    const idx = this._outputs.indexOf(o);
+    if (idx === -1) return;
+    this._outputs.splice(idx, 1);
+    o.removeInput(this);
+  }
+
+  set output(o) {
+    this.addOutput(o);
+  }
+
   get output() {
-    return this._output;
+    return this._outputs.length > 0 ? this._outputs[0] : null;
   }
 
   destroy() {
     this.__resetTimers();
 
     // remove itself as an input from the output
-    this.output = null;
+    this._outputs.forEach(it => this.removeOutput(it));
 
     // remove itself from all inputs
-    this.inputs.forEach(input => input.output = null);
+    this.inputs.forEach(input => input.removeOutput(this));
 
     super.destroy();
   }
@@ -150,6 +160,7 @@ class InputOutput extends Thing {
   __resetTimers() {
     this.timers.forEach(it => Timer.clear(it));
     this.timers = [];
+    this.waitingThings.clear();
   }
 
   /**
@@ -175,16 +186,16 @@ class InputOutput extends Thing {
   }
 
   __waitAndSendToOutput(thing, resolve, output) {
-    if (output === undefined) output = this.output;
-
     this.waitingThings.add(thing);
 
     let timerId = Timer.set(() => {
-      if (output !== null && output._in(thing)) {
-        let idx = this.timers.indexOf(timerId);
-        assert(idx !== -1);
-        this.timers.splice(idx, 1);
-    
+      let idx = this.timers.indexOf(timerId);
+      assert(idx !== -1);
+      this.timers.splice(idx, 1);
+
+      if (output === null) output = this._outputs.length > 0 ? this._outputs[0] : null;
+
+      if (output === null || output !== null && output._in(thing)) {
         this.waitingThings.delete(thing);
 
         resolve();
@@ -196,7 +207,8 @@ class InputOutput extends Thing {
 
   _sendToOutput(thing, output) {
     assert(!thing.dead);
-    if (output === undefined) output = this.output;
+
+    if (output === undefined) output = this._outputs.length > 0 ? this._outputs[0] : null;
 
     return new Promise((resolve) => {
       if (output !== null && output._in(thing)) resolve();
@@ -235,7 +247,11 @@ class ThingSource extends InputOutput {
   onPower(powerOn) {
     super.onPower(powerOn);
 
-    if (!powerOn) this.timeLock.clear();
+    if (!powerOn) {
+      this.timeLock.clear();
+      this.inProgress = false;
+    }
+
     this._prepare();
   }
 
@@ -521,42 +537,30 @@ class AbstractRouter extends InputOutput {
     this._outputs = [];
   }
 
-  _routeTo(thing) {
-    throw new Error("No implemented");
-  }
-
   _in(thing) {
-    let output = this._routeTo(thing);
-    if (output === null) return false;
-    return this._sendToOutput(thing, output);
+    throw new Error("Not implemented");
   }
 }
 
-class ThingIdRouter extends AbstractRouter {
+class RoundRobinRouter extends AbstractRouter {
   constructor(powerNeeded) {
     super(powerNeeded);
-
-    /**@type {Map<String, InputOutput>} */
-    this.thingIdToOutput = new Map();
+    this._idx = 0;
   }
 
-  addRoute(thingId, output) {
-    this.thingIdToOutput.set(thingId, output);
+  _canAddOutput() {
+    return true;
   }
 
-  removeRoute(thingId) {
-    this.thingIdToOutput.delete(thingId);
-  }
+  _in(thing) {
+    for (let i = 0; i < this._outputs.length; i++) {
+      const idx = this._idx;
+      this._idx = (this._idx + 1) % this._outputs.length;
 
-  removeOutput(output) {
-    let thingIds = [];
-    for (let pair of this.thingIdToOutput) Keys.push(pair[0]);
-    thingIds.forEach(thingId => this.removeRoute(thingId));
-  }
+      if (this._outputs[idx]._in(thing)) return true;
+    }
 
-  _routeTo(thing) {
-    if (this.thingIdToOutput.has(thing.id)) return this.thingIdToOutput.get(thing.id);
-    else return null;
+    return false;
   }
 }
 
@@ -564,38 +568,28 @@ class ABRouter extends AbstractRouter {
   constructor(powerNeeded) {
     super(powerNeeded);
 
-    /**@type {InputOutput} */
-    this.aOutput = null;
-
-    /**@type {InputOutput} */
-    this.bOutput = null;
-
-    this._useA = true;
+    this._idx = -1;
   }
 
-  _routeTo(thing) {
-    if (this._useA) return this.aOutput;
-    else return this.bOutput;
+  _canAddOutput() {
+    return this._outputs.length < 2;
   }
 
-  setAOutput(output) {
-    this.aOutput = output;
-  }
-
-  setBOutput(output) {
-    this.bOutput = output;
+  _in(thing) {
+    if (this._idx === -1 || this._outputs.length <= this._idx) return null;
+    
+    return this._outputs[this._idx]._in(thing);
   }
 
   useA() {
-    this._useA = true;
+    this._idx = 0;
   }
 
   useB() {
-    this._useA = false;
+    this._idx = 1;
   }
 
   flip() {
-    if (this._useA) this.useB();
-    else this.useA();
+    this._idx = (this._idx + 1) % 2;
   }
 }

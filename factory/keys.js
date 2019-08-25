@@ -6,10 +6,37 @@ var Keys = (function () {
   let mouseZoomAction = null;
   let canvas = null;
 
+  function actionKey(e) {
+    return e.button.toString()
+    + ","
+    + e.altKey.toString()
+    + ","
+    + e.ctrlKey.toString()
+    + ","
+    + e.metaKey.toString()
+    + ","
+    + e.shiftKey.toString();
+  }
+
+  const buttonToName = {
+    0: "Left",
+    1: "Middle",
+    2: "Right"
+  };
+
+  function actionKeyToKeys(actionKey) {
+    let parsed = actionKey.split(",");
+    return (parsed[1] == "true" ? "Alt + " : "")
+      + (parsed[2] == "true" ? "Ctrl + " : "")
+      + (parsed[3] == "true" ? "Win + " : "")
+      + (parsed[4] == "true" ? "Shift + " : "")
+      + buttonToName[parsed[0]];
+  }
+
   window.onmousedown = e => {
     if (e.target != canvas) return;
 
-    let mapping = mouseActions[e.button];
+    let mapping = mouseActions[actionKey(e)];
     if (mapping && mapping.down) {
       mapping.down(e);
       e.preventDefault();
@@ -28,7 +55,7 @@ var Keys = (function () {
   window.onmouseup = e => {
     if (e.target != canvas) return;
 
-    let mapping = mouseActions[e.button];
+    let mapping = mouseActions[actionKey(e)];
     if (mapping && mapping.up) {
       mapping.up(e);
       e.preventDefault();
@@ -74,8 +101,15 @@ var Keys = (function () {
   };
 
   return {
-    mouse: function (button, description, downCallback, upCallback) {
-      mouseActions[button] = {
+    mouse: function (/**@type {number} */button, /**@type String[] */keys, description, downCallback, upCallback) {
+      const key = actionKey({
+        button,
+        altKey: keys.indexOf("Alt") !== -1,
+        ctrlKey: keys.indexOf("Ctrl") !== -1,
+        metaKey: keys.indexOf("Win") !== -1 || keys.indexOf("Meta") !== -1,
+        shiftKey: keys.indexOf("Shift") !== -1
+      });
+      mouseActions[key] = {
         description,
         down: downCallback,
         up: upCallback
@@ -101,15 +135,9 @@ var Keys = (function () {
       };
     },
     help: function () {
-      let buttons = {
-        0: "Left",
-        1: "Middle",
-        2: "Right"
-      };
-
       return {
         keys: Object.keys(keys).map(k => k + ": " + keys[k].description),
-        mouse: Object.keys(mouseActions).map(k => buttons[k] + " button: " + mouseActions[k].description)
+        mouse: Object.keys(mouseActions).map(k => actionKeyToKeys(k) + " button: " + mouseActions[k].description)
           .concat(mouseMoveAction ? ["Mouse move: " + mouseMoveAction.description] : [])
           .concat(mouseZoomAction ? ["Mouse zoom: " + mouseZoomAction.description] : [])
       };

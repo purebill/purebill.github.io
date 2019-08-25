@@ -14,11 +14,6 @@ Keys.key("F1", "Show this help message (F1 again to hide)", () => {
   el.style.display = "block";
 });
 
-Keys.key("F2", "Build menu", () => {
-  let el = document.getElementById("buildMenu");
-  el.style.display = el.style.display == "block" ? "none" : "block";
-});
-
 Keys.key("Space", "Pause ON/OFF", () => {
   Timer.paused() ? Timer.resume() : Timer.pause();
   Loop.paused() ? Loop.resume() : Loop.pause();
@@ -47,25 +42,30 @@ Keys.mouseMove("Move mouse to select a cell", (e) => {
   }
 });
 
-Keys.mouse(0, "Click to build", null, (e) => {
+Keys.mouse(0, [], "Click to build", null, (e) => {
   const cell = board.fromCoords(e.clientX, e.clientY);
   if (cell === null) return;
 
   state.click(cell);
 });
 
-Keys.mouse(1, "Middle click to remove", null, (e) => {
+Keys.mouse(0, ["Win"], "Click to debug", null, (e) => {
   const cell = board.fromCoords(e.clientX, e.clientY);
-  if (cell === null) return;
-  
-  cell.things.forEach(state.deleteThing);
+  console.log(cell.things);
 });
 
-Keys.mouse(2, "Right click to build", (e) => {
-  let el = document.getElementById("buildMenu");
-  el.onclick = () => el.style.display = "none";
+// Keys.mouse(1, [], "Middle click to remove", null, (e) => {
+//   if (state.state !== null) return;
 
-  el.style.left = e.clientX + "px";
-  el.style.top = e.clientY + "px";
-  el.style.display = "block";
+//   const cell = board.fromCoords(e.clientX, e.clientY);
+//   if (cell === null) return;
+  
+//   cell.things.forEach(state.deleteThing);
+// });
+
+Keys.mouse(2, [], "Right click to show a context menu", (e) => {
+  const cell = board.fromCoords(e.clientX, e.clientY);
+  if (cell === null) return;
+
+  state.rightClick(cell);
 });

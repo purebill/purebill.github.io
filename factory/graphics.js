@@ -481,3 +481,29 @@ class ABRouterNode extends AbstractNode {
     ctx.stroke();
   }
 }
+
+class RoundRobinRouterNode extends AbstractNode {
+  constructor(router, x, y) {
+    super();
+
+    this.router = router;
+    this.x = x;
+    this.y = y;
+  }
+
+  draw(ctx) {
+    ctx.strokeStyle = "#000000";
+    ctx.beginPath();
+    ctx.moveTo(this.x + 4, this.y);
+    ctx.lineTo(this.x, this.y);
+    ctx.lineTo(this.x - 4, this.y - 4);
+    ctx.moveTo(this.x, this.y);
+    ctx.lineTo(this.x - 4, this.y + 4);
+    ctx.stroke();
+
+    ctx.strokeStyle = "#999999";
+    ctx.beginPath();
+    ctx.arc(this.x, this.y, 10, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+}

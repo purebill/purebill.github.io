@@ -6,24 +6,42 @@ function defaultClick(cell) {
   console.log("[state]", state.state, state.from);
   try {
     if (state.state == STATE_BUILD_TRANSPORTER) {
-      cell.things.filter(it => it instanceof ConstructionFacility || it instanceof Sink)
+      cell.things.filter(it => it instanceof ConstructionFacility
+        || it instanceof Sink
+        || it instanceof AbstractRouter)
         .forEach(it => connect(state.from, it));
       state.state = null;
       return;
     }
 
     if (state.state == STATE_CONNECT_TO_POWER) {
-      cell.things.filter(it => it instanceof ConstructionFacility || it instanceof Transporter || it instanceof ThingSource)
+      cell.things.filter(it => it instanceof ConstructionFacility
+        || it instanceof Transporter
+        || it instanceof ThingSource
+        || it instanceof AbstractRouter)
         .forEach(it => {
-          state.from.addConsumer(it, 10);
-          console.log("Connected power", state.from, it);
+          /*if (state.from.contains(it)) {
+            state.from.removeConsumer(it);
+            console.log("Disconnected power", state.from, it);
+          } else*/ {
+            state.from.addConsumer(it, 10);
+            console.log("Connected power", state.from, it);
+          }
         });
         state.state = null;
         return;
     }
 
     for (let thing of cell.things) {
-      if (thing instanceof ThingSource || thing instanceof ConstructionFacility) {
+      if ((thing instanceof ThingSource
+           || thing instanceof ConstructionFacility)
+        && thing._canAddOutput()) {
+        state.state = STATE_BUILD_TRANSPORTER;
+        state.from = thing;
+        break;
+      }
+
+      if (thing instanceof AbstractRouter && thing._canAddOutput()) {
         state.state = STATE_BUILD_TRANSPORTER;
         state.from = thing;
         break;
@@ -40,13 +58,48 @@ function defaultClick(cell) {
   }
 }
 
+function rightClick(cell) {
+  if (cell === null) return;
+  if (state.state !== null) return;
+
+  const menu = state.contextMenu;
+  menu.hide();
+
+  if (cell.things.length === 0) {
+    menu.add("Iron Factory", state.startBuildIronFactory);
+    menu.add("Tube Factory", state.startBuildTubeFactory);
+    menu.add("Knife Factory", state.startBuildKhifeFactory);
+    menu.addSepartor();
+    menu.add("Source", state.startBuildSource);
+    menu.add("Round Robin Router", state.startBuildRoundRobinRouter);
+    menu.addSepartor();
+  }
+
+  for (let thing of cell.things) {
+    menu.add("Delete " + thing.id, () => state.deleteThing(thing));
+
+    if (thing instanceof PowerSource) {
+      if (thing.isOn()) menu.add("Power OFF", () => thing.powerOff());
+      else menu.add("Power ON", () => thing.powerOn());
+    }
+  }
+
+  menu.showForCell(cell);
+}
+
 let state = {
+  state: null,
+
   sink: null,
+  
+  contextMenu: new ContextMenu(),
 
   click: defaultClick,
   resetClick: () => state.click = defaultClick,
+  rightClick: rightClick,
 
   resetState: () => {
+    state.contextMenu.hide();
     state.resetClick();
     state.state = null;
   },
@@ -96,12 +149,28 @@ let state = {
     };
   },
 
+  startBuildRoundRobinRouter: () => {
+    state.click = (cell) => {
+      buildRoundRobinRouter(cell);
+      state.resetState();
+    };
+  },
+
   startBuildSource: () => {
     console.log("source");
   },
 
   deleteThing: function (thing) {
+    const thingsToDestroy = [];
+
+    if (thing instanceof InputOutput && !(thing instanceof Transporter)) {
+      thing._outputs.forEach(it => thingsToDestroy.push(it));
+      thing.inputs.forEach(it => thingsToDestroy.push(it));
+    }
+
     thing.destroy();
+
+    thingsToDestroy.forEach(it => it.destroy());
   }
 };
 StateUi(state);
@@ -170,7 +239,7 @@ function connect(producer, consumer) {
   }
 
   let transporter = new Transporter(consumer, 0, speed, path.length * powerPerUnitLength);
-  producer.output = transporter;
+  producer.addOutput(transporter);
 
   path.forEach(it => it.add(transporter));
 
@@ -201,6 +270,15 @@ function buildABRouter(cell) {
   const router = new ABRouter(10);
   cell.add(router);
   const node = new ABRouterNode(router, cell.xc, cell.yc);
+  router.node = node;
+  Loop.add(node);
+  return router;
+}
+
+function buildRoundRobinRouter(cell) {
+  const router = new RoundRobinRouter(10);
+  cell.add(router);
+  const node = new RoundRobinRouterNode(router, cell.xc, cell.yc);
   router.node = node;
   Loop.add(node);
   return router;

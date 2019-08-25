@@ -1,9 +1,9 @@
 var Loop = (function () {
-  let renders = [];
+  const renders = [];
   let paused = false;
 
-  let canvas = document.createElement("canvas");
-  let aspect;
+  const canvas = document.createElement("canvas");
+
   function onResize() {
     canvas.width = window.innerWidth - 50;
     canvas.height = window.innerHeight - 50;
@@ -13,8 +13,6 @@ var Loop = (function () {
     canvas.style.position = "fixed";
     canvas.style.left = '0';
     canvas.style.top = '0';
-
-    aspect = canvas.height / canvas.width;
 
     render();
   }
