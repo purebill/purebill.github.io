@@ -507,3 +507,27 @@ class RoundRobinRouterNode extends AbstractNode {
     ctx.stroke();
   }
 }
+
+class SeparatorRouterNode extends AbstractNode {
+  constructor(router, x, y) {
+    super();
+
+    this.router = router;
+    this.x = x;
+    this.y = y;
+  }
+
+  draw(ctx) {
+    ctx.strokeStyle = "#000000";
+    ctx.beginPath();
+    ctx.moveTo(this.x + 4, this.y);
+    ctx.lineTo(this.x, this.y);
+    ctx.lineTo(this.x - 4, this.y - 4);
+    ctx.moveTo(this.x, this.y);
+    ctx.lineTo(this.x - 4, this.y + 4);
+    ctx.stroke();
+
+    ctx.font = "16px serif";
+    ctx.fillText(this.router.thingId, this.x - 4, this.y - 4);
+  }
+}

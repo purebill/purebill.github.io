@@ -2,59 +2,47 @@ const STATE_BUILD_TRANSPORTER = "build-transporter";
 const STATE_CONNECT_TO_POWER = "connect-to-power";
 
 function defaultClick(cell) {
-  console.log("[state]", cell);
-  console.log("[state]", state.state, state.from);
-  try {
-    if (state.state == STATE_BUILD_TRANSPORTER) {
-      cell.things.filter(it => it instanceof ConstructionFacility
-        || it instanceof Sink
-        || it instanceof AbstractRouter)
-        .forEach(it => connect(state.from, it));
-      state.state = null;
-      return;
-    }
+  if (state.state == STATE_BUILD_TRANSPORTER) {
+    cell.things.filter(it => it instanceof ConstructionFacility
+      || it instanceof Sink
+      || it instanceof AbstractRouter)
+      .forEach(it => connect(state.from, it));
+    state.state = null;
+    return;
+  }
 
-    if (state.state == STATE_CONNECT_TO_POWER) {
-      cell.things.filter(it => it instanceof ConstructionFacility
+  if (state.state == STATE_CONNECT_TO_POWER) {
+    cell.things
+      .filter(it => it instanceof ConstructionFacility
         || it instanceof Transporter
         || it instanceof ThingSource
         || it instanceof AbstractRouter)
-        .forEach(it => {
-          /*if (state.from.contains(it)) {
-            state.from.removeConsumer(it);
-            console.log("Disconnected power", state.from, it);
-          } else*/ {
-            state.from.addConsumer(it, 10);
-            console.log("Connected power", state.from, it);
-          }
-        });
-        state.state = null;
-        return;
+      .forEach(it => state.from.addConsumer(it, 10));
+
+    state.state = null;
+    return;
+  }
+
+  for (let thing of cell.things) {
+    if ((thing instanceof ThingSource
+         || thing instanceof ConstructionFacility)
+      && thing._canAddOutput()) {
+      state.state = STATE_BUILD_TRANSPORTER;
+      state.from = thing;
+      break;
     }
 
-    for (let thing of cell.things) {
-      if ((thing instanceof ThingSource
-           || thing instanceof ConstructionFacility)
-        && thing._canAddOutput()) {
-        state.state = STATE_BUILD_TRANSPORTER;
-        state.from = thing;
-        break;
-      }
-
-      if (thing instanceof AbstractRouter && thing._canAddOutput()) {
-        state.state = STATE_BUILD_TRANSPORTER;
-        state.from = thing;
-        break;
-      }
-
-      if (thing instanceof PowerSource) {
-        state.state = STATE_CONNECT_TO_POWER;
-        state.from = thing;
-        break;
-      }
+    if (thing instanceof AbstractRouter && thing._canAddOutput()) {
+      state.state = STATE_BUILD_TRANSPORTER;
+      state.from = thing;
+      break;
     }
-  } finally {
-    console.log("[state]", state.state, state.from);
+
+    if (thing instanceof PowerSource) {
+      state.state = STATE_CONNECT_TO_POWER;
+      state.from = thing;
+      break;
+    }
   }
 }
 
@@ -66,12 +54,12 @@ function rightClick(cell) {
   menu.hide();
 
   if (cell.things.length === 0) {
-    menu.add("Iron Factory", state.buildIronFactory);
-    menu.add("Tube Factory", state.buildTubeFactory);
-    menu.add("Knife Factory", state.buildKhifeFactory);
+    menu.add("Factory", state.startBuildFactory);
+    menu.addSepartor();
+    menu.add("Separator Router", state.startBuildSeparator);
+    menu.add("Round Robin Router", state.buildRoundRobinRouter);
     menu.addSepartor();
     menu.add("Source", state.startBuildSource);
-    menu.add("Round Robin Router", state.buildRoundRobinRouter);
     menu.addSepartor();
   }
 
@@ -104,35 +92,22 @@ let state = {
     state.state = null;
   },
 
-  buildIronFactory: (cell) => {
-    let plan = new ConstructionPlan([new PlanItem("iron-ore", 2)],
-      [new PlanItem("iron", 1), new PlanItem("slag", 1)],
-      5000);
+  startBuildFactory: (cell) => {
+    const str = prompt("Construction Plan");
+    if (str === null) return;
+
+    let plan = ConstructionPlan.from(str);
     let facility = buildFacility(cell.xc, cell.yc, plan, 2, 10);
     cell.add(facility);
 
     state.resetState();
   },
 
-  buildTubeFactory: (cell) => {
-    let plan = new ConstructionPlan([new PlanItem("iron", 2)],
-      [new PlanItem("tube", 1)],
-      1000);
-    let facility = buildFacility(cell.xc, cell.yc, plan, 1, 10);
+  startBuildSeparator: (cell) => {
+    const str = prompt("Thing to separate");
+    if (str === null) return;
 
-    cell.add(facility);
-
-    state.resetState();
-  },
-
-  buildKhifeFactory: (cell) => {
-    let plan = new ConstructionPlan([new PlanItem("tube", 1), new PlanItem("plastic", 1)],
-      [new PlanItem("knife", 2)],
-      1000);
-    let facility = buildFacility(cell.xc, cell.yc, plan, 2, 10);
-
-    cell.add(facility);
-
+    buildSeparator(cell, str, 10);
     state.resetState();
   },
 
@@ -176,8 +151,8 @@ function createWorld() {
   board = new HexaBoard(20, 25);
   Loop.add(board);
   
-  buildThingSource(0, 0, "plastic", 100, 1000, 10);
-  buildThingSource(15, 10, "iron-ore", 100, 1000, 10);
+  // buildThingSource(0, 0, "plastic", 100, 1000, 10);
+  buildThingSource(15, 10, "a", 10, 1000, 10);
   buildPowerSource(7, 5, 100);
 
   state.sink = buildSink(6, 4);
@@ -237,8 +212,6 @@ function connect(producer, consumer) {
   transporter.node = node;
   Loop.add(node);
 
-  console.log("connected", producer, consumer);
-
   return transporter;
 }
 
@@ -269,6 +242,15 @@ function buildRoundRobinRouter(cell) {
   const router = new RoundRobinRouter(10);
   cell.add(router);
   const node = new RoundRobinRouterNode(router, cell.xc, cell.yc);
+  router.node = node;
+  Loop.add(node);
+  return router;
+}
+
+function buildSeparator(cell, thingId, powerNeeded) {
+  const router = new SeparatorRouter(thingId, powerNeeded);
+  cell.add(router);
+  const node = new SeparatorRouterNode(router, cell.xc, cell.yc);
   router.node = node;
   Loop.add(node);
   return router;

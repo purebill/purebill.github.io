@@ -30,6 +30,10 @@ class TimeLock {
     return "Time lock: " + this.slots.map(it => JSON.stringify(it));
   }
 
+  get size() {
+    return this.slots.length;
+  }
+
   add(thing, state, f, ms) {
     let box;
 
@@ -55,6 +59,14 @@ class TimeLock {
     Timer.clear(box.timerId);
     this.slots.splice(idx, 1);
     box.thing.timeLockBox = null;
+  }
+
+  pause() {
+    this.slots.forEach(box => Timer.pause(box.timerId));
+  }
+
+  resume() {
+    this.slots.forEach(box => Timer.resume(box.timerId));
   }
 
   clear() {

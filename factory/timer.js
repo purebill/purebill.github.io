@@ -1,39 +1,51 @@
 var Timer = (function () {
   let id = 0;
-  let inOrder = [];
-  let timers = new Map();
-  let paused = false;
+  const inOrder = [];
+  const timers = new Map();
+  let allPaused = false;
   let currentTime = 0;
 
   function set(f, ms) {
     let _id = arguments[2];
 
     let time = currentTime + ms;
-    let i;
-    for (i = 0; i < inOrder.length; i++) {
-      if (inOrder[i].time > time) break;
-    }
 
     if (_id === undefined) {
       id++;
       _id = id;
     }
 
-    inOrder.splice(i, 0, {
+    let timer = {
       id: _id,
       time,
       duration: ms,
-      f
-    });
+      f,
+      paused: false,
+      progressBeforePause: 0
+    };
+
+    insertInOrder(timer);
 
     return _id;
   }
 
-  function getProgress(timerId) {
-    let box = inOrder.find(it => it.id === timerId);
-    if (box === undefined) return 0;
+  function insertInOrder(timer) {
+    let i;
+    for (i = 0; i < inOrder.length; i++) {
+      if (inOrder[i].time > timer.time) break;
+    }
 
-    return box.duration === 0 ? 0 : 1 - (box.time - currentTime) / box.duration;
+    timers.set(timer.id, timer);
+    inOrder.splice(i, 0, timer);
+  }
+
+  function getProgress(timerId) {
+    const timer = timers.get(timerId);
+    if (timer === undefined) return 0;
+
+    if (timer.paused) return timer.progressBeforePause;
+
+    return timer.duration === 0 ? 0 : 1 - (timer.time - currentTime) / timer.duration;
   }
 
   function periodic(f, ms) {
@@ -49,19 +61,54 @@ var Timer = (function () {
 
   function clear(timerId) {
     let i = inOrder.findIndex((it => it.id === timerId));
-    if (i !== -1) inOrder.splice(i, 1);
+    if (i !== -1) {
+      inOrder.splice(i, 1);
+      timers.delete(timerId);
+    }
   }
 
-  function pause() {
-    paused = true;
+  function pause(timerId) {
+    let timer = timers.get(timerId);
+    if (timer === undefined) return;
+    if (timer.paused) return;
+
+    timer.progressBeforePause = getProgress(timerId);
+    timer.paused = true;
+
+    let i = inOrder.findIndex(it => it.id === timerId);
+    assert (i !== -1);
+    inOrder.splice(i, 1);
   }
 
-  function resume() {
-    paused = false;
+  function pauseAll() {
+    for (let timer of timers) {
+      pause(timer.id);
+    }
+    allPaused = true;
+  }
+
+  function resume(timerId) {
+    let timer = timers.get(timerId);
+    if (timer === undefined) return;
+    if (!timer.paused) return;
+
+    timer.time = currentTime + (1 - timer.progressBeforePause) * timer.duration;
+
+    timer.paused = false;
+    timer.progressBeforePause = 0;
+
+    insertInOrder(timer);
+  }
+
+  function resumeAll() {
+    for (let timer of timers) {
+      resume(timer.id);
+    }
+    allPaused = false;
   }
 
   function runIfAny() {
-    if (paused) return;
+    if (allPaused) return;
 
     let i;
     for (i = 0; i < inOrder.length; i++) {
@@ -74,7 +121,7 @@ var Timer = (function () {
   function progress(ms) {
     currentTime += ms;
 
-    if (paused) return;
+    if (allPaused) return;
 
     runIfAny();
   }
@@ -84,8 +131,10 @@ var Timer = (function () {
     periodic,
     clear,
     pause,
+    pauseAll,
     resume,
-    paused: () => paused,
+    resumeAll,
+    allPaused: () => allPaused,
     getProgress,
     progress,
     now: () => currentTime

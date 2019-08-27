@@ -15,7 +15,7 @@ Keys.key("F1", "Show this help message (F1 again to hide)", () => {
 });
 
 Keys.key("Space", "Pause ON/OFF", () => {
-  Timer.paused() ? Timer.resume() : Timer.pause();
+  Timer.allPaused() ? Timer.resumeAll() : Timer.pauseAll();
   Loop.paused() ? Loop.resume() : Loop.pause();
 });
 
