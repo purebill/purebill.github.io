@@ -66,12 +66,12 @@ function rightClick(cell) {
   menu.hide();
 
   if (cell.things.length === 0) {
-    menu.add("Iron Factory", state.startBuildIronFactory);
-    menu.add("Tube Factory", state.startBuildTubeFactory);
-    menu.add("Knife Factory", state.startBuildKhifeFactory);
+    menu.add("Iron Factory", state.buildIronFactory);
+    menu.add("Tube Factory", state.buildTubeFactory);
+    menu.add("Knife Factory", state.buildKhifeFactory);
     menu.addSepartor();
     menu.add("Source", state.startBuildSource);
-    menu.add("Round Robin Router", state.startBuildRoundRobinRouter);
+    menu.add("Round Robin Router", state.buildRoundRobinRouter);
     menu.addSepartor();
   }
 
@@ -104,56 +104,46 @@ let state = {
     state.state = null;
   },
 
-  startBuildIronFactory: () => {
-    state.click = (cell) => {
-      let plan = new ConstructionPlan([new PlanItem("iron-ore", 2)],
-        [new PlanItem("iron", 1), new PlanItem("slag", 1)],
-        5000);
-      let facility = buildFacility(cell.xc, cell.yc, plan, 2, 10);
-      cell.add(facility);
+  buildIronFactory: (cell) => {
+    let plan = new ConstructionPlan([new PlanItem("iron-ore", 2)],
+      [new PlanItem("iron", 1), new PlanItem("slag", 1)],
+      5000);
+    let facility = buildFacility(cell.xc, cell.yc, plan, 2, 10);
+    cell.add(facility);
 
-      state.resetState();
-    };
+    state.resetState();
   },
 
-  startBuildTubeFactory: () => {
-    state.click = (cell) => {
-      let plan = new ConstructionPlan([new PlanItem("iron", 2)],
-        [new PlanItem("tube", 1)],
-        1000);
-      let facility = buildFacility(cell.xc, cell.yc, plan, 1, 10);
+  buildTubeFactory: (cell) => {
+    let plan = new ConstructionPlan([new PlanItem("iron", 2)],
+      [new PlanItem("tube", 1)],
+      1000);
+    let facility = buildFacility(cell.xc, cell.yc, plan, 1, 10);
 
-      cell.add(facility);
+    cell.add(facility);
 
-      state.resetState();
-    };
+    state.resetState();
   },
 
-  startBuildKhifeFactory: () => {
-    state.click = (cell) => {
-      let plan = new ConstructionPlan([new PlanItem("tube", 1), new PlanItem("plastic", 1)],
-        [new PlanItem("knife", 2)],
-        1000);
-      let facility = buildFacility(cell.xc, cell.yc, plan, 2, 10);
+  buildKhifeFactory: (cell) => {
+    let plan = new ConstructionPlan([new PlanItem("tube", 1), new PlanItem("plastic", 1)],
+      [new PlanItem("knife", 2)],
+      1000);
+    let facility = buildFacility(cell.xc, cell.yc, plan, 2, 10);
 
-      cell.add(facility);
+    cell.add(facility);
 
-      state.resetState();
-    };
+    state.resetState();
   },
 
-  startBuildABRouter: () => {
-    state.click = (cell) => {
-      buildABRouter(cell);
-      state.resetState();
-    };
+  buildABRouter: (cell) => {
+    buildABRouter(cell);
+    state.resetState();
   },
 
-  startBuildRoundRobinRouter: () => {
-    state.click = (cell) => {
-      buildRoundRobinRouter(cell);
-      state.resetState();
-    };
+  buildRoundRobinRouter: (cell) => {
+    buildRoundRobinRouter(cell);
+    state.resetState();
   },
 
   startBuildSource: () => {

@@ -1,6 +1,7 @@
 var Timer = (function () {
   let id = 0;
-  let delayed = [];
+  let inOrder = [];
+  let timers = new Map();
   let paused = false;
   let currentTime = 0;
 
@@ -9,8 +10,8 @@ var Timer = (function () {
 
     let time = currentTime + ms;
     let i;
-    for (i = 0; i < delayed.length; i++) {
-      if (delayed[i].time > time) break;
+    for (i = 0; i < inOrder.length; i++) {
+      if (inOrder[i].time > time) break;
     }
 
     if (_id === undefined) {
@@ -18,7 +19,7 @@ var Timer = (function () {
       _id = id;
     }
 
-    delayed.splice(i, 0, {
+    inOrder.splice(i, 0, {
       id: _id,
       time,
       duration: ms,
@@ -29,7 +30,7 @@ var Timer = (function () {
   }
 
   function getProgress(timerId) {
-    let box = delayed.find(it => it.id === timerId);
+    let box = inOrder.find(it => it.id === timerId);
     if (box === undefined) return 0;
 
     return box.duration === 0 ? 0 : 1 - (box.time - currentTime) / box.duration;
@@ -47,8 +48,8 @@ var Timer = (function () {
   }
 
   function clear(timerId) {
-    let i = delayed.findIndex((it => it.id === timerId));
-    if (i !== -1) delayed.splice(i, 1);
+    let i = inOrder.findIndex((it => it.id === timerId));
+    if (i !== -1) inOrder.splice(i, 1);
   }
 
   function pause() {
@@ -63,20 +64,18 @@ var Timer = (function () {
     if (paused) return;
 
     let i;
-    for (i = 0; i < delayed.length; i++) {
-      if (delayed[i].time > currentTime) break;
+    for (i = 0; i < inOrder.length; i++) {
+      if (inOrder[i].time > currentTime) break;
     }
 
-    if (i > 0) delayed.splice(0, i).forEach(it => it.f());
+    if (i > 0) inOrder.splice(0, i).forEach(it => it.f());
   }
 
   function progress(ms) {
-    if (paused) {
-      currentTime += ms;
-      return;
-    }
-
     currentTime += ms;
+
+    if (paused) return;
+
     runIfAny();
   }
 

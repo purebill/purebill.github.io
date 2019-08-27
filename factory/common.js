@@ -54,6 +54,7 @@ class TimeLock {
 
     Timer.clear(box.timerId);
     this.slots.splice(idx, 1);
+    box.thing.timeLockBox = null;
   }
 
   clear() {
