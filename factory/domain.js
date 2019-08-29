@@ -230,6 +230,7 @@ class ThingSource extends InputOutput {
 
     this.thingId = thingId;
     this.suply = capacity;
+    this.capacity = capacity;
     this.timeLock = new TimeLock();
     this.msPerThing = msPerThing;
 
@@ -251,8 +252,15 @@ class ThingSource extends InputOutput {
     if (this.timeLock.size === 0) this._prepare();
   }
 
+  refill() {
+    this.suply = this.capacity;
+    this._prepare();
+  }
+
   _prepare() {
     if (!this.isPowered()) return;
+    if (this.suply < 1) return;
+    if (this.timeLock.size > 0) return;
 
     let thing = new Thing(this.thingId);
     this.timeLock.add(thing, ThingSource.STATE_MINIG, () => {
