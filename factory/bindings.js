@@ -15,12 +15,12 @@ Keys.key("F1", "Show this help message (F1 again to hide)", () => {
 });
 
 Keys.key("Space", "Pause ON/OFF", () => {
-  Timer.allPaused() ? Timer.resumeAll() : Timer.pauseAll();
+  // Timer.allPaused() ? Timer.resumeAll() : Timer.pauseAll();
   Loop.paused() ? Loop.resume() : Loop.pause();
 });
 
 Keys.key("Escape", "Reset current action", () => {
-  state.resetState();
+  state.reset();
 });
 
 Keys.mouseMove("Move mouse to select a cell", (e) => {
@@ -31,22 +31,17 @@ Keys.mouseMove("Move mouse to select a cell", (e) => {
   state.currentCell = cell;
 
   board.clearSelection();
-
   board.select(cell);
-  
   //cell.neighbours().forEach(it => board.select(it));
 
-  if (state.state == STATE_BUILD_TRANSPORTER || state.state == STATE_CONNECT_TO_POWER) {
-    PathFinder.find(PathFinder.nearestCell(state.from.hexaCells, cell), cell)
-      .forEach(it => board.select(it));
-  }
+  state.behaviour.mouseMove(cell);
 });
 
 Keys.mouse(0, [], "Click to build", null, (e) => {
   const cell = board.fromCoords(e.clientX, e.clientY);
   if (cell === null) return;
 
-  state.click(cell);
+  state.behaviour.click(cell);
 });
 
 Keys.mouse(0, ["Win"], "Click to debug", null, (e) => {
@@ -54,18 +49,9 @@ Keys.mouse(0, ["Win"], "Click to debug", null, (e) => {
   console.log(cell.things);
 });
 
-// Keys.mouse(1, [], "Middle click to remove", null, (e) => {
-//   if (state.state !== null) return;
-
-//   const cell = board.fromCoords(e.clientX, e.clientY);
-//   if (cell === null) return;
-  
-//   cell.things.forEach(state.deleteThing);
-// });
-
 Keys.mouse(2, [], "Right click to show a context menu", (e) => {
   const cell = board.fromCoords(e.clientX, e.clientY);
   if (cell === null) return;
 
-  state.rightClick(cell);
+  state.behaviour.rightClick(cell);
 });

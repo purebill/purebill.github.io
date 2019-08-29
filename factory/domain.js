@@ -1,3 +1,5 @@
+const OUTPUT_WAIT_INTERVAL = 200;
+
 class Thing {
   constructor(id) {
     this.id = id;
@@ -197,7 +199,7 @@ class InputOutput extends Thing {
 
         resolve();
       } else this.__waitAndSendToOutput(thing, resolve, output);
-    }, 500);
+    }, OUTPUT_WAIT_INTERVAL);
 
     this.timers.push(timerId);
   }
@@ -548,11 +550,26 @@ class AbstractRouter extends InputOutput {
   constructor(powerNeeded) {
     super("router", null, powerNeeded);
 
-    this._outputs = [];
+    this.thingToRoute = null;
+  }
+
+  _route() {
+    throw new Error("Not implemented");
   }
 
   _in(thing) {
-    throw new Error("Not implemented");
+    if (this.thingToRoute !== null) return false;
+    this.thingToRoute = thing;
+    this.__tryToRoute();
+    return true;
+  }
+
+  __tryToRoute() {
+    if (this._route()) {
+      this.thingToRoute = null;
+    } else {
+      Timer.set(() => this.__tryToRoute(), OUTPUT_WAIT_INTERVAL);
+    }
   }
 }
 
@@ -566,12 +583,12 @@ class RoundRobinRouter extends AbstractRouter {
     return true;
   }
 
-  _in(thing) {
+  _route() {
     for (let i = 0; i < this._outputs.length; i++) {
-      const idx = this._idx;
+      const idx = this._idx % this._outputs.length;
       this._idx = (this._idx + 1) % this._outputs.length;
 
-      if (this._outputs[idx]._in(thing)) return true;
+      if (this._outputs[idx]._in(this.thingToRoute)) return true;
     }
 
     return false;
@@ -589,10 +606,10 @@ class ABRouter extends AbstractRouter {
     return this._outputs.length < 2;
   }
 
-  _in(thing) {
+  _route() {
     if (this._idx === -1 || this._outputs.length <= this._idx) return false;
 
-    return this._outputs[this._idx]._in(thing);
+    return this._outputs[this._idx]._in(this.thingToRoute);
   }
 
   useA() {
@@ -619,10 +636,10 @@ class SeparatorRouter extends AbstractRouter {
     return this._outputs.length < 2;
   }
 
-  _in(thing) {
+  _route() {
     if (this._outputs.length === 0) return false;
-    if (thing.id === this.thingId) return this._outputs[0]._in(thing);
+    if (this.thingToRoute.id === this.thingId) return this._outputs[0]._in(this.thingToRoute);
     if (this._outputs.length < 2) return false;
-    return this._outputs[1]._in(thing);
+    return this._outputs[1]._in(this.thingToRoute);
   }
 }

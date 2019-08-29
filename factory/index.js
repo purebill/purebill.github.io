@@ -1,143 +1,31 @@
-const STATE_BUILD_TRANSPORTER = "build-transporter";
-const STATE_CONNECT_TO_POWER = "connect-to-power";
-
-function defaultClick(cell) {
-  if (state.state == STATE_BUILD_TRANSPORTER) {
-    cell.things.filter(it => it instanceof ConstructionFacility
-      || it instanceof Sink
-      || it instanceof AbstractRouter)
-      .forEach(it => connect(state.from, it));
-    state.state = null;
-    return;
-  }
-
-  if (state.state == STATE_CONNECT_TO_POWER) {
-    cell.things
-      .filter(it => it instanceof ConstructionFacility
-        || it instanceof Transporter
-        || it instanceof ThingSource
-        || it instanceof AbstractRouter)
-      .forEach(it => state.from.addConsumer(it, 10));
-
-    state.state = null;
-    return;
-  }
-
-  for (let thing of cell.things) {
-    if ((thing instanceof ThingSource
-         || thing instanceof ConstructionFacility)
-      && thing._canAddOutput()) {
-      state.state = STATE_BUILD_TRANSPORTER;
-      state.from = thing;
-      break;
-    }
-
-    if (thing instanceof AbstractRouter && thing._canAddOutput()) {
-      state.state = STATE_BUILD_TRANSPORTER;
-      state.from = thing;
-      break;
-    }
-
-    if (thing instanceof PowerSource) {
-      state.state = STATE_CONNECT_TO_POWER;
-      state.from = thing;
-      break;
-    }
-  }
-}
-
-function rightClick(cell) {
-  if (cell === null) return;
-  if (state.state !== null) return;
-
-  const menu = state.contextMenu;
-  menu.hide();
-
-  if (cell.things.length === 0) {
-    menu.add("Factory", state.startBuildFactory);
-    menu.addSepartor();
-    menu.add("Separator Router", state.startBuildSeparator);
-    menu.add("Round Robin Router", state.buildRoundRobinRouter);
-    menu.addSepartor();
-    menu.add("Source", state.startBuildSource);
-    menu.addSepartor();
-  }
-
-  for (let thing of cell.things) {
-    menu.add("Delete " + thing.id, () => state.deleteThing(thing));
-
-    if (thing instanceof PowerSource) {
-      if (thing.isOn()) menu.add("Power OFF", () => thing.powerOff());
-      else menu.add("Power ON", () => thing.powerOn());
-    }
-  }
-
-  menu.showForCell(cell);
-}
-
 let state = {
   state: null,
 
-  sink: null,
-  
+  /** @type {HexaBoard} */
+  board: null,
+
   contextMenu: new ContextMenu(),
 
-  click: defaultClick,
-  resetClick: () => state.click = defaultClick,
-  rightClick: rightClick,
+  behaviour: null,
 
-  resetState: () => {
-    state.contextMenu.hide();
-    state.resetClick();
-    state.state = null;
+  pushBehaviour: (newBehaviour) => {
+    newBehaviour.__prevBehaviour = state.behaviour;
+    state.behaviour = newBehaviour;
   },
 
-  startBuildFactory: (cell) => {
-    const str = prompt("Construction Plan");
-    if (str === null) return;
-
-    let plan = ConstructionPlan.from(str);
-    let facility = buildFacility(cell.xc, cell.yc, plan, 2, 10);
-    cell.add(facility);
-
-    state.resetState();
-  },
-
-  startBuildSeparator: (cell) => {
-    const str = prompt("Thing to separate");
-    if (str === null) return;
-
-    buildSeparator(cell, str, 10);
-    state.resetState();
-  },
-
-  buildABRouter: (cell) => {
-    buildABRouter(cell);
-    state.resetState();
-  },
-
-  buildRoundRobinRouter: (cell) => {
-    buildRoundRobinRouter(cell);
-    state.resetState();
-  },
-
-  startBuildSource: () => {
-    console.log("source");
-  },
-
-  deleteThing: function (thing) {
-    const thingsToDestroy = [];
-
-    if (thing instanceof InputOutput && !(thing instanceof Transporter)) {
-      thing._outputs.forEach(it => thingsToDestroy.push(it));
-      thing.inputs.forEach(it => thingsToDestroy.push(it));
+  popBehaviour() {
+    if (state.behaviour.__prevBehaviour) {
+      state.behaviour = state.behaviour.__prevBehaviour;
     }
+  },
 
-    thing.destroy();
-
-    thingsToDestroy.forEach(it => it.destroy());
+  reset: () => {
+    state.behaviour = new BaseBehaviour(state);
+    state.contextMenu.hide();
+    board.clearSelection();
   }
 };
+state.behaviour = new BaseBehaviour(state);
 StateUi(state);
 
 /** @type {HexaBoard} */
@@ -155,7 +43,9 @@ function createWorld() {
   buildThingSource(15, 10, "a", 10, 1000, 10);
   buildPowerSource(7, 5, 100);
 
-  state.sink = buildSink(6, 4);
+  buildSink(6, 4);
+
+  state.board = board;
 }
 
 function buildPowerSource(x, y, maxPower) {
@@ -191,13 +81,16 @@ function buildThingSource(x, y, thingId, capacity, msPerThing, powerNeeded) {
  * @param {InputOutput} producer
  * @param {InputOutput} consumer
  */
-function connect(producer, consumer) {
-  if (producer === consumer) return null;
+function connect(producer, consumer, cells) {
+  if ((!cells || cells.length == 0) && producer === consumer) return null;
 
   const speed = 0.1;
   const powerPerUnitLength = 0.3;
 
-  let path = PathFinder.find(producer.hexaCells.values().next().value, consumer.hexaCells.values().next().value);
+  let path;
+  if (cells && cells.length > 0) path = cells;
+  else path = PathFinder.find(producer.hexaCells.values().next().value, consumer.hexaCells.values().next().value);
+
   if (path.length == 0) {
     message("No path found");
     return null;
@@ -217,12 +110,8 @@ function connect(producer, consumer) {
 
 function buildSink(x, y) {
   const sink = new Sink();
-  state.sink = sink;
-
   const cell = board.add(x, y, sink);
-
   const node = new SinkNode(sink, cell.xc, cell.yc);
-
   sink.node = node;
   Loop.add(node);
 

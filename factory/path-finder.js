@@ -26,10 +26,11 @@ let PathFinder = (function () {
     return gScore.get(cell);
   }
 
-  function find(cellFrom, cellTo) {
+  function find(cellFrom, cellTo, preoccupiedCells) {
     if (cellFrom === cellTo) return [cellFrom];
 
     let closedSet = new Set();
+    if (preoccupiedCells) preoccupiedCells.forEach(it => closedSet.add(it));
 
     let gScore = new Map();
     gScore.set(cellFrom, 0);
