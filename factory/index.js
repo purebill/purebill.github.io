@@ -4,6 +4,8 @@ let state = {
   /** @type {HexaBoard} */
   board: null,
 
+  powerSource: null,
+
   contextMenu: new ContextMenu(),
 
   behaviour: null,
@@ -38,10 +40,13 @@ Loop.start();
 function createWorld() {
   board = new HexaBoard(20, 25);
   Loop.add(board);
-  
+
+  let powerSource = buildPowerSource(0, 0, 100);
+  powerSource.powerOff();
+  state.powerSource = powerSource;
+
   // buildThingSource(0, 0, "plastic", 100, 1000, 10);
   buildThingSource(15, 10, "a", 10, 1000, 10);
-  buildPowerSource(7, 5, 100);
 
   buildSink(6, 4);
 
@@ -63,6 +68,7 @@ function buildFacility(x, y, plan, capacity, powerNeeded) {
   let node = new FacilityNode(facility, x, y);
   facility.node = node;
   Loop.add(node);
+  state.powerSource.addConsumer(facility);
 
   return facility;
 }
@@ -73,6 +79,8 @@ function buildThingSource(x, y, thingId, capacity, msPerThing, powerNeeded) {
   let node = new ThingSourceNode(source, cell.xc, cell.yc);
   source.node = node;
   Loop.add(node);
+
+  state.powerSource.addConsumer(source);
 
   return source;
 }
@@ -105,6 +113,8 @@ function connect(producer, consumer, cells) {
   transporter.node = node;
   Loop.add(node);
 
+  state.powerSource.addConsumer(transporter);
+
   return transporter;
 }
 
@@ -124,6 +134,9 @@ function buildABRouter(cell) {
   const node = new ABRouterNode(router, cell.xc, cell.yc);
   router.node = node;
   Loop.add(node);
+
+  state.powerSource.addConsumer(router);
+
   return router;
 }
 
@@ -133,6 +146,9 @@ function buildRoundRobinRouter(cell) {
   const node = new RoundRobinRouterNode(router, cell.xc, cell.yc);
   router.node = node;
   Loop.add(node);
+
+  state.powerSource.addConsumer(router);
+
   return router;
 }
 
@@ -142,5 +158,8 @@ function buildSeparator(cell, thingId, powerNeeded) {
   const node = new SeparatorRouterNode(router, cell.xc, cell.yc);
   router.node = node;
   Loop.add(node);
+
+  state.powerSource.addConsumer(router);
+
   return router;
 }
