@@ -436,23 +436,28 @@ class ConstructionPlan {
 
   static from(str) {
     // a, 2*c, d -500-> 1*e, f
-    const m = str.match(/^(([^,]+(,[^,]+)*))\s+-(\d+)->\s+(([^,]+(,[^,]+)*))$/);
+    const m = str.match(/^(([^,]+(,[^,]+)*))\s*-((\d+)-)?>\s*(([^,]+(,[^,]+)*))$/);
     assert(m !== null);
 
     const items = ConstructionPlan.__toPlanItems(m[1]);
-    const resultItems = ConstructionPlan.__toPlanItems(m[5]);
+    const resultItems = ConstructionPlan.__toPlanItems(m[6]);
 
-    return new ConstructionPlan(items, resultItems, parseInt(m[4]));
+    let constructionTimeMs = parseInt(m[5]);
+    if (isNaN(constructionTimeMs)) constructionTimeMs = 500;
+
+    return new ConstructionPlan(items, resultItems, constructionTimeMs);
   }
 
   static __toPlanItems(str) {
     return str.split(/\s*,\s*/)
       .map(s => [s, s.match(/^(\d+)\*(.+)$/)])
-      .map(pair => pair[1] ? new PlanItem(pair[1][2], parseInt(pair[1][1])) : new PlanItem(pair[0], 1))
+      .map(pair => pair[1] ? new PlanItem(pair[1][2].trim(), parseInt(pair[1][1])) : new PlanItem(pair[0].trim(), 1))
   }
 
   toString() {
-    return "Construction plan: " + JSON.stringify(this);
+    return this.items.map(it => (it.amount > 1 ? it.amount + "*" : "" ) + it.id)
+      + " -> "
+      + this.resultItems.map(it => (it.amount > 1 ? it.amount + "*" : "" ) + it.id);
   }
 }
 

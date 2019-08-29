@@ -1,6 +1,3 @@
-const STATE_BUILD_TRANSPORTER = "build-transporter";
-const STATE_CONNECT_TO_POWER = "connect-to-power";
-
 class BaseBehaviour {
   constructor(state) {
     this.state = state;

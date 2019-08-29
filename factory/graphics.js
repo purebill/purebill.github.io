@@ -117,6 +117,10 @@ class FacilityNode extends AbstractNode {
     let x = this.x + 10;
     let y = this.y - 10;
     ctx.font = "16px serif";
+
+    ctx.fillStyle = "#000000";
+    ctx.fillText(this.facility.constructionPlan.toString(), this.x, this.y + 20);
+
     for (let box of this.facility.boxes) {
       for (let k of box.slots.keys()) {
         box.slots.get(k).forEach(id => {
