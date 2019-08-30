@@ -38,10 +38,10 @@ class TimeLock {
     let box;
 
     let timerId = Timer.set(() => {
-      f();
       this.slots.splice(this.slots.findIndex(it => it.timerId === timerId), 1);
       box.done = true;
       thing.timeLockBox = null;
+      f();
     }, ms);
 
     box = new TimeLockBox(thing, state, timerId);

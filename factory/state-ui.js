@@ -59,8 +59,9 @@ StateUi.updateUi = function() {
 
 
 class ContextMenu {
-  constructor() {
+  constructor(onClick) {
     this.items = [];
+    this.onClick = onClick;
   }
 
   add(text, callback) {
@@ -70,7 +71,7 @@ class ContextMenu {
     });
   }
 
-  addSepartor() {
+  addSeparator() {
     this.items.push({
       separator: true
     })
@@ -88,8 +89,11 @@ class ContextMenu {
       }
 
       const button = document.createElement("button");
-      button.innerHTML = item.text;
-      button.onclick = () => item.callback(cell);
+      button.innerText = item.text;
+      button.onclick = () => {
+        item.callback(cell);
+        if (this.onClick) this.onClick();
+      };
 
       const p = document.createElement("p");
       p.appendChild(button);
@@ -97,11 +101,23 @@ class ContextMenu {
       el.appendChild(p);
     });
 
-    el.onclick = () => this.hide();
-
-    el.style.left = cell.xc + "px";
-    el.style.top = cell.yc + "px";
     el.style.display = "block";
+
+    let x = cell.xc;
+    let y = cell.yc;
+    el.style.left = x + "px";
+    el.style.top = y + "px";
+
+    // wait 'till it renders and then correct the position so that it fits
+    setTimeout(() => {
+      if (x < 0) x = 0;
+      if (x > window.innerWidth - 50 - el.clientWidth) x = window.innerWidth - 50 - el.clientWidth;
+      if (y < 0) y = 0;
+      if (y > window.innerHeight - 50 - el.clientHeight) y = window.innerHeight - 50 - el.clientHeight;
+
+      el.style.left = x + "px";
+      el.style.top = y + "px";
+    }, 0);
   }
 
   hide() {

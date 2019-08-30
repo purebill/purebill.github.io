@@ -3,6 +3,7 @@ const OUTPUT_WAIT_INTERVAL = 200;
 class Thing {
   constructor(id) {
     this.id = id;
+    this.name = null;
     this.dead = false;
     this.size = 1;
 
@@ -22,6 +23,8 @@ class Thing {
     if (this.powerSource !== null) this.powerSource.removeConsumer(this);
     console.log("[Thing]", this.id, "destroyed");
   }
+
+  reset() {}
 
   isPowered() {
     return this.powerSource !== null && this.powerSource.isOn();
@@ -45,12 +48,17 @@ class PowerConnection {
 
 class PowerSource extends Thing {
   constructor(maxPower) {
-    super("power-source")
+    super("power-source");
 
     this.maxPower = maxPower;
     this.consumers = [];
     this.powerLeft = maxPower;
-    this._on = true;
+    this._on = false;
+  }
+
+  reset() {
+    super.reset();
+    this._on = false;
   }
 
   destroy() {
@@ -112,13 +120,21 @@ class InputOutput extends Thing {
     this._outputs = [];
     this.addOutput(output);
     this.powerNeeded = powerNeeded;
-    this.timers = [];
+    this.outputWaitTimers = [];
 
     /**@type {Set<Thing>} */
     this.waitingThings = new Set();
 
     /**@type {Set<InputOutput>} */
     this.inputs = new Set();
+  }
+
+  reset() {
+    super.reset();
+
+    this.outputWaitTimers.forEach(it => Timer.clear(it));
+    this.outputWaitTimers = [];
+    this.waitingThings.clear();
   }
 
   _canAddOutput() {
@@ -137,20 +153,14 @@ class InputOutput extends Thing {
     if (idx === -1) return;
     this._outputs.splice(idx, 1);
     o.removeInput(this);
-  }
 
-  set output(o) {
-    this.addOutput(o);
-  }
-
-  get output() {
-    return this._outputs.length > 0 ? this._outputs[0] : null;
+    this.outputWaitTimers.forEach(it => Timer.clear(it));
+    this.outputWaitTimers = [];
+    this.waitingThings.clear();
   }
 
   destroy() {
-    this.timers.forEach(it => Timer.clear(it));
-    this.timers = [];
-    this.waitingThings.clear();
+    this.reset();
 
     // remove itself as an input from the output
     this._outputs.forEach(it => this.removeOutput(it));
@@ -176,8 +186,8 @@ class InputOutput extends Thing {
   }
 
   onPower(powerOn) {
-    if (powerOn) this.timers.forEach(timerId => Timer.resume(timerId));
-    else this.timers.forEach(timerId => Timer.pause(timerId));
+    if (powerOn) this.outputWaitTimers.forEach(timerId => Timer.resume(timerId));
+    else this.outputWaitTimers.forEach(timerId => Timer.pause(timerId));
   }
 
   _in(thing) {
@@ -188,9 +198,9 @@ class InputOutput extends Thing {
     this.waitingThings.add(thing);
 
     let timerId = Timer.set(() => {
-      let idx = this.timers.indexOf(timerId);
+      let idx = this.outputWaitTimers.indexOf(timerId);
       assert(idx !== -1);
-      this.timers.splice(idx, 1);
+      this.outputWaitTimers.splice(idx, 1);
 
       if (output === null) output = this._outputs.length > 0 ? this._outputs[0] : null;
 
@@ -201,7 +211,7 @@ class InputOutput extends Thing {
       } else this.__waitAndSendToOutput(thing, resolve, output);
     }, OUTPUT_WAIT_INTERVAL);
 
-    this.timers.push(timerId);
+    this.outputWaitTimers.push(timerId);
   }
 
   _sendToOutput(thing, output) {
@@ -213,10 +223,6 @@ class InputOutput extends Thing {
       if (output !== null && output._in(thing)) resolve();
       else this.__waitAndSendToOutput(thing, resolve, output);
     });
-  }
-
-  _drop(thing) {
-    message("Dropping " + thing.id);
   }
 }
 
@@ -237,6 +243,13 @@ class ThingSource extends InputOutput {
     this._prepare();
   }
 
+  reset() {
+    super.reset();
+
+    this.timeLock.clear();
+    this.suply = this.capacity;
+  }
+
   destroy() {
     this.timeLock.clear();
 
@@ -250,6 +263,17 @@ class ThingSource extends InputOutput {
     else this.timeLock.pause();
 
     if (this.timeLock.size === 0) this._prepare();
+  }
+
+  removeOutput(o) {
+    super.removeOutput(o);
+
+    this.timeLock.clear();
+  }
+
+  addOutput(o) {
+    super.addOutput(o);
+    this._prepare();
   }
 
   refill() {
@@ -284,9 +308,15 @@ class Transporter extends InputOutput {
 
     this.length = length;
     this.speed = speed;
-    this.thingsInProgress = 0;
     this.timeLock = new TimeLock();
     this.paused = false;
+  }
+
+  reset() {
+    super.reset();
+
+    this.paused = false;
+    this.timeLock.clear();
   }
 
   destroy() {
@@ -315,12 +345,14 @@ class Transporter extends InputOutput {
 
     if (!this.__canAccept(thing)) return false;
 
-    this.thingsInProgress++;
-
     this.timeLock.add(thing, Transporter.STATE_TRANSPORTED,
       () => {
         this.paused = true;
-        this._sendToOutput(thing).then(() => this.paused = false);
+        this.timeLock.pause();
+        this._sendToOutput(thing).then(() => {
+          this.paused = false;
+          this.timeLock.resume();
+        });
       },
       this.length / this.speed);
 
@@ -332,19 +364,26 @@ Transporter.STATE_TRANSPORTED = "transported";
 
 class ConstructionFacility extends InputOutput {
   /**
-   * @param {ConstructionPlan} constructionPlan
+   * @param {ConstructionPlan[]} constructionPlans
    * @param {number} capacity
    * @param {number} powerNeeded
    */
-  constructor(constructionPlan, capacity, powerNeeded) {
+  constructor(constructionPlans, capacity, powerNeeded) {
     super("construction-facility", null, powerNeeded);
-    this.constructionPlan = constructionPlan;
+    this.constructionPlans = constructionPlans;
     this.capacity = capacity;
 
     /** @type {ConstructionBox[]} */
     this.boxes = [];
 
     this.readyBoxes = new TimeLock();
+  }
+
+  reset() {
+    super.reset();
+
+    this.boxes = [];
+    this.readyBoxes.clear();
   }
 
   destroy() {
@@ -355,7 +394,7 @@ class ConstructionFacility extends InputOutput {
 
   toString() {
     return "Construction facility:"
-      + "\n" + this.constructionPlan
+      + "\n" + this.constructionPlans
       + "\ncapacity: " + this.capacity
       + "\nboxes: " + this.boxes.map(it => it.toString())
       + "\nreadyBoxes: " + this.readyBoxes;
@@ -382,13 +421,14 @@ class ConstructionFacility extends InputOutput {
 
     if (this.boxes.length >= this.capacity) return false;
 
-    if (!this.constructionPlan.isRequired(thing)) return false;
-
     if (this.readyBoxes.size >= this.capacity) return false;
 
     if (this.waitingThings.size >= this.capacity) return false;
 
-    let box = new ConstructionBox(this);
+    let readyPlans = this.constructionPlans.filter(plan => plan.isRequired(thing));
+    if (readyPlans.length == 0) return false;
+
+    let box = new ConstructionBox(this, readyPlans[0]);
     this.boxes.push(box);
     box.add(thing);
 
@@ -402,7 +442,7 @@ class ConstructionFacility extends InputOutput {
     // produce the results from the box
     this.readyBoxes.add(constructionBox, ConstructionFacility.STATE_CONSTRUCTION, () => {
       let promises = [];
-      this.constructionPlan.resultItems.forEach(item => {
+      constructionBox.constructionPlans.resultItems.forEach(item => {
         for (let i = 0; i < item.amount; i++) {
           promises.push(this._sendToOutput(new Thing(item.id)));
         }
@@ -416,7 +456,7 @@ class ConstructionFacility extends InputOutput {
         constructionBox.constructionFacility = null;
         this.boxes.splice(this.boxes.indexOf(constructionBox), 1);
       });
-    }, this.constructionPlan.constructionTimeMs);
+    }, constructionBox.constructionPlans.constructionTimeMs);
   }
 }
 
@@ -439,12 +479,13 @@ class ConstructionPlan {
   isRequired(thing) {
     assert(!thing.dead);
 
-    return this.items.find(it => it.id == thing.id) !== undefined;
+    return this.items.find(it => it.id == thing.id) !== undefined
+      || this.items.find(it => it.id == "*") !== undefined;
   }
 
   static from(str) {
     // a, 2*c, d -500-> 1*e, f
-    const m = str.match(/^(([^,]+(,[^,]+)*))\s*-((\d+)-)?>\s*(([^,]+(,[^,]+)*))$/);
+    const m = str.match(/^(([^,]+?(,[^,]+)*))\s*-((\d+)-)?>\s*(([^,]+(,[^,]+)*))$/);
     assert(m !== null);
 
     const items = ConstructionPlan.__toPlanItems(m[1]);
@@ -473,14 +514,15 @@ class ConstructionBox extends Thing {
   /**
    * @param {ConstructionFacility} constructionFacility
    */
-  constructor (constructionFacility) {
+  constructor (constructionFacility, constructionPlan) {
     super("constructor-box");
 
     this.constructionFacility = constructionFacility;
+    this.constructionPlans = constructionPlan;
     this.waitingForCount = 0;
 
     let slots = new Map();
-    this.constructionFacility.constructionPlan.items.forEach(item => {
+    this.constructionPlans.items.forEach(item => {
       if (!slots.has(item.id)) slots.set(item.id, []);
       for (let i = 0; i < item.amount; i++) slots.get(item.id).push(null);
       this.waitingForCount += item.amount;
@@ -497,9 +539,21 @@ class ConstructionBox extends Thing {
   _findSlotFor(thing) {
     assert(!thing.dead);
 
-    if (!this.slots.has(thing.id)) return -1;
+    if (!this.slots.has(thing.id) && !this.slots.has("*")) return -1;
 
     let l = this.slots.get(thing.id);
+    if (l) {
+      for (let i = 0; i < l.length; i++) {
+        if (l[i] === null) {
+          return i;
+        }
+      }
+    }
+
+    // wildcard
+    l = this.slots.get("*");
+    if (!l) return -1;
+
     for (let i = 0; i < l.length; i++) {
       if (l[i] === null) {
         return i;
@@ -519,11 +573,11 @@ class ConstructionBox extends Thing {
     let idx = this._findSlotFor(thing);
 
     if (idx === -1) throw new Error("No space for the thing or it is not expected: " + thing.id);
-    if (!this.slots.has(thing.id)) throw new Error("Non-expected thing " + thing.id);
-
-    let l = this.slots.get(thing.id);
+    if (!this.slots.has(thing.id) && !this.slots.has("*")) throw new Error("Non-expected thing " + thing.id);
 
     let found = false;
+
+    let l = this.slots.get(thing.id) || [];
     for (let i = 0; i < l.length; i++) {
       if (l[i] === null) {
         l[i] = thing;
@@ -531,6 +585,17 @@ class ConstructionBox extends Thing {
         break;
       }
     }
+    if (!found) {
+      l = this.slots.get("*") || [];
+      for (let i = 0; i < l.length; i++) {
+        if (l[i] === null) {
+          l[i] = thing;
+          found = true;
+          break;
+        }
+      }
+    }
+
     assert(found, "No free space for the thing");
     this.waitingForCount--;
 
@@ -553,6 +618,12 @@ class Sink extends InputOutput {
     this.thingsSinked = 0;
   }
 
+  reset() {
+    super.reset();
+
+    this.thingsSinked = 0;
+  }
+
   _in(thing) {
     this.thingsSinked++;
     return true;
@@ -564,6 +635,22 @@ class AbstractRouter extends InputOutput {
     super("router", null, powerNeeded);
 
     this.thingToRoute = null;
+    this.timerId = null;
+  }
+
+  reset() {
+    super.reset();
+
+    if (this.timerId !== null) Timer.clear(this.timerId);
+
+    this.thingToRoute = null;
+    this.timerId = null;
+  }
+
+  destroy() {
+    this.reset();
+
+    super.destroy();
   }
 
   _route() {
@@ -580,8 +667,9 @@ class AbstractRouter extends InputOutput {
   __tryToRoute() {
     if (this._route()) {
       this.thingToRoute = null;
+      this.timerId = null;
     } else {
-      Timer.set(() => this.__tryToRoute(), OUTPUT_WAIT_INTERVAL);
+      this.timerId = Timer.set(() => this.__tryToRoute(), OUTPUT_WAIT_INTERVAL);
     }
   }
 }
@@ -589,6 +677,12 @@ class AbstractRouter extends InputOutput {
 class RoundRobinRouter extends AbstractRouter {
   constructor(powerNeeded) {
     super(powerNeeded);
+    this._idx = 0;
+  }
+
+  reset() {
+    super.reset();
+
     this._idx = 0;
   }
 
@@ -611,6 +705,12 @@ class RoundRobinRouter extends AbstractRouter {
 class ABRouter extends AbstractRouter {
   constructor(powerNeeded) {
     super(powerNeeded);
+
+    this._idx = -1;
+  }
+
+  reset() {
+    super.reset();
 
     this._idx = -1;
   }
@@ -654,5 +754,37 @@ class SeparatorRouter extends AbstractRouter {
     if (this.thingToRoute.id === this.thingId) return this._outputs[0]._in(this.thingToRoute);
     if (this._outputs.length < 2) return false;
     return this._outputs[1]._in(this.thingToRoute);
+  }
+}
+
+class CountingRouter extends AbstractRouter {
+  constructor(count, powerNeeded) {
+    super(powerNeeded);
+
+    this.counter = count;
+    this.count = count;
+  }
+
+  reset() {
+    super.reset();
+
+    this.counter = this.count;
+  }
+
+  _canAddOutput() {
+    return this._outputs.length < 2;
+  }
+
+  _route() {
+    if (this._outputs.length === 0) return false;
+
+    if (this.counter > 0) {
+      let routed = this._outputs[0]._in(this.thingToRoute);
+      if (routed) this.counter--;
+      return routed;
+    }
+
+    if (this._outputs.length > 1) return this._outputs[1]._in(this.thingToRoute);
+    return false;
   }
 }

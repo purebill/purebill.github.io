@@ -3,6 +3,8 @@ class BaseBehaviour {
     this.state = state;
   }
 
+  onPop() {}
+
   mouseMove(cell) {}
 
   click(cell) {
@@ -27,17 +29,63 @@ class BaseBehaviour {
   }
 
   rightClick(cell) {
-    const menu = this.state.contextMenu;
-    menu.hide();
+    this.state.pushBehaviour(new ContextMenuBehaviour(this.state, cell));
+  }
+}
+
+class ContextMenuBehaviour extends BaseBehaviour {
+  constructor(state, cell) {
+    super(state);
+
+    Keys.key("Escape", "Close context menu", () => {
+      this.state.popBehaviour();
+    });
+
+    let menu = new ContextMenu(() => this.state.popBehaviour());
 
     if (cell.things.length === 0) {
+      menu.add("*,a -> A", (cell) => {
+        let plans = "*,a->A | *,b->B | *,c->C | *,d->D | *,e->E"
+          .split(/\s*\|\s*/)
+          .map(str => ConstructionPlan.from(str));
+        let facility = buildFacility(cell, plans, 1, 10);
+        facility.name = "*,a -> A";
+      });
+      menu.add("B -> b,a", (cell) => {
+        let plans = "A->a,a | B->b,a | C->c,a | D->d,a | E->e,a"
+          .split(/\s*\|\s*/)
+          .map(str => ConstructionPlan.from(str));
+        let facility = buildFacility(cell, plans, 1, 10);
+        facility.name = "B -> b,a";
+      });
+      menu.add("a >> z", (cell) => {
+        let plans = "a->b | b->c | c->d | d->e | e->a"
+          .split(/\s*\|\s*/)
+          .map(str => ConstructionPlan.from(str));
+        let facility = buildFacility(cell, plans, 1, 10);
+        facility.name = "a >> z";
+      });
+      menu.add("a << z", (cell) => {
+        let plans = "a->e | b->a | c->b | d->c | e->d"
+          .split(/\s*\|\s*/)
+          .map(str => ConstructionPlan.from(str));
+        let facility = buildFacility(cell, plans, 1, 10);
+        facility.name = "a << z";
+      });
+      menu.addSeparator();
+
       menu.add("Factory", (cell) => this.startBuildFactory(cell));
-      menu.addSepartor();
-      menu.add("Separator Router", (cell) => this.startBuildSeparator(cell));
-      menu.add("Round Robin Router", (cell) => this.buildRoundRobinRouter(cell));
-      menu.addSepartor();
+      menu.addSeparator();
+
+      menu.add("Separator", (cell) => this.startBuildSeparator(cell));
+      menu.add("Round Robin", (cell) => buildRoundRobinRouter(cell));
+      menu.add("Counting Router", (cell) => this.startBuildCountingRouter(cell));
+      menu.addSeparator();
+
       menu.add("Source", (cell) => this.startBuildSource(cell));
-      menu.addSepartor();
+      menu.addSeparator();
+
+      menu.add("Reset", () => this.state.board.reset());
     }
 
     for (let thing of cell.things) {
@@ -49,16 +97,39 @@ class BaseBehaviour {
       }
     }
 
-    menu.showForCell(cell);
+    this.menu = menu;
+
+    this.menu.showForCell(cell);
+  }
+
+  rightClick() {
+    this.state.popBehaviour();
+  }
+
+  click() {
+    this.state.popBehaviour();
+  }
+
+  onPop() {
+    super.onPop();
+    this.menu.hide();
   }
 
   startBuildFactory(cell) {
     const str = prompt("Construction Plan");
     if (str === null) return;
 
-    let plan = ConstructionPlan.from(str);
-    let facility = buildFacility(cell.xc, cell.yc, plan, 2, 10);
-    cell.add(facility);
+    let plans = str.split(/\s*\|\s*/).map(str => ConstructionPlan.from(str));
+    let facility = buildFacility(cell, plans, 1, 10);
+  }
+
+  startBuildCountingRouter(cell) {
+    const str = prompt("Count");
+    if (str === null) return;
+    let count = parseInt(str);
+    if (isNaN(count)) return;
+
+    buildCountingRouter(cell, count, 10);
   }
 
   startBuildSeparator(cell) {
@@ -70,10 +141,6 @@ class BaseBehaviour {
 
   buildABRouter(cell) {
     buildABRouter(cell);
-  }
-
-  buildRoundRobinRouter(cell) {
-    buildRoundRobinRouter(cell);
   }
 
   startBuildSource() {
@@ -99,6 +166,8 @@ class ThingBehaviour extends BaseBehaviour {
     super(state);
     this.cell = cell;
     this.thing = thing;
+
+    Keys.key("Escape", "Cancel the action", () => this.finish());
   }
 
   mouseMove(cell) {

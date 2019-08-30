@@ -67,7 +67,7 @@ class PowerSourceNode extends AbstractNode {
     ctx.fillStyle = "#000000";
     ctx.fillText(Math.round(this.powerSource.powerLeft) + " / " + this.powerSource.maxPower, this.x + 10, this.y + 10);
 
-    for (let box of this.powerSource.consumers) {
+    /*for (let box of this.powerSource.consumers) {
       if (this.powerSource.isOn()) ctx.strokeStyle = "rgba(0, 100, 0, .2)";
       else ctx.strokeStyle = "rgba(255, 0, 0, .2)";
       
@@ -75,7 +75,7 @@ class PowerSourceNode extends AbstractNode {
       ctx.moveTo(this.x, this.y);
       ctx.lineTo(box.consumer.node.x, box.consumer.node.y);
       ctx.stroke();
-    }
+    }*/
   }
 }
 
@@ -119,7 +119,8 @@ class FacilityNode extends AbstractNode {
     ctx.font = "16px serif";
 
     ctx.fillStyle = "#000000";
-    ctx.fillText(this.facility.constructionPlan.toString(), this.x, this.y + 20);
+    let name = this.facility.name || this.facility.constructionPlans.toString();
+    ctx.fillText(name, this.x, this.y + 20);
 
     for (let box of this.facility.boxes) {
       for (let k of box.slots.keys()) {
@@ -149,16 +150,12 @@ class TransporterNode extends AbstractNode {
     this.color = "#000000";
     this.points = points;
     
-    let totalLength = 0;
     points[0].length = 0;
     for (let i = 1; i < points.length; i++) {
       const point = points[i];
       const prev = points[i-1];
-      let length = Math.sqrt(Math.pow(point.x - prev.x, 2) + Math.pow(point.y - prev.y, 2));
-      totalLength += length;
-      point.length = length;
+      point.length = 1;//Math.sqrt(Math.pow(point.x - prev.x, 2) + Math.pow(point.y - prev.y, 2));
     }
-    transporter.length = totalLength;
 
     this.transporter = transporter;
 
@@ -224,7 +221,12 @@ class HexaCell {
     this.yc = yc;
     this.board = board;
     this.selected = false;
+    /**@type {Thing[]} */
     this.things = [];
+  }
+
+  reset() {
+    this.things.forEach(thing => thing.reset());
   }
 
   add(thing) {
@@ -350,7 +352,6 @@ class HexaCell {
 
 class HexaBoard {
   constructor(width, height) {
-    this.selectedCell = null;
     this.width = width;
     this.height = height;
     this.r = 20;
@@ -379,6 +380,10 @@ class HexaBoard {
         this.cells[x][y] = new HexaCell(x, y, this, xc, yc);
       }
     }
+  }
+
+  reset() {
+    this.cells.forEach(col => col.forEach(cell => cell.reset()));
   }
 
   add(x, y, thing) {
@@ -533,5 +538,29 @@ class SeparatorRouterNode extends AbstractNode {
 
     ctx.font = "16px serif";
     ctx.fillText(this.router.thingId, this.x - 4, this.y - 4);
+  }
+}
+
+class CountingRouterNode extends AbstractNode {
+  constructor(router, x, y) {
+    super();
+
+    this.router = router;
+    this.x = x;
+    this.y = y;
+  }
+
+  draw(ctx) {
+    ctx.strokeStyle = "#000000";
+    ctx.beginPath();
+    ctx.moveTo(this.x + 4, this.y);
+    ctx.lineTo(this.x, this.y);
+    ctx.lineTo(this.x - 4, this.y - 4);
+    ctx.moveTo(this.x, this.y);
+    ctx.lineTo(this.x - 4, this.y + 4);
+    ctx.stroke();
+
+    ctx.font = "16px serif";
+    ctx.fillText(this.router.counter, this.x - 4, this.y - 4);
   }
 }

@@ -1,7 +1,28 @@
 var Keys = (function () {
-  let keys = {};
+  class KeysFrame {
+    constructor() {
+      this.keyUp = {};
+      this.keyDown = {};
+      this.mouseUp = {};
+      this.mouseDown = {};
+      this.mouseMoveAction = null;
+      this.mouseZoomAction = null;
+      this._next = null;
+    }
+  }
+
+  let root = new KeysFrame();
+
+  function find(name, value) {
+    let node = root;
+    do {
+      if (node[name][value]) return node[name][value];
+      node = node._next;
+    } while (node !== null);
+    return null;
+  }
+
   let pressed = {};
-  let mouseActions = {};
   let mouseMoveAction = null;
   let mouseZoomAction = null;
   let canvas = null;
@@ -36,9 +57,9 @@ var Keys = (function () {
   window.onmousedown = e => {
     if (e.target != canvas) return;
 
-    let mapping = mouseActions[actionKey(e)];
-    if (mapping && mapping.down) {
-      mapping.down(e);
+    let mapping = find("mouseDown", actionKey(e));
+    if (mapping) {
+      mapping.callback(e);
       e.preventDefault();
     }
   };
@@ -55,9 +76,9 @@ var Keys = (function () {
   window.onmouseup = e => {
     if (e.target != canvas) return;
 
-    let mapping = mouseActions[actionKey(e)];
-    if (mapping && mapping.up) {
-      mapping.up(e);
+    let mapping = find("mouseUp", actionKey(e));
+    if (mapping) {
+      mapping.callback(e);
       e.preventDefault();
     }
   };
@@ -83,21 +104,21 @@ var Keys = (function () {
     if (pressed[e.code]) return;
     pressed[e.code] = true;
 
-    let mapping = keys[e.code];
-    if (mapping && mapping.down) {
-      mapping.down(e);
+    let mapping = find("keyDown", e.code);
+    if (mapping) {
       e.preventDefault();
+      mapping.callback(e);
     }
-    // console.debug(e.code);
   };
 
   window.onkeyup = (e) => {
-    let mapping = keys[e.code];
-    if (mapping && mapping.up) {
-      mapping.up(e);
-      e.preventDefault();
-    }
     pressed[e.code] = false;
+
+    let mapping = find("keyUp", e.code);
+    if (mapping) {
+      e.preventDefault();
+      mapping.callback(e);
+    }
   };
 
   return {
@@ -109,11 +130,18 @@ var Keys = (function () {
         metaKey: keys.indexOf("Win") !== -1 || keys.indexOf("Meta") !== -1,
         shiftKey: keys.indexOf("Shift") !== -1
       });
-      mouseActions[key] = {
-        description,
-        down: downCallback,
-        up: upCallback
-      };
+      if (downCallback) {
+        root.mouseDown[key] = {
+          description,
+          callback: downCallback
+        };
+      }
+      if (upCallback) {
+        root.mouseUp[key] = {
+          description,
+          callback: upCallback
+        }
+      }
     },
     mouseMove: function (description, callback) {
       mouseMoveAction = {
@@ -128,13 +156,21 @@ var Keys = (function () {
       }
     },
     key: function (code, description, downCallback, upCallback) {
-      keys[code] = {
-        description,
-        down: downCallback,
-        up: upCallback
-      };
+      if (downCallback) {
+        root.keyDown[code] = {
+          description,
+          callback: downCallback
+        }
+      }
+      if (upCallback) {
+        root.keyUp[code] = {
+          description,
+          callback: upCallback
+        }
+      }
     },
     help: function () {
+      // TODO
       return {
         keys: Object.keys(keys).map(k => k + ": " + keys[k].description),
         mouse: Object.keys(mouseActions).map(k => actionKeyToKeys(k) + " button: " + mouseActions[k].description)
@@ -144,6 +180,19 @@ var Keys = (function () {
     },
     init: function (target) {
       canvas = target;
+    },
+    push: () => {
+      let node = new KeysFrame();
+      node._next = root;
+      root = node;
+    },
+    pop: () => {
+      if (root._next !== null) root = root._next;
+    },
+    resetToRoot: () => {
+      while (root._next !== null) {
+        root = root._next;
+      }
     }
   }
 }) ();

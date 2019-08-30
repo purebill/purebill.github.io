@@ -6,56 +6,45 @@ let state = {
 
   powerSource: null,
 
-  contextMenu: new ContextMenu(),
-
   behaviour: null,
 
   pushBehaviour: (newBehaviour) => {
     newBehaviour.__prevBehaviour = state.behaviour;
     state.behaviour = newBehaviour;
+    Keys.push();
   },
 
   popBehaviour() {
     if (state.behaviour.__prevBehaviour) {
+      state.behaviour.onPop();
       state.behaviour = state.behaviour.__prevBehaviour;
+      Keys.pop();
     }
-  },
-
-  reset: () => {
-    state.behaviour = new BaseBehaviour(state);
-    state.contextMenu.hide();
-    board.clearSelection();
   }
 };
 state.behaviour = new BaseBehaviour(state);
 StateUi(state);
-
-/** @type {HexaBoard} */
-let board;
 
 createWorld();
 
 Loop.start();
 
 function createWorld() {
-  board = new HexaBoard(20, 25);
-  Loop.add(board);
+  state.board = new HexaBoard(20, 25);
+  Loop.add(state.board);
 
   let powerSource = buildPowerSource(0, 0, 100);
   powerSource.powerOff();
   state.powerSource = powerSource;
 
-  // buildThingSource(0, 0, "plastic", 100, 1000, 10);
   buildThingSource(15, 10, "a", 10, 1000, 10);
 
   buildSink(6, 4);
-
-  state.board = board;
 }
 
 function buildPowerSource(x, y, maxPower) {
   let powerSource = new PowerSource(maxPower);
-  const cell = board.add(x, y, powerSource);
+  const cell = state.board.add(x, y, powerSource);
   let node = new PowerSourceNode(powerSource, cell.xc, cell.yc);
   powerSource.node = node;
   Loop.add(node);
@@ -63,19 +52,20 @@ function buildPowerSource(x, y, maxPower) {
   return powerSource;
 }
 
-function buildFacility(x, y, plan, capacity, powerNeeded) {
-  let facility = new ConstructionFacility(plan, capacity, powerNeeded);
-  let node = new FacilityNode(facility, x, y);
+function buildFacility(cell, plans, capacity, powerNeeded) {
+  let facility = new ConstructionFacility(plans, capacity, powerNeeded);
+  let node = new FacilityNode(facility, cell.xc, cell.yc);
   facility.node = node;
   Loop.add(node);
   state.powerSource.addConsumer(facility);
+  cell.add(facility);
 
   return facility;
 }
 
 function buildThingSource(x, y, thingId, capacity, msPerThing, powerNeeded) {
   let source = new ThingSource(thingId, capacity, msPerThing, powerNeeded);
-  const cell = board.add(x, y, source);
+  const cell = state.board.add(x, y, source);
   let node = new ThingSourceNode(source, cell.xc, cell.yc);
   source.node = node;
   Loop.add(node);
@@ -92,8 +82,8 @@ function buildThingSource(x, y, thingId, capacity, msPerThing, powerNeeded) {
 function connect(producer, consumer, cells) {
   if ((!cells || cells.length == 0) && producer === consumer) return null;
 
-  const speed = 0.1;
-  const powerPerUnitLength = 0.3;
+  const speed = 0.005;
+  const powerPerUnitLength = 1;
 
   let path;
   if (cells && cells.length > 0) path = cells;
@@ -104,7 +94,8 @@ function connect(producer, consumer, cells) {
     return null;
   }
 
-  let transporter = new Transporter(consumer, 0, speed, path.length * powerPerUnitLength);
+  let length = path.length - 1;
+  let transporter = new Transporter(consumer, length, speed, length * powerPerUnitLength);
   producer.addOutput(transporter);
 
   path.forEach(it => it.add(transporter));
@@ -120,7 +111,7 @@ function connect(producer, consumer, cells) {
 
 function buildSink(x, y) {
   const sink = new Sink();
-  const cell = board.add(x, y, sink);
+  const cell = state.board.add(x, y, sink);
   const node = new SinkNode(sink, cell.xc, cell.yc);
   sink.node = node;
   Loop.add(node);
@@ -156,6 +147,18 @@ function buildSeparator(cell, thingId, powerNeeded) {
   const router = new SeparatorRouter(thingId, powerNeeded);
   cell.add(router);
   const node = new SeparatorRouterNode(router, cell.xc, cell.yc);
+  router.node = node;
+  Loop.add(node);
+
+  state.powerSource.addConsumer(router);
+
+  return router;
+}
+
+function buildCountingRouter(cell, count, powerNeeded) {
+  const router = new CountingRouter(count, powerNeeded);
+  cell.add(router);
+  const node = new CountingRouterNode(router, cell.xc, cell.yc);
   router.node = node;
   Loop.add(node);
 

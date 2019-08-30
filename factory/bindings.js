@@ -19,38 +19,34 @@ Keys.key("Space", "Pause ON/OFF", () => {
   Loop.paused() ? Loop.resume() : Loop.pause();
 });
 
-Keys.key("Escape", "Reset current action", () => {
-  state.reset();
-});
-
 Keys.mouseMove("Move mouse to select a cell", (e) => {
-  let cell = board.fromCoords(e.clientX, e.clientY);
+  let cell = state.board.fromCoords(e.clientX, e.clientY);
   if (cell === null) return;
 
   if (state.currentCell === cell) return;
   state.currentCell = cell;
 
-  board.clearSelection();
-  board.select(cell);
-  //cell.neighbours().forEach(it => board.select(it));
+  state.board.clearSelection();
+  state.board.select(cell);
+  //cell.neighbours().forEach(it => state.board.select(it));
 
   state.behaviour.mouseMove(cell);
 });
 
 Keys.mouse(0, [], "Click to build", null, (e) => {
-  const cell = board.fromCoords(e.clientX, e.clientY);
+  const cell = state.board.fromCoords(e.clientX, e.clientY);
   if (cell === null) return;
 
   state.behaviour.click(cell);
 });
 
 Keys.mouse(0, ["Win"], "Click to debug", null, (e) => {
-  const cell = board.fromCoords(e.clientX, e.clientY);
+  const cell = state.board.fromCoords(e.clientX, e.clientY);
   console.log(cell.things);
 });
 
 Keys.mouse(2, [], "Right click to show a context menu", (e) => {
-  const cell = board.fromCoords(e.clientX, e.clientY);
+  const cell = state.board.fromCoords(e.clientX, e.clientY);
   if (cell === null) return;
 
   state.behaviour.rightClick(cell);
