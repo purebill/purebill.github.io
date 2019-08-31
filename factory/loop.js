@@ -1,5 +1,5 @@
 var Loop = (function () {
-  const renders = [];
+  let renders = [];
   let paused = false;
 
   const canvas = document.createElement("canvas");
@@ -77,6 +77,10 @@ var Loop = (function () {
     remove,
     pause,
     resume,
-    paused: () => paused
+    paused: () => paused,
+    clear: () => {
+      renders = [];
+      paused = false;
+    }
   }
 })();

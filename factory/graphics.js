@@ -153,7 +153,7 @@ class TransporterNode extends AbstractNode {
     points[0].length = 0;
     for (let i = 1; i < points.length; i++) {
       const point = points[i];
-      const prev = points[i-1];
+      // const prev = points[i-1];
       point.length = 1;//Math.sqrt(Math.pow(point.x - prev.x, 2) + Math.pow(point.y - prev.y, 2));
     }
 
@@ -229,6 +229,9 @@ class HexaCell {
     this.things.forEach(thing => thing.reset());
   }
 
+  /**
+   * @param {Thing} thing 
+   */
   add(thing) {
     this.things.push(thing);
     thing.hexaCells.add(this);

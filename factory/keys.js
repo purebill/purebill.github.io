@@ -27,8 +27,8 @@ var Keys = (function () {
   let mouseZoomAction = null;
   let canvas = null;
 
-  function actionKey(e) {
-    return e.button.toString()
+  function actionKey(e, sourceName) {
+    return e[sourceName].toString()
     + ","
     + e.altKey.toString()
     + ","
@@ -57,7 +57,7 @@ var Keys = (function () {
   window.onmousedown = e => {
     if (e.target != canvas) return;
 
-    let mapping = find("mouseDown", actionKey(e));
+    let mapping = find("mouseDown", actionKey(e, "button"));
     if (mapping) {
       mapping.callback(e);
       e.preventDefault();
@@ -76,7 +76,7 @@ var Keys = (function () {
   window.onmouseup = e => {
     if (e.target != canvas) return;
 
-    let mapping = find("mouseUp", actionKey(e));
+    let mapping = find("mouseUp", actionKey(e, "button"));
     if (mapping) {
       mapping.callback(e);
       e.preventDefault();
@@ -104,7 +104,7 @@ var Keys = (function () {
     if (pressed[e.code]) return;
     pressed[e.code] = true;
 
-    let mapping = find("keyDown", e.code);
+    let mapping = find("keyDown", actionKey(e, "code"));
     if (mapping) {
       e.preventDefault();
       mapping.callback(e);
@@ -114,7 +114,7 @@ var Keys = (function () {
   window.onkeyup = (e) => {
     pressed[e.code] = false;
 
-    let mapping = find("keyUp", e.code);
+    let mapping = find("keyUp", actionKey(e, "code"));
     if (mapping) {
       e.preventDefault();
       mapping.callback(e);
@@ -129,7 +129,8 @@ var Keys = (function () {
         ctrlKey: keys.indexOf("Ctrl") !== -1,
         metaKey: keys.indexOf("Win") !== -1 || keys.indexOf("Meta") !== -1,
         shiftKey: keys.indexOf("Shift") !== -1
-      });
+      }, "button");
+
       if (downCallback) {
         root.mouseDown[key] = {
           description,
@@ -155,15 +156,23 @@ var Keys = (function () {
         callback
       }
     },
-    key: function (code, description, downCallback, upCallback) {
+    key: function (code, /**@type String[] */keys, description, downCallback, upCallback) {
+      const action = actionKey({
+        code: code.toString(),
+        altKey: keys.indexOf("Alt") !== -1,
+        ctrlKey: keys.indexOf("Ctrl") !== -1,
+        metaKey: keys.indexOf("Win") !== -1 || keys.indexOf("Meta") !== -1,
+        shiftKey: keys.indexOf("Shift") !== -1
+      }, "code");
+
       if (downCallback) {
-        root.keyDown[code] = {
+        root.keyDown[action] = {
           description,
           callback: downCallback
         }
       }
       if (upCallback) {
-        root.keyUp[code] = {
+        root.keyUp[action] = {
           description,
           callback: upCallback
         }

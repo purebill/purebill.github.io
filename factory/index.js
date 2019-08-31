@@ -1,6 +1,4 @@
 let state = {
-  state: null,
-
   /** @type {HexaBoard} */
   board: null,
 
@@ -20,9 +18,18 @@ let state = {
       state.behaviour = state.behaviour.__prevBehaviour;
       Keys.pop();
     }
+  },
+
+  reset: () => {
+    Keys.resetToRoot();
+    Loop.clear();
+    Timer.clear();
+    state.board = null;
+    state.powerSource = null;
+    state.behaviour = new BaseBehaviour(state);
   }
 };
-state.behaviour = new BaseBehaviour(state);
+state.reset();
 StateUi(state);
 
 createWorld();
@@ -33,9 +40,7 @@ function createWorld() {
   state.board = new HexaBoard(20, 25);
   Loop.add(state.board);
 
-  let powerSource = buildPowerSource(0, 0, 100);
-  powerSource.powerOff();
-  state.powerSource = powerSource;
+  buildPowerSource(0, 0, 100);
 
   buildThingSource(15, 10, "a", 10, 1000, 10);
 
@@ -49,10 +54,15 @@ function buildPowerSource(x, y, maxPower) {
   powerSource.node = node;
   Loop.add(node);
 
+  state.powerSource = powerSource;
+
   return powerSource;
 }
 
-function buildFacility(cell, plans, capacity, powerNeeded) {
+function buildFacility(x, y, planString, capacity, powerNeeded) {
+  const cell = state.board.cells[x][y];
+  let plans = planString.split(/\s*\|\s*/).map(str => ConstructionPlan.from(str));
+
   let facility = new ConstructionFacility(plans, capacity, powerNeeded);
   let node = new FacilityNode(facility, cell.xc, cell.yc);
   facility.node = node;
@@ -95,7 +105,7 @@ function connect(producer, consumer, cells) {
   }
 
   let length = path.length - 1;
-  let transporter = new Transporter(consumer, length, speed, length * powerPerUnitLength);
+  let transporter = new Transporter(consumer, length, speed, length * powerPerUnitLength, path);
   producer.addOutput(transporter);
 
   path.forEach(it => it.add(transporter));
@@ -109,6 +119,11 @@ function connect(producer, consumer, cells) {
   return transporter;
 }
 
+function connectByIdx(producerIdx, consumerIdx, coords, index) {
+  const cells = coords.map(c => state.board.cells[c.x][c.y])
+  return connect(index[producerIdx], index[consumerIdx], cells);
+}
+
 function buildSink(x, y) {
   const sink = new Sink();
   const cell = state.board.add(x, y, sink);
@@ -119,7 +134,8 @@ function buildSink(x, y) {
   return sink;
 }
 
-function buildABRouter(cell) {
+function buildABRouter(x, y) {
+  const cell = state.board.cells[x][y];
   const router = new ABRouter(10);
   cell.add(router);
   const node = new ABRouterNode(router, cell.xc, cell.yc);
@@ -131,7 +147,8 @@ function buildABRouter(cell) {
   return router;
 }
 
-function buildRoundRobinRouter(cell) {
+function buildRoundRobinRouter(x, y) {
+  const cell = state.board.cells[x][y];
   const router = new RoundRobinRouter(10);
   cell.add(router);
   const node = new RoundRobinRouterNode(router, cell.xc, cell.yc);
@@ -143,7 +160,8 @@ function buildRoundRobinRouter(cell) {
   return router;
 }
 
-function buildSeparator(cell, thingId, powerNeeded) {
+function buildSeparator(x, y, thingId, powerNeeded) {
+  const cell = state.board.cells[x][y];
   const router = new SeparatorRouter(thingId, powerNeeded);
   cell.add(router);
   const node = new SeparatorRouterNode(router, cell.xc, cell.yc);
@@ -155,7 +173,8 @@ function buildSeparator(cell, thingId, powerNeeded) {
   return router;
 }
 
-function buildCountingRouter(cell, count, powerNeeded) {
+function buildCountingRouter(x, y, count, powerNeeded) {
+  const cell = state.board.cells[x][y];
   const router = new CountingRouter(count, powerNeeded);
   cell.add(router);
   const node = new CountingRouterNode(router, cell.xc, cell.yc);

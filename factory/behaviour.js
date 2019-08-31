@@ -1,6 +1,9 @@
 class BaseBehaviour {
   constructor(state) {
     this.state = state;
+
+    Keys.key("KeyS", ["Ctrl"], "Save", () => window.localStorage.saved = JSON.stringify(Persister.persist(state)));
+    Keys.key("KeyL", ["Ctrl"], "Load", () => Persister.restore(JSON.parse(window.localStorage.saved)));
   }
 
   onPop() {}
@@ -37,7 +40,7 @@ class ContextMenuBehaviour extends BaseBehaviour {
   constructor(state, cell) {
     super(state);
 
-    Keys.key("Escape", "Close context menu", () => {
+    Keys.key("Escape", [], "Close context menu", () => {
       this.state.popBehaviour();
     });
 
@@ -45,31 +48,19 @@ class ContextMenuBehaviour extends BaseBehaviour {
 
     if (cell.things.length === 0) {
       menu.add("*,a -> A", (cell) => {
-        let plans = "*,a->A | *,b->B | *,c->C | *,d->D | *,e->E"
-          .split(/\s*\|\s*/)
-          .map(str => ConstructionPlan.from(str));
-        let facility = buildFacility(cell, plans, 1, 10);
+        let facility = buildFacility(cell.x, cell.y, "*,a->A | *,b->B | *,c->C | *,d->D | *,e->E", 1, 10);
         facility.name = "*,a -> A";
       });
       menu.add("B -> b,a", (cell) => {
-        let plans = "A->a,a | B->b,a | C->c,a | D->d,a | E->e,a"
-          .split(/\s*\|\s*/)
-          .map(str => ConstructionPlan.from(str));
-        let facility = buildFacility(cell, plans, 1, 10);
+        let facility = buildFacility(cell.x, cell.y, "A->a,a | B->b,a | C->c,a | D->d,a | E->e,a", 1, 10);
         facility.name = "B -> b,a";
       });
       menu.add("a >> z", (cell) => {
-        let plans = "a->b | b->c | c->d | d->e | e->a"
-          .split(/\s*\|\s*/)
-          .map(str => ConstructionPlan.from(str));
-        let facility = buildFacility(cell, plans, 1, 10);
+        let facility = buildFacility(cell.x, cell.y, "a->b | b->c | c->d | d->e | e->a", 1, 10);
         facility.name = "a >> z";
       });
       menu.add("a << z", (cell) => {
-        let plans = "a->e | b->a | c->b | d->c | e->d"
-          .split(/\s*\|\s*/)
-          .map(str => ConstructionPlan.from(str));
-        let facility = buildFacility(cell, plans, 1, 10);
+        let facility = buildFacility(cell.x, cell.y, "a->e | b->a | c->b | d->c | e->d", 1, 10);
         facility.name = "a << z";
       });
       menu.addSeparator();
@@ -78,7 +69,7 @@ class ContextMenuBehaviour extends BaseBehaviour {
       menu.addSeparator();
 
       menu.add("Separator", (cell) => this.startBuildSeparator(cell));
-      menu.add("Round Robin", (cell) => buildRoundRobinRouter(cell));
+      menu.add("Round Robin", (cell) => buildRoundRobinRouter(cell.x, cell.y));
       menu.add("Counting Router", (cell) => this.startBuildCountingRouter(cell));
       menu.addSeparator();
 
@@ -119,8 +110,7 @@ class ContextMenuBehaviour extends BaseBehaviour {
     const str = prompt("Construction Plan");
     if (str === null) return;
 
-    let plans = str.split(/\s*\|\s*/).map(str => ConstructionPlan.from(str));
-    let facility = buildFacility(cell, plans, 1, 10);
+    buildFacility(cell.x, cell.y, str, 1, 10);
   }
 
   startBuildCountingRouter(cell) {
@@ -129,18 +119,18 @@ class ContextMenuBehaviour extends BaseBehaviour {
     let count = parseInt(str);
     if (isNaN(count)) return;
 
-    buildCountingRouter(cell, count, 10);
+    buildCountingRouter(cell.x, cell.y, count, 10);
   }
 
   startBuildSeparator(cell) {
     const str = prompt("Thing to separate");
     if (str === null) return;
 
-    buildSeparator(cell, str, 10);
+    buildSeparator(cell.x, cell.y, str, 10);
   }
 
   buildABRouter(cell) {
-    buildABRouter(cell);
+    buildABRouter(cell.y, cell.y);
   }
 
   startBuildSource() {
@@ -167,7 +157,7 @@ class ThingBehaviour extends BaseBehaviour {
     this.cell = cell;
     this.thing = thing;
 
-    Keys.key("Escape", "Cancel the action", () => this.finish());
+    Keys.key("Escape", [], "Cancel the action", () => this.finish());
   }
 
   mouseMove(cell) {

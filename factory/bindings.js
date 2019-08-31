@@ -1,4 +1,4 @@
-Keys.key("F1", "Show this help message (F1 again to hide)", () => {
+Keys.key("F1", [], "Show this help message (F1 again to hide)", () => {
   let el = document.getElementById("help");
 
   if (el.style.display == "block") {
@@ -14,7 +14,7 @@ Keys.key("F1", "Show this help message (F1 again to hide)", () => {
   el.style.display = "block";
 });
 
-Keys.key("Space", "Pause ON/OFF", () => {
+Keys.key("Space", [], "Pause ON/OFF", () => {
   // Timer.allPaused() ? Timer.resumeAll() : Timer.pauseAll();
   Loop.paused() ? Loop.resume() : Loop.pause();
 });

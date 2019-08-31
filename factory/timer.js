@@ -81,8 +81,8 @@ var Timer = (function () {
   }
 
   function pauseAll() {
-    for (let timer of timers) {
-      pause(timer.id);
+    for (let [id, timer] of timers) {
+      pause(id);
     }
     allPaused = true;
   }
@@ -101,8 +101,8 @@ var Timer = (function () {
   }
 
   function resumeAll() {
-    for (let timer of timers) {
-      resume(timer.id);
+    for (let [id, timer] of timers) {
+      resume(id);
     }
     allPaused = false;
   }

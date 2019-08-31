@@ -21,7 +21,6 @@ class Thing {
     this.hexaCells.forEach(hexaCell => hexaCell.remove(this));
     this.node.destroy();
     if (this.powerSource !== null) this.powerSource.removeConsumer(this);
-    console.log("[Thing]", this.id, "destroyed");
   }
 
   reset() {}
@@ -301,7 +300,7 @@ class ThingSource extends InputOutput {
 ThingSource.STATE_MINIG = "mining";
 
 class Transporter extends InputOutput {
-  constructor(output, length, speed, powerNeeded) {
+  constructor(output, length, speed, powerNeeded, cells) {
     super("transporter", output, powerNeeded);
 
     assert(speed > 0);
@@ -310,6 +309,7 @@ class Transporter extends InputOutput {
     this.speed = speed;
     this.timeLock = new TimeLock();
     this.paused = false;
+    this.cells = cells;
   }
 
   reset() {
@@ -485,7 +485,7 @@ class ConstructionPlan {
 
   static from(str) {
     // a, 2*c, d -500-> 1*e, f
-    const m = str.match(/^(([^,]+?(,[^,]+)*))\s*-((\d+)-)?>\s*(([^,]+(,[^,]+)*))$/);
+    const m = str.match(/^(([^,]+?(,[^,]+?)*))\s*-((\d+)-)?>\s*(([^,]+(,[^,]+)*))$/);
     assert(m !== null);
 
     const items = ConstructionPlan.__toPlanItems(m[1]);
@@ -503,10 +503,16 @@ class ConstructionPlan {
       .map(pair => pair[1] ? new PlanItem(pair[1][2].trim(), parseInt(pair[1][1])) : new PlanItem(pair[0].trim(), 1))
   }
 
+  asString() {
+    return this.items.map(it => (it.amount > 1 ? it.amount + "*" : "") + it.id).join(",")
+      + " -" + this.constructionTimeMs + "-> "
+      + this.resultItems.map(it => (it.amount > 1 ? it.amount + "*" : "") + it.id).join(",");
+  }
+
   toString() {
-    return this.items.map(it => (it.amount > 1 ? it.amount + "*" : "" ) + it.id)
+    return this.items.map(it => (it.amount > 1 ? it.amount + "*" : "") + it.id)
       + " -> "
-      + this.resultItems.map(it => (it.amount > 1 ? it.amount + "*" : "" ) + it.id);
+      + this.resultItems.map(it => (it.amount > 1 ? it.amount + "*" : "") + it.id);
   }
 }
 
