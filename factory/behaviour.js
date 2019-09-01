@@ -4,6 +4,11 @@ class BaseBehaviour {
 
     Keys.key("KeyS", ["Ctrl"], "Save", () => window.localStorage.saved = JSON.stringify(Persister.persist(state)));
     Keys.key("KeyL", ["Ctrl"], "Load", () => Persister.restore(JSON.parse(window.localStorage.saved)));
+
+    Keys.key("ArrowLeft", [], "Move board left", () => state.board.shift(-10, 0));
+    Keys.key("ArrowRight", [], "Move board right", () => state.board.shift(10, 0));
+    Keys.key("ArrowUp", [], "Move board up", () => state.board.shift(0, -10));
+    Keys.key("ArrowDown", [], "Move board down", () => state.board.shift(0, 10));
   }
 
   onPop() {}

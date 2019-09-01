@@ -40,7 +40,7 @@ function createWorld() {
   state.board = new HexaBoard(20, 25);
   Loop.add(state.board);
 
-  buildPowerSource(0, 0, 100);
+  buildPowerSource(0, 0, 500);
 
   buildThingSource(15, 10, "a", 10, 1000, 10);
 

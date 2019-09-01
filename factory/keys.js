@@ -179,6 +179,7 @@ var Keys = (function () {
       }
     },
     help: function () {
+      let keys = new Set();
       // TODO
       return {
         keys: Object.keys(keys).map(k => k + ": " + keys[k].description),

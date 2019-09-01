@@ -1,12 +1,8 @@
 class AbstractNode {
-  constructor() {
-    this.x = undefined;
-    this.y = undefined;
-  }
+  constructor() {}
 
   destroy() {
     Loop.remove(this);
-    console.log("[Node]", "destroyed", this);
   }
 
   draw(ctx) {
@@ -45,34 +41,35 @@ class AbstractNode {
 }
 
 class PowerSourceNode extends AbstractNode {
-  constructor(powerSource, x, y) {
+  constructor(/**@type {PowerSource} */ powerSource) {
     super();
 
     this.powerSource = powerSource;
-    this.x = x;
-    this.y = y;
   }
 
   draw(ctx) {
     ctx.fillStyle = "#006600";
 
+    const x = this.powerSource.hexaCell.xc;
+    const y = this.powerSource.hexaCell.yc;
+
     if (this.powerSource.isOn())
-      ctx.fillRect(this.x - 5, this.y - 5, 10, 10);
+      ctx.fillRect(x - 5, y - 5, 10, 10);
     else {
       ctx.strokeStyle = "#006600";
-      ctx.strokeRect(this.x - 5, this.y - 5, 10, 10);
+      ctx.strokeRect(x - 5, y - 5, 10, 10);
     }
 
     ctx.font = "12px serif";
     ctx.fillStyle = "#000000";
-    ctx.fillText(Math.round(this.powerSource.powerLeft) + " / " + this.powerSource.maxPower, this.x + 10, this.y + 10);
+    ctx.fillText(Math.round(this.powerSource.powerLeft) + " / " + this.powerSource.maxPower, x + 10, y + 10);
 
     /*for (let box of this.powerSource.consumers) {
       if (this.powerSource.isOn()) ctx.strokeStyle = "rgba(0, 100, 0, .2)";
       else ctx.strokeStyle = "rgba(255, 0, 0, .2)";
       
       ctx.beginPath();
-      ctx.moveTo(this.x, this.y);
+      ctx.moveTo(x, y);
       ctx.lineTo(box.consumer.node.x, box.consumer.node.y);
       ctx.stroke();
     }*/
@@ -80,47 +77,49 @@ class PowerSourceNode extends AbstractNode {
 }
 
 class ThingSourceNode extends AbstractNode {
-  constructor(thingSource, x, y) {
+  constructor(/**@type {ThingSource} */ thingSource) {
     super();
 
     this.thingSource = thingSource;
-    this.x = x;
-    this.y = y;
   }
 
   draw(ctx) {
+    const x = this.thingSource.hexaCell.xc;
+    const y = this.thingSource.hexaCell.yc;
+
     ctx.fillStyle = "#0000ff";
-    ctx.fillRect(this.x - 5, this.y - 5, 10, 10);
+    ctx.fillRect(x - 5, y - 5, 10, 10);
 
     ctx.font = "16px serif";
-    ctx.fillText(this.thingSource.thingId + ": " + this.thingSource.suply, this.x + 10, this.y + 10);
+    ctx.fillText(this.thingSource.thingId + ": " + this.thingSource.suply, x + 10, y + 10);
 
-    AbstractNode.drawWaitingThings(this.thingSource, ctx, this.x, this.y);
+    AbstractNode.drawWaitingThings(this.thingSource, ctx, x, y);
 
-    AbstractNode.drawTimeLock(this.thingSource.timeLock, ctx, this.x, this.y);
+    AbstractNode.drawTimeLock(this.thingSource.timeLock, ctx, x, y);
   }
 }
 
 class FacilityNode extends AbstractNode {
-  constructor(facility, x, y) {
+  constructor(/**@type {ConstructionFacility} */ facility) {
     super();
 
     this.facility = facility;
-    this.x = x;
-    this.y = y;
   }
 
   draw(ctx) {
-    ctx.fillStyle = "#000000";
-    ctx.fillRect(this.x - 5, this.y - 5, 10, 10);
+    const xc = this.facility.hexaCell.xc;
+    const yc = this.facility.hexaCell.yc;
 
-    let x = this.x + 10;
-    let y = this.y - 10;
+    ctx.fillStyle = "#000000";
+    ctx.fillRect(xc - 5, yc - 5, 10, 10);
+
+    let x = xc + 10;
+    let y = yc - 10;
     ctx.font = "16px serif";
 
     ctx.fillStyle = "#000000";
     let name = this.facility.name || this.facility.constructionPlans.toString();
-    ctx.fillText(name, this.x, this.y + 20);
+    ctx.fillText(name, xc, yc + 20);
 
     for (let box of this.facility.boxes) {
       for (let k of box.slots.keys()) {
@@ -134,29 +133,23 @@ class FacilityNode extends AbstractNode {
         });
       }
 
-      if (box.timeLockBox) AbstractNode.drawProgress(box.timeLockBox, ctx, x - 30, y + 10);
+      if (box.timeLockBox) {
+        AbstractNode.drawProgress(box.timeLockBox, ctx, x - 30, y + 10);
+      }
 
       y -= 5;
     }
 
-    AbstractNode.drawWaitingThings(this.facility, ctx, this.x, this.y);
+    AbstractNode.drawWaitingThings(this.facility, ctx, xc, yc);
   }
 }
 
 class TransporterNode extends AbstractNode {
-  constructor(transporter, points) {
+  constructor(/**@type {Transporter} */ transporter) {
     super();
 
     this.color = "#000000";
-    this.points = points;
-    
-    points[0].length = 0;
-    for (let i = 1; i < points.length; i++) {
-      const point = points[i];
-      // const prev = points[i-1];
-      point.length = 1;//Math.sqrt(Math.pow(point.x - prev.x, 2) + Math.pow(point.y - prev.y, 2));
-    }
-
+   
     this.transporter = transporter;
 
     let p = this.pointForProgress(0.5);
@@ -170,28 +163,30 @@ class TransporterNode extends AbstractNode {
     let l = progress * this.transporter.length;
     let accL = 0;
     let i = 0;
-    for (i = 1; i < this.points.length; i++) {
-      const point = this.points[i];
-      accL += point.length;
+    const points = this.transporter.cells;
+    for (i = 1; i < points.length; i++) {
+      accL += 1;
       if (accL >= l) {
-        progress = 1 - (accL - l) / point.length;
+        progress = 1 - (accL - l);
         break;
       }
     }
 
-    let x = this.points[i - 1].x + (this.points[i].x - this.points[i - 1].x) * progress;
-    let y = this.points[i - 1].y + (this.points[i].y - this.points[i - 1].y) * progress;
+    let x = points[i - 1].xc + (points[i].xc - points[i - 1].xc) * progress;
+    let y = points[i - 1].yc + (points[i].yc - points[i - 1].yc) * progress;
 
     return {x, y};
   }
 
   draw(ctx) {
-    if (this.points.length < 2) return;
+    const points = this.transporter.cells;
+
+    if (points.length < 2) return;
 
     ctx.strokeStyle = this.color;
     ctx.beginPath();
-    ctx.moveTo(this.points[0].x, this.points[0].y);
-    this.points.forEach(point => ctx.lineTo(point.x, point.y));
+    ctx.moveTo(points[0].xc, points[0].yc);
+    points.forEach(point => ctx.lineTo(point.xc, point.yc));
     ctx.stroke();
 
     for (let box of this.transporter.timeLock.slots) {
@@ -223,6 +218,9 @@ class HexaCell {
     this.selected = false;
     /**@type {Thing[]} */
     this.things = [];
+
+    /**@type {HexaCell[]} */
+    this._neighboursCache = undefined;
   }
 
   reset() {
@@ -272,7 +270,6 @@ class HexaCell {
   }
 
   draw(ctx) {
-
     ctx.strokeStyle = "#cccccc";
     ctx.fillStyle = "#eeeeee";
     if (this.selected) {
@@ -293,6 +290,8 @@ class HexaCell {
   }
 
   neighbours() {
+    if (this._neighboursCache) return this._neighboursCache;
+
     const b = this.board.cells;
 
     let a = [];
@@ -348,6 +347,8 @@ class HexaCell {
           a.push(b[this.x + 1][this.y + 1]);
       }
     }
+
+    this._neighboursCache = a;
 
     return a;
   }
@@ -448,122 +449,128 @@ class HexaBoard {
 
     return foundCell;
   }
+
+  shift(dx, dy) {
+  }
 }
 
 class SinkNode extends AbstractNode {
   /**
    * @param {Sink} sink
-   * @param {number} x
-   * @param {number} y
    */
-  constructor(sink, x, y) {
+  constructor(sink) {
     super();
 
     this.sink = sink;
-    this.x = x;
-    this.y = y;
   }
 
   draw(ctx) {
+    const xc = this.sink.hexaCell.xc;
+    const yc = this.sink.hexaCell.yc;
+
     ctx.strokeStyle = "#cccccc";
-    ctx.strokeRect(this.x - 5, this.y - 5, 10, 10);
+    ctx.strokeRect(xc - 5, yc - 5, 10, 10);
 
     ctx.font = "16px serif";
-    ctx.fillText(this.sink.thingsSinked, this.x + 10, this.y + 10);
+    ctx.fillText(this.sink.thingsSinked, xc + 10, yc + 10);
   }
 }
 
 class ABRouterNode extends AbstractNode {
-  constructor(abRouter, x, y) {
+  constructor(abRouter) {
     super();
 
     this.abRouter = abRouter;
-    this.x = x;
-    this.y = y;
   }
 
   draw(ctx) {
+    const xc = this.abRouter.hexaCell.xc;
+    const yc = this.abRouter.hexaCell.yc;
+
     ctx.strokeStyle = "#000000";
     ctx.beginPath();
-    ctx.moveTo(this.x + 4, this.y);
-    ctx.lineTo(this.x, this.y);
-    ctx.lineTo(this.x - 4, this.y - 4);
-    ctx.moveTo(this.x, this.y);
-    ctx.lineTo(this.x - 4, this.y + 4);
+    ctx.moveTo(xc + 4, yc);
+    ctx.lineTo(xc, yc);
+    ctx.lineTo(xc - 4, yc - 4);
+    ctx.moveTo(xc, yc);
+    ctx.lineTo(xc - 4, yc + 4);
     ctx.stroke();
   }
 }
 
 class RoundRobinRouterNode extends AbstractNode {
-  constructor(router, x, y) {
+  constructor(router) {
     super();
 
     this.router = router;
-    this.x = x;
-    this.y = y;
   }
 
   draw(ctx) {
+    const xc = this.router.hexaCell.xc;
+    const yc = this.router.hexaCell.yc;
+
     ctx.strokeStyle = "#000000";
     ctx.beginPath();
-    ctx.moveTo(this.x + 4, this.y);
-    ctx.lineTo(this.x, this.y);
-    ctx.lineTo(this.x - 4, this.y - 4);
-    ctx.moveTo(this.x, this.y);
-    ctx.lineTo(this.x - 4, this.y + 4);
+    ctx.moveTo(xc + 4, yc);
+    ctx.lineTo(xc, yc);
+    ctx.lineTo(xc - 4, yc - 4);
+    ctx.moveTo(xc, yc);
+    ctx.lineTo(xc - 4, yc + 4);
     ctx.stroke();
 
     ctx.strokeStyle = "#999999";
     ctx.beginPath();
-    ctx.arc(this.x, this.y, 10, 0, Math.PI * 2);
+    ctx.arc(xc, yc, 10, 0, Math.PI * 2);
     ctx.stroke();
   }
 }
 
 class SeparatorRouterNode extends AbstractNode {
-  constructor(router, x, y) {
+  constructor(router) {
     super();
 
     this.router = router;
-    this.x = x;
-    this.y = y;
   }
 
   draw(ctx) {
+    const xc = this.router.hexaCell.xc;
+    const yc = this.router.hexaCell.yc;
+
     ctx.strokeStyle = "#000000";
     ctx.beginPath();
-    ctx.moveTo(this.x + 4, this.y);
-    ctx.lineTo(this.x, this.y);
-    ctx.lineTo(this.x - 4, this.y - 4);
-    ctx.moveTo(this.x, this.y);
-    ctx.lineTo(this.x - 4, this.y + 4);
+    ctx.moveTo(xc + 4, yc);
+    ctx.lineTo(xc, yc);
+    ctx.lineTo(xc - 4, yc - 4);
+    ctx.moveTo(xc, yc);
+    ctx.lineTo(xc - 4, yc + 4);
     ctx.stroke();
 
     ctx.font = "16px serif";
-    ctx.fillText(this.router.thingId, this.x - 4, this.y - 4);
+    ctx.fillText(this.router.thingId, xc - 4, yc - 4);
   }
 }
 
 class CountingRouterNode extends AbstractNode {
-  constructor(router, x, y) {
+  constructor(router) {
     super();
 
     this.router = router;
-    this.x = x;
-    this.y = y;
   }
 
   draw(ctx) {
+    const xc = this.router.hexaCell.xc;
+    const yc = this.router.hexaCell.yc;
+
     ctx.strokeStyle = "#000000";
     ctx.beginPath();
-    ctx.moveTo(this.x + 4, this.y);
-    ctx.lineTo(this.x, this.y);
-    ctx.lineTo(this.x - 4, this.y - 4);
-    ctx.moveTo(this.x, this.y);
-    ctx.lineTo(this.x - 4, this.y + 4);
+    ctx.moveTo(xc + 4, yc);
+    ctx.lineTo(xc, yc);
+    ctx.lineTo(xc - 4, yc - 4);
+    ctx.moveTo(xc, yc);
+    ctx.lineTo(xc - 4, yc + 4);
     ctx.stroke();
 
     ctx.font = "16px serif";
-    ctx.fillText(this.router.counter, this.x - 4, this.y - 4);
+    ctx.fillText(this.router.counter, xc - 4, yc - 4);
   }
 }

@@ -17,6 +17,10 @@ class Thing {
     this.hexaCells = new Set();
   }
 
+  get hexaCell() {
+    return this.hexaCells.keys().next().value;
+  }
+
   destroy() {
     this.hexaCells.forEach(hexaCell => hexaCell.remove(this));
     this.node.destroy();
