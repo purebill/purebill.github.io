@@ -5,6 +5,7 @@ var Keys = (function () {
       this.keyDown = {};
       this.mouseUp = {};
       this.mouseDown = {};
+      this.mouseLeave = {};
       this.mouseMoveAction = null;
       this.mouseZoomAction = null;
       this._next = null;
@@ -100,6 +101,18 @@ var Keys = (function () {
     }
   }
 
+  function init(target) {
+    canvas = target;
+
+    canvas.addEventListener("mouseleave", (e) => {
+      let callback = find("mouseLeave", "callback");
+      if (callback) {
+        callback(e);
+        e.preventDefault();
+      }
+    });
+  }
+
   window.onkeydown = (e) => {
     if (pressed[e.code]) return;
     pressed[e.code] = true;
@@ -150,6 +163,12 @@ var Keys = (function () {
         callback
       };
     },
+    mouseLeave: function (description, callback) {
+      root.mouseLeave = {
+        description,
+        callback
+      };
+    },
     mouseZoom: function (description, callback) {
       mouseZoomAction = {
         description,
@@ -188,9 +207,7 @@ var Keys = (function () {
           .concat(mouseZoomAction ? ["Mouse zoom: " + mouseZoomAction.description] : [])
       };
     },
-    init: function (target) {
-      canvas = target;
-    },
+    init,
     push: () => {
       let node = new KeysFrame();
       node._next = root;

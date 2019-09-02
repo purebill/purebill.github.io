@@ -1,6 +1,7 @@
 class BaseBehaviour {
   constructor(state) {
     this.state = state;
+    this.scrollTimer = null;
 
     Keys.key("KeyS", ["Ctrl"], "Save", () => window.localStorage.saved = JSON.stringify(Persister.persist(state)));
     Keys.key("KeyL", ["Ctrl"], "Load", () => Persister.restore(JSON.parse(window.localStorage.saved)));
@@ -9,11 +10,69 @@ class BaseBehaviour {
     Keys.key("ArrowRight", [], "Move board right", () => state.board.shift(10, 0));
     Keys.key("ArrowUp", [], "Move board up", () => state.board.shift(0, -10));
     Keys.key("ArrowDown", [], "Move board down", () => state.board.shift(0, 10));
+
+    Keys.key("KeyR", ["Ctrl"], "Reset", () => this.state.board.reset());
   }
 
-  onPop() {}
+  onPop() {
+    this.__clearScroll();
+  }
 
-  mouseMove(cell) {}
+  __clearScroll() {
+    if (this.scrollTimer) {
+      Timer.clear(this.scrollTimer);
+      this.scrollTimer = null;
+    }
+  }
+
+  mouseLeave() {
+    this.__clearScroll();
+  }
+
+  mouseMove(cell) {
+    let {leftTop, rightBottom} = this.state.board.getVisibleCells();
+
+    let dx = 0, dy = 0;
+    if (cell.x > 0 && (cell.x == leftTop.x || cell.x == leftTop.x + 1)) dx = 10;
+    if (cell.x < this.state.board.width && (cell.x == rightBottom.x || cell.x == rightBottom.x - 1)) dx = -10;
+    if (cell.y > 0 && (cell.y == leftTop.y || cell.y == leftTop.y + 1)) dy = 10;
+    if (cell.y < this.state.board.height && (cell.y == rightBottom.y || cell.y == rightBottom.y - 1)) dy = -10;
+
+    this.__clearScroll();
+
+    if (dx != 0 || dy != 0) {
+      this.scrollTimer = Timer.periodic(() => {
+        let x = this.state.board.xShift + dx;
+        let y = this.state.board.yShift + dy;
+
+        dx *= 1.1;
+        dy *= 1.1;
+
+        const boardWidth = (this.state.board.width - 1) * 3 * this.state.board.r + 2.5*this.state.board.r;
+        const boardHeight = this.state.board.height * this.state.board.h;
+
+        const maxX = this.state.board.r;
+
+        let minX = this.state.canvas.width - boardWidth;
+        if (minX > 0) minX = 0;
+
+        const maxY = this.state.board.h;
+        let minY = this.state.canvas.height - boardHeight;
+        if (minY > 0) minY = 0;
+
+        if (x > maxX) x = maxX;
+        if (x < minX) x = minX;
+        if (y > maxY) y = maxY;
+        if (y < minY) y = minY;
+
+        this.state.board.xShift = x;
+        this.state.board.yShift = y;
+
+        console.log(x,y);
+
+      }, 100);
+    }
+  }
 
   click(cell) {
     for (let thing of cell.things) {
@@ -45,9 +104,7 @@ class ContextMenuBehaviour extends BaseBehaviour {
   constructor(state, cell) {
     super(state);
 
-    Keys.key("Escape", [], "Close context menu", () => {
-      this.state.popBehaviour();
-    });
+    Keys.key("Escape", [], "Close context menu", () => this.state.popBehaviour());
 
     let menu = new ContextMenu(() => this.state.popBehaviour());
 
@@ -165,9 +222,10 @@ class ThingBehaviour extends BaseBehaviour {
     Keys.key("Escape", [], "Cancel the action", () => this.finish());
   }
 
-  mouseMove(cell) {
+  /*mouseMove(cell) {
     PathFinder.find(this.cell, cell).forEach(it => this.state.board.select(it));
-  }
+    super.mouseMove(cell);
+  }*/
 
   finish() {
     this.state.board.clearSelection();
@@ -205,6 +263,8 @@ class BuildTransporterBehaviour extends ThingBehaviour {
       .forEach(it => this.state.board.select(it));
     this.cells
       .forEach(it => this.state.board.select(it));
+
+    super.mouseMove(cell);
   }
 
   click(cell) {

@@ -19,18 +19,23 @@ Keys.key("Space", [], "Pause ON/OFF", () => {
   Loop.paused() ? Loop.resume() : Loop.pause();
 });
 
+let currentCell = null;
 Keys.mouseMove("Move mouse to select a cell", (e) => {
   let cell = state.board.fromCoords(e.clientX, e.clientY);
   if (cell === null) return;
 
-  if (state.currentCell === cell) return;
-  state.currentCell = cell;
+  if (currentCell === cell) return;
+  currentCell = cell;
 
   state.board.clearSelection();
   state.board.select(cell);
   //cell.neighbours().forEach(it => state.board.select(it));
 
   state.behaviour.mouseMove(cell);
+});
+
+Keys.mouseLeave("Stop scrolling on mouse leave", (e) => {
+  state.behaviour.mouseLeave();
 });
 
 Keys.mouse(0, [], "Click to build", null, (e) => {

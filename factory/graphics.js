@@ -162,7 +162,7 @@ class TransporterNode extends AbstractNode {
   pointForProgress(progress) {
     let l = progress * this.transporter.length;
     let accL = 0;
-    let i = 0;
+    let i;
     const points = this.transporter.cells;
     for (i = 1; i < points.length; i++) {
       accL += 1;
@@ -212,8 +212,8 @@ class HexaCell {
   constructor(x, y, board, xc, yc) {
     this.x = x;
     this.y = y;
-    this.xc = xc;
-    this.yc = yc;
+    this._xc = xc;
+    this._yc = yc;
     this.board = board;
     this.selected = false;
     /**@type {Thing[]} */
@@ -221,6 +221,14 @@ class HexaCell {
 
     /**@type {HexaCell[]} */
     this._neighboursCache = undefined;
+  }
+
+  get xc() {
+    return this.board.xShift + this._xc;
+  }
+
+  get yc() {
+    return this.board.yShift + this._yc;
   }
 
   reset() {
@@ -260,7 +268,6 @@ class HexaCell {
     ctx.beginPath();
     // ctx.arc(xc, yc, 3, 0, 2*Math.PI);
     ctx.moveTo(xc - r, yc);
-    ctx.lineTo(xc - r, yc);
     ctx.lineTo(xc - r/2, yc - h);
     ctx.lineTo(xc + r/2, yc - h);
     ctx.lineTo(xc + r, yc);
@@ -319,7 +326,7 @@ class HexaCell {
         if (this.y > 0)
           a.push(b[this.x][this.y - 1]);
         if (this.y < this.board.height -1)
-          a.push(b[this.x][this.y + 1])
+          a.push(b[this.x][this.y + 1]);
         if (this.x < this.board.width - 1 && this.y > 0)
           a.push(b[this.x + 1][this.y - 1]);
         if (this.x < this.board.width - 1 && this.y < this.board.height - 1)
@@ -355,13 +362,15 @@ class HexaCell {
 }
 
 class HexaBoard {
-  constructor(width, height) {
+  constructor(width, height, canvas) {
+    this.canvas = canvas;
     this.width = width;
     this.height = height;
     this.r = 20;
     this.h = this.r * Math.sqrt(3) / 2;
-    this.xShift = 2*this.r;
-    this.yShift = 2*this.r;
+    this.xShift = this.r;
+    this.yShift = this.h;
+    /**@type {Set<HexaCell>} */
     this.selected = new Set();
 
     /**@type {HexaCell[][]} */
@@ -369,13 +378,11 @@ class HexaBoard {
     for (let x = 0; x < width; x++) {
       this.cells[x] = [];
       for (let y = 0; y < height; y++) {
-        const xx = this.xShift;
-        const yy = this.yShift;
         const r = this.r;
         const h = this.h;
     
-        let yc = yy + y * h;
-        let xc = xx + x * r * 3;
+        let yc = y * h;
+        let xc = x * r * 3;
     
         if (y % 2 == 1) {
           xc += 1.5*r;
@@ -398,9 +405,21 @@ class HexaBoard {
     return cell;
   }
 
+  getVisibleCells() {
+    let leftTop = this.fromCoords(0, 0);
+    if (leftTop == null) leftTop = this.cells[0][0];
+
+    let rightBottom = this.fromCoords(this.canvas.width, this.canvas.height);
+    if (rightBottom == null) rightBottom = this.cells[this.width - 1][this.height - 1];
+
+    return {leftTop, rightBottom};
+  }
+
   draw(ctx) {
-    for (let x = 0; x < this.width; x++) {
-      for (let y = 0; y < this.height; y++) {
+    let {leftTop, rightBottom} = this.getVisibleCells();
+
+    for (let x = leftTop.x; x <= rightBottom.x; x++) {
+      for (let y = leftTop.y; y <= rightBottom.y; y++) {
         this.cells[x][y].draw(ctx);
       }
     }
@@ -451,6 +470,8 @@ class HexaBoard {
   }
 
   shift(dx, dy) {
+    this.xShift += dx;
+    this.yShift += dy;
   }
 }
 
@@ -472,7 +493,7 @@ class SinkNode extends AbstractNode {
     ctx.strokeRect(xc - 5, yc - 5, 10, 10);
 
     ctx.font = "16px serif";
-    ctx.fillText(this.sink.thingsSinked, xc + 10, yc + 10);
+    ctx.fillText(this.sink.thingsSinked.toString(), xc + 10, yc + 10);
   }
 }
 

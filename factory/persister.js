@@ -116,7 +116,7 @@ let Persister = (function () {
   function restore(snapshot) {
     state.reset();
 
-    state.board = new HexaBoard(snapshot.width, snapshot.height);
+    state.board = new HexaBoard(snapshot.width, snapshot.height, state.canvas);
     Loop.add(state.board);
 
     let things = [];

@@ -72,6 +72,7 @@ var Loop = (function () {
     start: () => {
       Keys.init(canvas);
       loop();
+      return canvas;
     },
     add,
     remove,

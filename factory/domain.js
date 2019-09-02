@@ -489,13 +489,13 @@ class ConstructionPlan {
 
   static from(str) {
     // a, 2*c, d -500-> 1*e, f
-    const m = str.match(/^(([^,]+?(,[^,]+?)*))\s*-((\d+)-)?>\s*(([^,]+(,[^,]+)*))$/);
+    const m = str.match(/^([^,]+?(,[^,]+?)*)\s*-((\d+)-)?>\s*([^,]+(,[^,]+)*)$/);
     assert(m !== null);
 
     const items = ConstructionPlan.__toPlanItems(m[1]);
-    const resultItems = ConstructionPlan.__toPlanItems(m[6]);
+    const resultItems = ConstructionPlan.__toPlanItems(m[5]);
 
-    let constructionTimeMs = parseInt(m[5]);
+    let constructionTimeMs = parseInt(m[4]);
     if (isNaN(constructionTimeMs)) constructionTimeMs = 500;
 
     return new ConstructionPlan(items, resultItems, constructionTimeMs);
@@ -523,6 +523,7 @@ class ConstructionPlan {
 class ConstructionBox extends Thing {
   /**
    * @param {ConstructionFacility} constructionFacility
+   * @param {ConstructionPlan} constructionPlan
    */
   constructor (constructionFacility, constructionPlan) {
     super("constructor-box");
