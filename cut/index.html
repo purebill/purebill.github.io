@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Cutter</title>
+    <style>
+        div {
+            margin: 10px 0;
+        }
+        table, td {
+            border: 1px solid black;
+        }
+        td {
+            width: 20px;
+            height: 20px;
+        }
+        td.wall {
+            background-color: black;
+        }
+        td.hint {
+            background-color: pink;
+        }
+    </style>
+</head>
+<body>
+
+<div>
+    <label for="w">width <input type="range" min="2" max="10" step="1" id="w"></label>
+    <span id="wValue"></span>
+</div>
+<div>
+    <label for="h">height <input type="range" min="2" max="10" step="1" id="h"></label>
+    <span id="hValue"></span>
+</div>
+<div><button data-action="buildBoard">Clear</button></div>
+
+<table id="board"></table>
+<div>
+    <label for="fCount">parts <input type="range" min="2" max="10" step="1" id="fCount"></label>
+    <span id="fCountValue"></span>
+</div>
+<div><button data-action="solve">Solve</button></div>
+
+<script src="state-ui.js"></script>
+<script src="cutter.js"></script>
+</body>
+</html>
