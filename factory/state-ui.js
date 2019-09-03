@@ -19,6 +19,7 @@ function StateUi(state) {
       e.preventDefault();
     };
   });
+  if (state.onChanged) state.onChanged();
 
   function updateState() {
     document.querySelectorAll("input[type=range]").forEach(it => {
@@ -40,6 +41,8 @@ function StateUi(state) {
     document.querySelectorAll("input[type=checkbox]").forEach(it => {
       state[it.id] = it.checked;
     });
+
+    if (state.onChanged) state.onChanged();
   }
 }
 
