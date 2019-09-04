@@ -40,7 +40,7 @@ state.canvas = Loop.start();
 createWorld();
 
 function createWorld() {
-  state.board = new HexaBoard(200, 200, state.canvas);
+  state.board = new HexaBoard(30, 50, state.canvas);
   Loop.add(state.board);
 
   buildPowerSource(0, 0, 5000);
@@ -108,19 +108,24 @@ function connect(producer, consumer, cells) {
     return null;
   }
 
-  let length = path.length - 1;
-  let transporter = new Transporter(consumer, length, speed, length * powerPerUnitLength, path);
-  producer.addOutput(transporter);
+  if (path.length > 2) {
+    let length = path.length - 1;
+    let transporter = new Transporter(consumer, length, speed, length * powerPerUnitLength, path);
+    producer.addOutput(transporter);
 
-  path.forEach(it => it.add(transporter));
+    path.forEach(it => it.add(transporter));
 
-  let node = new TransporterNode(transporter);
-  transporter.node = node;
-  Loop.add(node);
+    let node = new TransporterNode(transporter);
+    transporter.node = node;
+    Loop.add(node);
 
-  state.powerSource.addConsumer(transporter);
+    state.powerSource.addConsumer(transporter);
 
-  return transporter;
+    return transporter;
+  } else {
+    producer.addOutput(consumer);
+    return null;
+  }
 }
 
 function connectByIdx(producerIdx, consumerIdx, coords, index) {

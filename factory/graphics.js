@@ -9,6 +9,23 @@ class AbstractNode {
     throw new Error("draw() not implemented");
   }
 
+  __markOutput(ctx, idx) {
+    if (idx < this.router._outputs.length && this.router._outputs[idx] instanceof Transporter) {
+      const cell1 = this.router._outputs[idx].cells[0];
+      const cell2 = this.router._outputs[idx].cells[1];
+      const x = (cell1.xc + cell2.xc) / 2;
+      const y = (cell1.yc + cell2.yc) / 2;
+      ctx.fillStyle = "#009900";
+      ctx.beginPath();
+      ctx.arc(x, y, 4, 0, 2 * Math.PI);
+      ctx.fill();
+    }
+  }
+
+  __markFirstOutput(ctx) {
+    this.__markOutput(ctx, 0);
+  }
+
   static drawWaitingThings(thing, ctx, x, y) {
     ctx.fillStyle = "#990000";
     ctx.font = "12px serif";
@@ -155,8 +172,6 @@ class TransporterNode extends AbstractNode {
     let p = this.pointForProgress(0.5);
     this.x = p.x;
     this.y = p.y;
-
-    this.start = Timer.now();
   }
 
   pointForProgress(progress) {
@@ -185,9 +200,29 @@ class TransporterNode extends AbstractNode {
 
     ctx.strokeStyle = this.color;
     ctx.beginPath();
-    ctx.moveTo(points[0].xc, points[0].yc);
-    points.forEach(point => ctx.lineTo(point.xc, point.yc));
+    ctx.moveTo((points[0].xc + points[1].xc) / 2, (points[0].yc + points[1].yc) / 2);
+    for (let i = 1; i < points.length - 1; i++) {
+      const point = points[i];
+      ctx.lineTo(point.xc, point.yc);
+    }
+    const endX = (points[points.length - 1].xc + points[points.length - 2].xc) / 2;
+    const endY = (points[points.length - 1].yc + points[points.length - 2].yc) / 2;
+    ctx.lineTo(endX, endY);
     ctx.stroke();
+
+    // Arraw
+    ctx.fillStyle = this.color;
+    ctx.beginPath();
+    const startX = points[points.length - 2].xc;
+    const startY = points[points.length - 2].yc;
+    const dx = endX - startX;
+    const dy = endY - startY;
+    ctx.moveTo(startX, startY);
+    ctx.lineTo(startX - dy/5, startY + dx/5);
+    ctx.lineTo(endX, endY);
+    ctx.lineTo(startX + dy/5, startY - dx/5);
+    ctx.lineTo(startX, startY);
+    ctx.fill();
 
     for (let box of this.transporter.timeLock.slots) {
       let p = this.pointForProgress(box.progress);
@@ -543,6 +578,8 @@ class RoundRobinRouterNode extends AbstractNode {
     ctx.beginPath();
     ctx.arc(xc, yc, 10, 0, Math.PI * 2);
     ctx.stroke();
+
+    this.__markOutput(ctx, this.router._idx);
   }
 }
 
@@ -566,6 +603,9 @@ class SeparatorRouterNode extends AbstractNode {
     ctx.lineTo(xc - 4, yc + 4);
     ctx.stroke();
 
+    this.__markFirstOutput(ctx);
+
+    ctx.fillStyle = "#000000";
     ctx.font = "16px serif";
     ctx.fillText(this.router.thingId, xc - 4, yc - 4);
   }
@@ -591,6 +631,9 @@ class CountingRouterNode extends AbstractNode {
     ctx.lineTo(xc - 4, yc + 4);
     ctx.stroke();
 
+    this.__markFirstOutput(ctx);
+
+    ctx.fillStyle = "#000000";
     ctx.font = "16px serif";
     ctx.fillText(this.router.counter, xc - 4, yc - 4);
   }

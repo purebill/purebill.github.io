@@ -31,7 +31,7 @@ class BaseBehaviour {
 
   mouseMove(cell, e) {
     const reactionDist = 50;
-    const speed = 10;
+    const speed = 5;
     const maxSpeed = 100;
     const speedMultiplier = 1.01;
     const scrollStepMs = 10;
@@ -150,6 +150,13 @@ class ContextMenuBehaviour extends BaseBehaviour {
       if (thing instanceof PowerSource) {
         if (thing.isOn()) menu.add("Power OFF", () => thing.powerOff());
         else menu.add("Power ON", () => thing.powerOn());
+      }
+
+      if (thing instanceof AbstractRouter) {
+        menu.add("Rotate outputs", () => {
+          let first = thing._outputs.shift();
+          thing._outputs.push(first);
+        });
       }
     }
 
@@ -277,13 +284,12 @@ class BuildTransporterBehaviour extends ThingBehaviour {
 
     if (connectTo !== null || cell.things.length == 0) {
       let path = PathFinder.find(this.lastCell, cell, this.cells);
-      for (let i = this.cells.length > 0 ? 0 : 1; i < path.length - 1; i++) this.cells.push(path[i]);
+      for (let i = 1; i < path.length; i++) this.cells.push(path[i]);
       this.lastCell = cell;
     }
 
     if (connectTo && this.cells.length > 0) {
       this.cells.unshift(this.cell);
-      this.cells.push(cell);
       connect(this.thing, connectTo, this.cells);
       this.finish();
     }

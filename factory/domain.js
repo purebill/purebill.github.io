@@ -308,6 +308,7 @@ class Transporter extends InputOutput {
     super("transporter", output, powerNeeded);
 
     assert(speed > 0);
+    assert(cells.length > 1);
 
     this.length = length;
     this.speed = speed;

@@ -198,6 +198,10 @@ var Keys = (function () {
       }
     },
     help: function () {
+      return {
+        keys: [],
+        mouse: []
+      };
       let keys = new Set();
       // TODO
       return {
