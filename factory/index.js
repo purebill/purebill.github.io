@@ -10,6 +10,7 @@ let state = {
   behaviour: null,
 
   pushBehaviour: (newBehaviour) => {
+    state.behaviour.onPop();
     newBehaviour.__prevBehaviour = state.behaviour;
     state.behaviour = newBehaviour;
     Keys.push();

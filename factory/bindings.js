@@ -14,10 +14,7 @@ Keys.key("F1", [], "Show this help message (F1 again to hide)", () => {
   el.style.display = "block";
 });
 
-Keys.key("Space", [], "Pause ON/OFF", () => {
-  // Timer.allPaused() ? Timer.resumeAll() : Timer.pauseAll();
-  Loop.paused() ? Loop.resume() : Loop.pause();
-});
+Keys.key("Space", [], "Pause ON/OFF", () => Loop.paused() ? Loop.resume() : Loop.pause());
 
 let currentCell = null;
 Keys.mouseMove("Move mouse to select a cell", (e) => {
@@ -29,9 +26,8 @@ Keys.mouseMove("Move mouse to select a cell", (e) => {
 
   state.board.clearSelection();
   state.board.select(cell);
-  //cell.neighbours().forEach(it => state.board.select(it));
 
-  state.behaviour.mouseMove(cell);
+  state.behaviour.mouseMove(cell, e);
 });
 
 Keys.mouseLeave("Stop scrolling on mouse leave", (e) => {
