@@ -128,9 +128,32 @@ function connect(producer, consumer, cells) {
   }
 }
 
-function connectByIdx(producerIdx, consumerIdx, coords, index) {
+function connectByIdx(producerIdx, consumerIdx, index) {
+  index[producerIdx].addOutput(index[consumerIdx]);
+}
+
+function buildTransporter(coords) {
   const cells = coords.map(c => state.board.cells[c.x][c.y]);
-  return connect(index[producerIdx], index[consumerIdx], cells);
+
+  const speed = 0.005;
+  const powerPerUnitLength = 1;
+
+  if (cells.length == 0) {
+    message("No path found");
+    return null;
+  }
+
+  const length = cells.length - 1;
+  let transporter = new Transporter(null, length, speed, length * powerPerUnitLength, cells);
+  cells.forEach(it => it.add(transporter));
+
+  let node = new TransporterNode(transporter);
+  transporter.node = node;
+  Loop.add(node);
+
+  state.powerSource.addConsumer(transporter);
+
+  return transporter;
 }
 
 function buildSink(x, y) {
@@ -193,4 +216,17 @@ function buildCountingRouter(x, y, count, powerNeeded) {
   state.powerSource.addConsumer(router);
 
   return router;
+}
+
+function buildDelay(x, y, delayMs, powerNeeded) {
+  const cell = state.board.cells[x][y];
+  const delay = new Delay(delayMs, powerNeeded);
+  cell.add(delay);
+  const node = new DelayNode(delay);
+  delay.node = node;
+  Loop.add(node);
+
+  state.powerSource.addConsumer(delay);
+
+  return delay;
 }

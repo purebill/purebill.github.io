@@ -3,6 +3,8 @@ class BaseBehaviour {
     this.state = state;
     this.scrollTimer = null;
 
+    Keys.key("KeyP", ["Ctrl"], "Pause ON/OFF", () => Loop.paused() ? Loop.resume() : Loop.pause());
+
     Keys.key("KeyS", ["Ctrl"], "Save", () => window.localStorage.saved = JSON.stringify(Persister.persist(state)));
     Keys.key("KeyL", ["Ctrl"], "Load", () => Persister.restore(JSON.parse(window.localStorage.saved)));
 
@@ -11,7 +13,12 @@ class BaseBehaviour {
     Keys.key("ArrowUp", [], "Move board up", () => state.board.shift(0, -10));
     Keys.key("ArrowDown", [], "Move board down", () => state.board.shift(0, 10));
 
-    Keys.key("KeyR", ["Ctrl"], "Reset", () => this.state.board.reset());
+    Keys.key("Space", [], "Power ON/OFF", () => {
+      state.powerSource.isOn()
+        ? state.powerSource.powerOff()
+        : state.powerSource.powerOn();
+    });
+    Keys.key("KeyR", [], "Reset", () => this.state.board.reset());
   }
 
   onPop() {
@@ -80,7 +87,8 @@ class BaseBehaviour {
   click(cell) {
     for (let thing of cell.things) {
       if ((thing instanceof ThingSource
-        || thing instanceof ConstructionFacility)
+        || thing instanceof ConstructionFacility
+        || thing instanceof Delay)
         && thing._canAddOutput()) {
         this.state.pushBehaviour(new BuildTransporterBehaviour(thing, cell, this.state));
         break;
@@ -111,21 +119,28 @@ class ContextMenuBehaviour extends BaseBehaviour {
 
     let menu = new ContextMenu(() => this.state.popBehaviour());
 
+    const alphabet = "abcdefghijklmnopqrstuvwxyz";
+
     if (cell.things.length === 0) {
-      menu.add("*,a -> A", (cell) => {
-        let facility = buildFacility(cell.x, cell.y, "*,a->A | *,b->B | *,c->C | *,d->D | *,e->E", 1, 10);
-        facility.name = "*,a -> A";
+      menu.add("a,a -> A", (cell) => {
+        const rules = alphabet.split("").map(it => it + "," + it + "->"  + it.toUpperCase()).join(" | ");
+        let facility = buildFacility(cell.x, cell.y, rules, 1, 10);
+        facility.name = "a,a -> A";
       });
-      menu.add("B -> b,a", (cell) => {
-        let facility = buildFacility(cell.x, cell.y, "A->a,a | B->b,a | C->c,a | D->d,a | E->e,a", 1, 10);
-        facility.name = "B -> b,a";
+      menu.add("A -> a,a", (cell) => {
+        const rules = alphabet.split("").map(it => it.toUpperCase() + " -> " + it + "," + it).join(" | ");
+        let facility = buildFacility(cell.x, cell.y, rules, 1, 10);
+        facility.name = "A -> a,a";
       });
       menu.add("a >> z", (cell) => {
-        let facility = buildFacility(cell.x, cell.y, "a->b | b->c | c->d | d->e | e->a", 1, 10);
+        const rules = alphabet.split("").map((it, i) => it + " -> " + alphabet[(i + 1) % alphabet.length]).join(" | ");
+        let facility = buildFacility(cell.x, cell.y, rules, 1, 10);
         facility.name = "a >> z";
       });
       menu.add("a << z", (cell) => {
-        let facility = buildFacility(cell.x, cell.y, "a->e | b->a | c->b | d->c | e->d", 1, 10);
+        let l = alphabet.length;
+        const rules = alphabet.split("").map((it, i) => it + " -> " + alphabet[(i + l - 1) % l]).join(" | ");
+        let facility = buildFacility(cell.x, cell.y, rules, 1, 10);
         facility.name = "a << z";
       });
       menu.addSeparator();
@@ -136,6 +151,7 @@ class ContextMenuBehaviour extends BaseBehaviour {
       menu.add("Separator", (cell) => this.startBuildSeparator(cell));
       menu.add("Round Robin", (cell) => buildRoundRobinRouter(cell.x, cell.y));
       menu.add("Counting Router", (cell) => this.startBuildCountingRouter(cell));
+      menu.add("Delay", (cell) => this.startBuildDelay(cell));
       menu.addSeparator();
 
       menu.add("Source", (cell) => this.startBuildSource(cell));
@@ -183,6 +199,15 @@ class ContextMenuBehaviour extends BaseBehaviour {
     if (str === null) return;
 
     buildFacility(cell.x, cell.y, str, 1, 10);
+  }
+
+  startBuildDelay(cell) {
+    const str = prompt("Delay, ms");
+    if (str === null) return;
+    const delayMs = parseInt(str);
+    if (isNaN(delayMs)) return;
+
+    buildDelay(cell.x, cell.y, delayMs, 10);
   }
 
   startBuildCountingRouter(cell) {
@@ -277,7 +302,9 @@ class BuildTransporterBehaviour extends ThingBehaviour {
 
     let connectTo = null;
     for (let it of cell.things) {
-      if (it instanceof ConstructionFacility || it instanceof Sink || it instanceof AbstractRouter) {
+      if (it instanceof ConstructionFacility || it instanceof Sink || it instanceof AbstractRouter
+          || it instanceof Delay)
+      {
         connectTo = it;
       }
     }

@@ -52,7 +52,7 @@ var Keys = (function () {
       + (parsed[2] == "true" ? "Ctrl + " : "")
       + (parsed[3] == "true" ? "Win + " : "")
       + (parsed[4] == "true" ? "Shift + " : "")
-      + buttonToName[parsed[0]];
+      + (buttonToName[parsed[0]] ? buttonToName[parsed[0]] : parsed[0].replace(/^Key/, ""));
   }
 
   window.onmousedown = e => {
@@ -198,17 +198,27 @@ var Keys = (function () {
       }
     },
     help: function () {
+      let visitedKeys = new Set();
+      let keys = [];
+      let node = root;
+      do {
+        for (let actionKey of Object.keys(node.keyDown)) {
+          if (visitedKeys.has(actionKey)) continue;
+          visitedKeys.add(actionKey);
+
+          keys.push({
+            description: node.keyDown[actionKey].description,
+            button: actionKey
+          });
+        }
+        node = node._next;
+      } while (node != null);
+
       return {
-        keys: [],
-        mouse: []
-      };
-      let keys = new Set();
-      // TODO
-      return {
-        keys: Object.keys(keys).map(k => k + ": " + keys[k].description),
-        mouse: Object.keys(mouseActions).map(k => actionKeyToKeys(k) + " button: " + mouseActions[k].description)
+        keys: keys.map(({button, description}) => actionKeyToKeys(button) + ": " + description),
+        mouse: []/*Object.keys(mouseActions).map(k => actionKeyToKeys(k) + " button: " + mouseActions[k].description)
           .concat(mouseMoveAction ? ["Mouse move: " + mouseMoveAction.description] : [])
-          .concat(mouseZoomAction ? ["Mouse zoom: " + mouseZoomAction.description] : [])
+          .concat(mouseZoomAction ? ["Mouse zoom: " + mouseZoomAction.description] : [])*/
       };
     },
     init,

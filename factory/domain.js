@@ -147,7 +147,7 @@ class InputOutput extends Thing {
   addOutput(o) {
     if (o !== null && this._canAddOutput()) {
       this._outputs.push(o);
-      o.addInput(this);
+      o.__addInput(this);
     }
   }
 
@@ -155,7 +155,7 @@ class InputOutput extends Thing {
     const idx = this._outputs.indexOf(o);
     if (idx === -1) return;
     this._outputs.splice(idx, 1);
-    o.removeInput(this);
+    o.__removeInput(this);
 
     this.outputWaitTimers.forEach(it => Timer.clear(it));
     this.outputWaitTimers = [];
@@ -177,14 +177,14 @@ class InputOutput extends Thing {
   /**
    * @param {InputOutput} input 
    */
-  addInput(input) {
+  __addInput(input) {
     this.inputs.add(input);
   }
 
   /**
    * @param {InputOutput} input 
    */
-  removeInput(input) {
+  __removeInput(input) {
     this.inputs.delete(input);
   }
 
@@ -798,5 +798,54 @@ class CountingRouter extends AbstractRouter {
 
     if (this._outputs.length > 1) return this._outputs[1]._in(this.thingToRoute);
     return false;
+  }
+}
+
+class Delay extends InputOutput {
+  constructor(delayMs, powerNeeded) {
+    super("delay", null, powerNeeded);
+    this.delayMs = delayMs;
+    this.timerId = null;
+  }
+
+  _canAddOutput(o) {
+    return this._outputs.length == 0;
+  }
+
+  reset() {
+    super.reset();
+
+    if (this.timerId !== null) {
+      Timer.clear(this.timerId);
+      this.timerId = null;
+    }
+  }
+
+  destroy() {
+    this.reset();
+    super.destroy();
+  }
+
+  onPower(powerOn) {
+    super.onPower(powerOn);
+
+    if (this.timerId !== null) {
+      if (powerOn) Timer.resume(this.timerId);
+      else Timer.pause(this.timerId);
+    }
+  }
+
+  _in(thing) {
+    assert(!thing.dead);
+
+    if (!this.isPowered()) return false;
+    if (this.timerId !== null) return false;
+
+    this.timerId = Timer.set(() => {
+      this._sendToOutput(thing)
+        .then(() => this.timerId = null);
+    }, this.delayMs);
+
+    return true;
   }
 }

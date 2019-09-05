@@ -38,17 +38,19 @@ class AbstractNode {
   }
 
   static drawProgress(box, ctx, x, y) {
-    const r = 10;
-    const space = 5;
-
     ctx.strokeStyle = "#000000";
     ctx.lineWidth = 2;
     ctx.beginPath();
-    ctx.arc(x + r + space, y + r, r, 0, 2 * Math.PI * box.progress);
+    ctx.arc(x, y, 13, 0, 2 * Math.PI * box.progress);
     ctx.stroke();
   }
 
   static drawTimeLock(timeLock, ctx, x, y) {
+    if (timeLock.size == 1) {
+      AbstractNode.drawProgress(timeLock.slots[0], ctx, x, y);
+      return;
+    }
+
     const r = 10;
 
     for (let i = 0; i < timeLock.slots.length; i++) {
@@ -151,7 +153,7 @@ class FacilityNode extends AbstractNode {
       }
 
       if (box.timeLockBox) {
-        AbstractNode.drawProgress(box.timeLockBox, ctx, x - 30, y + 10);
+        AbstractNode.drawProgress(box.timeLockBox, ctx, xc, yc);
       }
 
       y -= 5;
@@ -636,5 +638,29 @@ class CountingRouterNode extends AbstractNode {
     ctx.fillStyle = "#000000";
     ctx.font = "16px serif";
     ctx.fillText(this.router.counter, xc - 4, yc - 4);
+  }
+}
+
+class DelayNode extends AbstractNode {
+  constructor(delay) {
+    super();
+
+    this.delay = delay;
+  }
+
+  draw(ctx) {
+    const cell = this.delay.hexaCell;
+
+    ctx.strokeStyle = "#999999";
+    ctx.beginPath();
+    ctx.arc(cell.xc, cell.yc, 13, 0, 2 * Math.PI);
+    ctx.stroke();
+
+    ctx.strokeStyle = "#000000";
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    const progress = this.delay.timerId !== null ? Timer.getProgress(this.delay.timerId) : 0;
+    ctx.arc(cell.xc, cell.yc, 13, 0, progress * 2 * Math.PI);
+    ctx.stroke();
   }
 }

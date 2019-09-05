@@ -14,8 +14,6 @@ Keys.key("F1", [], "Show this help message (F1 again to hide)", () => {
   el.style.display = "block";
 });
 
-Keys.key("Space", [], "Pause ON/OFF", () => Loop.paused() ? Loop.resume() : Loop.pause());
-
 let currentCell = null;
 Keys.mouseMove("Move mouse to select a cell", (e) => {
   let cell = state.board.fromCoords(e.clientX, e.clientY);

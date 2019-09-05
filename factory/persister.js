@@ -56,8 +56,24 @@ let Persister = (function () {
         f: "buildCountingRouter",
         args: [x, y, thing.count, thing.powerNeeded]
       };
+    },
+    "Delay": (x, y, thing) => {
+      return {
+        f: "buildDelay",
+        args: [x, y, thing.delayMs, thing.powerNeeded]
+      };
+    },
+    "Transporter": (x, y, thing) => {
+      return {
+        f: "buildTransporter",
+        args: [
+          thing.cells.map(cell => {
+            return {x: cell.x, y: cell.y};
+          })
+        ]
+      }
     }
-  }
+  };
 
   function persist(state) {
     let snapshot = {
@@ -73,7 +89,6 @@ let Persister = (function () {
       for (let y = 0; y < state.board.height; y++) {
         for (let thing of state.board.cells[x][y].things) {
           const type = getType(thing);
-          if (type == "Transporter") continue;
 
           if (persisted.has(thing)) continue;
           persisted.set(thing, idx++);
@@ -90,22 +105,18 @@ let Persister = (function () {
     for (let x = 0; x < state.board.width; x++) {
       for (let y = 0; y < state.board.height; y++) {
         for (let thing of state.board.cells[x][y].things) {
-          const type = getType(thing);
-          if (type != "Transporter") continue;
+          if (!(thing instanceof InputOutput)) continue;
 
           if (persistedTransports.has(thing)) continue;
           persistedTransports.add(thing);
 
-          const coords = thing.cells.map(c => {
-            return {x: c.x, y: c.y};
-          });
-          const consumer = thing._outputs[0];
-          const producer = thing.inputs.keys().next().value;
-          snapshot.connectionCalls.push({
-            name: thing.name,
-            f: "connectByIdx",
-            args: [persisted.get(producer), persisted.get(consumer), coords]
-          });
+          for (let consumer of thing._outputs) {
+            snapshot.connectionCalls.push({
+              name: thing.name,
+              f: "connectByIdx",
+              args: [persisted.get(thing), persisted.get(consumer)]
+            });
+          }
         }
       }
     }
@@ -128,8 +139,7 @@ let Persister = (function () {
 
     snapshot.connectionCalls.forEach(call => {
       call.args.push(things);
-      let thing = window[call.f].apply(null, call.args);
-      if (call.name) thing.name = call.name;
+      window[call.f].apply(null, call.args);
     });
   }
 
