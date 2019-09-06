@@ -8,10 +8,10 @@ class BaseBehaviour {
     Keys.key("KeyS", ["Ctrl"], "Save", () => window.localStorage.saved = JSON.stringify(Persister.persist(state)));
     Keys.key("KeyL", ["Ctrl"], "Load", () => Persister.restore(JSON.parse(window.localStorage.saved)));
 
-    Keys.key("ArrowLeft", [], "Move board left", () => state.board.shift(-10, 0));
-    Keys.key("ArrowRight", [], "Move board right", () => state.board.shift(10, 0));
-    Keys.key("ArrowUp", [], "Move board up", () => state.board.shift(0, -10));
-    Keys.key("ArrowDown", [], "Move board down", () => state.board.shift(0, 10));
+    Keys.key("ArrowLeft", [], "Move board left", () => this.__startScrolling(10, 0), () => this.__clearScroll());
+    Keys.key("ArrowRight", [], "Move board right", () => this.__startScrolling(-10, 0), () => this.__clearScroll());
+    Keys.key("ArrowUp", [], "Move board up", () => this.__startScrolling(0, 10), () => this.__clearScroll());
+    Keys.key("ArrowDown", [], "Move board down", () => this.__startScrolling(0, -10), () => this.__clearScroll());
 
     Keys.key("Space", [], "Power ON/OFF", () => {
       state.powerSource.isOn()
@@ -32,59 +32,14 @@ class BaseBehaviour {
     }
   }
 
-  mouseLeave() {
-    this.__clearScroll();
-  }
-
-  mouseScrollUp(cell, e) {
-    for (let thing of cell.things) {
-      if (thing instanceof AbstractRouter) {
-        const last = thing._outputs.pop();
-        thing._outputs.unshift(last);
-        return;
-      }
-      if (thing instanceof ThingSource) {
-        thing.capacity++;
-        thing.suply++;
-        thing._prepare();
-        return;
-      }
-    }
-  }
-
-  mouseScrollDown(cell, e) {
-    for (let thing of cell.things) {
-      if (thing instanceof AbstractRouter) {
-        let first = thing._outputs.shift();
-        thing._outputs.push(first);
-        return;
-      }
-      if (thing instanceof ThingSource) {
-        if (thing.capacity > 0) thing.capacity--;
-        if (thing.suply > 0) thing.suply--;
-        thing._prepare();
-        return;
-      }
-    }
-  }
-
-  mouseMove(cell, e) {
-    const reactionDist = 50;
-    const speed = 5;
-    const maxSpeed = 100;
-    const speedMultiplier = 1.01;
-    const scrollStepMs = 10;
-
-    let dx = 0;
-    let dy = 0;
-    if (Math.abs(e.clientX - state.canvas.clientLeft) < reactionDist) dx = speed;
-    if (Math.abs(e.clientX - state.canvas.clientWidth - state.canvas.clientLeft) < reactionDist) dx = -speed;
-    if (Math.abs(e.clientY - state.canvas.clientTop) < reactionDist) dy = speed;
-    if (Math.abs(e.clientY - state.canvas.clientHeight - state.canvas.clientTop) < reactionDist) dy = -speed;
-
+  __startScrolling(dx, dy) {
     this.__clearScroll();
 
     if (dx != 0 || dy != 0) {
+      const maxSpeed = 100;
+      const speedMultiplier = 1.01;
+      const scrollStepMs = 10;
+
       this.scrollTimer = Timer.periodic(() => {
         let x = this.state.board.xShift + dx;
         let y = this.state.board.yShift + dy;
@@ -114,6 +69,62 @@ class BaseBehaviour {
 
       }, scrollStepMs);
     }
+  }
+
+  mouseLeave() {
+    this.__clearScroll();
+  }
+
+  mouseScrollUp(cell, e) {
+    for (let thing of cell.things) {
+      if (thing instanceof AbstractRouter) {
+        const last = thing._outputs.pop();
+        thing._outputs.unshift(last);
+        return;
+      }
+      if (thing instanceof ThingSource) {
+        thing.capacity++;
+        thing.suply++;
+        thing._prepare();
+        return;
+      }
+      if (thing instanceof PowerSource) {
+        thing.maxPower++;
+      }
+    }
+  }
+
+  mouseScrollDown(cell, e) {
+    for (let thing of cell.things) {
+      if (thing instanceof AbstractRouter) {
+        let first = thing._outputs.shift();
+        thing._outputs.push(first);
+        return;
+      }
+      if (thing instanceof ThingSource) {
+        if (thing.capacity > 0) thing.capacity--;
+        if (thing.suply > 0) thing.suply--;
+        thing._prepare();
+        return;
+      }
+      if (thing instanceof PowerSource) {
+        if (thing.powerLeft > 0) thing.maxPower--;
+      }
+    }
+  }
+
+  mouseMove(cell, e) {
+    const reactionDist = 50;
+    const speed = 5;
+
+    let dx = 0;
+    let dy = 0;
+    if (Math.abs(e.clientX - state.canvas.clientLeft) < reactionDist) dx = speed;
+    if (Math.abs(e.clientX - state.canvas.clientWidth - state.canvas.clientLeft) < reactionDist) dx = -speed;
+    if (Math.abs(e.clientY - state.canvas.clientTop) < reactionDist) dy = speed;
+    if (Math.abs(e.clientY - state.canvas.clientHeight - state.canvas.clientTop) < reactionDist) dy = -speed;
+
+    this.__startScrolling(dx, dy);
   }
 
   click(cell) {

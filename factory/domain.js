@@ -55,8 +55,11 @@ class PowerSource extends Thing {
 
     this.maxPower = maxPower;
     this.consumers = [];
-    this.powerLeft = maxPower;
     this._on = false;
+  }
+
+  get powerLeft() {
+    return this.maxPower - this.consumers.reduce((acc, box) => acc + box.power, 0);
   }
 
   reset() {
@@ -99,7 +102,6 @@ class PowerSource extends Thing {
   addConsumer(consumer) {
     if (this.canAddConsumer(consumer)) {
       this.consumers.push(new PowerConnection(consumer, consumer.powerNeeded));
-      this.powerLeft -= consumer.powerNeeded;
       consumer.powerSource = this;
       consumer.onPower(this._on, this);
       return true;
@@ -112,7 +114,6 @@ class PowerSource extends Thing {
     assert(idx !== -1);
     let powerConnection = this.consumers.splice(idx, 1)[0];
     consumer.powerSource = null;
-    this.powerLeft += powerConnection.power;
     consumer.onPower(false, this);
   }
 }
