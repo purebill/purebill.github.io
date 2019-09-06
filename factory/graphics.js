@@ -171,9 +171,8 @@ class TransporterNode extends AbstractNode {
    
     this.transporter = transporter;
 
-    let p = this.pointForProgress(0.5);
-    this.x = p.x;
-    this.y = p.y;
+    const centerIdx = Math.round(transporter.cells.length / 2);
+    this.centerCell = transporter.cells[centerIdx];
   }
 
   pointForProgress(progress) {
@@ -241,7 +240,7 @@ class TransporterNode extends AbstractNode {
       ctx.fillText(box.thing.id, textPoint.x, textPoint.y);
     }
 
-    AbstractNode.drawWaitingThings(this.transporter, ctx, this.x, this.y);
+    AbstractNode.drawWaitingThings(this.transporter, ctx, this.centerCell.xc, this.centerCell.yc);
   }
 }
 

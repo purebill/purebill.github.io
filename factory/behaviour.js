@@ -36,6 +36,38 @@ class BaseBehaviour {
     this.__clearScroll();
   }
 
+  mouseScrollUp(cell, e) {
+    for (let thing of cell.things) {
+      if (thing instanceof AbstractRouter) {
+        const last = thing._outputs.pop();
+        thing._outputs.unshift(last);
+        return;
+      }
+      if (thing instanceof ThingSource) {
+        thing.capacity++;
+        thing.suply++;
+        thing._prepare();
+        return;
+      }
+    }
+  }
+
+  mouseScrollDown(cell, e) {
+    for (let thing of cell.things) {
+      if (thing instanceof AbstractRouter) {
+        let first = thing._outputs.shift();
+        thing._outputs.push(first);
+        return;
+      }
+      if (thing instanceof ThingSource) {
+        if (thing.capacity > 0) thing.capacity--;
+        if (thing.suply > 0) thing.suply--;
+        thing._prepare();
+        return;
+      }
+    }
+  }
+
   mouseMove(cell, e) {
     const reactionDist = 50;
     const speed = 5;
@@ -152,12 +184,10 @@ class ContextMenuBehaviour extends BaseBehaviour {
       menu.add("Round Robin", (cell) => buildRoundRobinRouter(cell.x, cell.y));
       menu.add("Counting Router", (cell) => this.startBuildCountingRouter(cell));
       menu.add("Delay", (cell) => this.startBuildDelay(cell));
-      menu.addSeparator();
+    }
 
-      menu.add("Source", (cell) => this.startBuildSource(cell));
-      menu.addSeparator();
-
-      menu.add("Reset", () => this.state.board.reset());
+    if (cell.things.length > 0) {
+      menu.add("Reset", (cell) => cell.things.forEach(thing => thing.reset()));
     }
 
     for (let thing of cell.things) {
@@ -228,10 +258,6 @@ class ContextMenuBehaviour extends BaseBehaviour {
 
   buildABRouter(cell) {
     buildABRouter(cell.y, cell.y);
-  }
-
-  startBuildSource() {
-    console.log("source");
   }
 
   deleteThing(thing) {

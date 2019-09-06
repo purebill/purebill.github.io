@@ -15,7 +15,7 @@ Keys.key("F1", [], "Show this help message (F1 again to hide)", () => {
 });
 
 let currentCell = null;
-Keys.mouseMove("Move mouse to select a cell", (e) => {
+Keys.mouseMove([], "Move mouse to select a cell", (e) => {
   let cell = state.board.fromCoords(e.clientX, e.clientY);
   if (cell === null) return;
 
@@ -32,14 +32,14 @@ Keys.mouseLeave("Stop scrolling on mouse leave", (e) => {
   state.behaviour.mouseLeave();
 });
 
-Keys.mouse(0, [], "Click to build", null, (e) => {
+Keys.mouse(0, [], "Click to build", (e) => {
   const cell = state.board.fromCoords(e.clientX, e.clientY);
   if (cell === null) return;
 
   state.behaviour.click(cell);
 });
 
-Keys.mouse(0, ["Win"], "Click to debug", null, (e) => {
+Keys.mouse(0, ["Win"], "Cell's content in the JS console", (e) => {
   const cell = state.board.fromCoords(e.clientX, e.clientY);
   console.log(cell.things);
 });
@@ -49,4 +49,12 @@ Keys.mouse(2, [], "Right click to show a context menu", (e) => {
   if (cell === null) return;
 
   state.behaviour.rightClick(cell);
+});
+
+Keys.mouseZoom([], "Scroll to change the active output", (e) => {
+  const cell = state.board.fromCoords(e.clientX, e.clientY);
+  if (cell === null) return;
+
+  if (e.wheelDelta > 0) state.behaviour.mouseScrollUp(cell, e);
+  else state.behaviour.mouseScrollDown(cell, e);
 });

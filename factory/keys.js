@@ -6,30 +6,42 @@ var Keys = (function () {
       this.mouseUp = {};
       this.mouseDown = {};
       this.mouseLeave = {};
-      this.mouseMoveAction = null;
-      this.mouseZoomAction = null;
+      this.mouseMoveAction = {};
+      this.mouseZoomAction = {};
       this._next = null;
     }
   }
 
+  let pressed = {};
+  let canvas = null;
   let root = new KeysFrame();
 
-  function find(name, value) {
+  function find(getField, value) {
     let node = root;
     do {
-      if (node[name][value]) return node[name][value];
+      let field = getField(node);
+      if (field[value]) return field[value];
       node = node._next;
     } while (node !== null);
     return null;
   }
 
-  let pressed = {};
-  let mouseMoveAction = null;
-  let mouseZoomAction = null;
-  let canvas = null;
+  function* iterateKeys(getField) {
+    let visited = new Set();
+    for (let node = root; node != null; node = node._next) {
+      let field = getField(node);
+
+      for (let actionKey of Object.keys(field)) {
+        if (visited.has(actionKey)) continue;
+        visited.add(actionKey);
+
+        yield [actionKey, field[actionKey]];
+      }
+    }
+  }
 
   function actionKey(e, sourceName) {
-    return e[sourceName].toString()
+    return (e[sourceName] === undefined ? "" : e[sourceName]).toString()
     + ","
     + e.altKey.toString()
     + ","
@@ -58,7 +70,7 @@ var Keys = (function () {
   window.onmousedown = e => {
     if (e.target != canvas) return;
 
-    let mapping = find("mouseDown", actionKey(e, "button"));
+    let mapping = find(node => node.mouseDown, actionKey(e, "button"));
     if (mapping) {
       mapping.callback(e);
       e.preventDefault();
@@ -68,8 +80,9 @@ var Keys = (function () {
   window.onmousemove = e => {
     if (e.target != canvas) return;
 
-    if (mouseMoveAction) {
-      mouseMoveAction.callback(e);
+    let mapping = find(node => node.mouseMoveAction, actionKey(e, ""));
+    if (mapping) {
+      mapping.callback(e);
       e.preventDefault();
     }
   };
@@ -77,7 +90,7 @@ var Keys = (function () {
   window.onmouseup = e => {
     if (e.target != canvas) return;
 
-    let mapping = find("mouseUp", actionKey(e, "button"));
+    let mapping = find(node => node.mouseUp, actionKey(e, "button"));
     if (mapping) {
       mapping.callback(e);
       e.preventDefault();
@@ -92,20 +105,21 @@ var Keys = (function () {
     ? "DOMMouseScroll"
     : "mousewheel";
 
-  document.body.addEventListener(mousewheelevt, onmousewheel, false);
+  document.body.addEventListener(mousewheelevt, (e) => {
+    if (e.target != canvas) return;
 
-  function onmousewheel(e) {
-    if (mouseZoomAction) {
-      mouseZoomAction.callback(e);
+    let mapping = find(node => node.mouseZoomAction, actionKey(e, ""));
+    if (mapping) {
+      mapping.callback(e);
       e.preventDefault();
     }
-  }
+  }, false);
 
   function init(target) {
     canvas = target;
 
     canvas.addEventListener("mouseleave", (e) => {
-      let callback = find("mouseLeave", "callback");
+      let callback = find(node => node.mouseLeave, "callback");
       if (callback) {
         callback(e);
         e.preventDefault();
@@ -117,7 +131,7 @@ var Keys = (function () {
     if (pressed[e.code]) return;
     pressed[e.code] = true;
 
-    let mapping = find("keyDown", actionKey(e, "code"));
+    let mapping = find(node => node.keyDown, actionKey(e, "code"));
     if (mapping) {
       e.preventDefault();
       mapping.callback(e);
@@ -127,7 +141,7 @@ var Keys = (function () {
   window.onkeyup = (e) => {
     pressed[e.code] = false;
 
-    let mapping = find("keyUp", actionKey(e, "code"));
+    let mapping = find(node => node.keyUp, actionKey(e, "code"));
     if (mapping) {
       e.preventDefault();
       mapping.callback(e);
@@ -135,7 +149,12 @@ var Keys = (function () {
   };
 
   return {
-    mouse: function (/**@type {number} */button, /**@type String[] */keys, description, downCallback, upCallback) {
+    mouse: function (/**@type {number} */button,
+                     /**@type String[] */keys,
+                     description,
+                     upCallback,
+                     downCallback)
+    {
       const key = actionKey({
         button,
         altKey: keys.indexOf("Alt") !== -1,
@@ -157,8 +176,16 @@ var Keys = (function () {
         }
       }
     },
-    mouseMove: function (description, callback) {
-      mouseMoveAction = {
+    mouseMove: function (keys, description, callback) {
+      const key = actionKey({
+        button: "",
+        altKey: keys.indexOf("Alt") !== -1,
+        ctrlKey: keys.indexOf("Ctrl") !== -1,
+        metaKey: keys.indexOf("Win") !== -1 || keys.indexOf("Meta") !== -1,
+        shiftKey: keys.indexOf("Shift") !== -1
+      }, "button");
+
+      root.mouseMoveAction[key] = {
         description,
         callback
       };
@@ -169,11 +196,19 @@ var Keys = (function () {
         callback
       };
     },
-    mouseZoom: function (description, callback) {
-      mouseZoomAction = {
+    mouseZoom: function (/**@type String[] */keys, description, callback) {
+      const key = actionKey({
+        button: "",
+        altKey: keys.indexOf("Alt") !== -1,
+        ctrlKey: keys.indexOf("Ctrl") !== -1,
+        metaKey: keys.indexOf("Win") !== -1 || keys.indexOf("Meta") !== -1,
+        shiftKey: keys.indexOf("Shift") !== -1
+      }, "button");
+
+      root.mouseZoomAction[key] = {
         description,
         callback
-      }
+      };
     },
     key: function (code, /**@type String[] */keys, description, downCallback, upCallback) {
       const action = actionKey({
@@ -198,27 +233,21 @@ var Keys = (function () {
       }
     },
     help: function () {
-      let visitedKeys = new Set();
-      let keys = [];
-      let node = root;
-      do {
-        for (let actionKey of Object.keys(node.keyDown)) {
-          if (visitedKeys.has(actionKey)) continue;
-          visitedKeys.add(actionKey);
-
+      const f = (getField) => {
+        let keys = [];
+        for (let [actionKey, value] of iterateKeys(getField)) {
           keys.push({
-            description: node.keyDown[actionKey].description,
+            description: value.description,
             button: actionKey
           });
         }
-        node = node._next;
-      } while (node != null);
+        return keys;
+      };
 
       return {
-        keys: keys.map(({button, description}) => actionKeyToKeys(button) + ": " + description),
-        mouse: []/*Object.keys(mouseActions).map(k => actionKeyToKeys(k) + " button: " + mouseActions[k].description)
-          .concat(mouseMoveAction ? ["Mouse move: " + mouseMoveAction.description] : [])
-          .concat(mouseZoomAction ? ["Mouse zoom: " + mouseZoomAction.description] : [])*/
+        keys: f(node => node.keyDown).map(({button, description}) => actionKeyToKeys(button) + ": " + description),
+        mouse: f(node => node.mouseUp).map(({button, description}) => actionKeyToKeys(button) + ": " + description)
+          .concat(f(node => node.mouseZoomAction).map(({button, description}) => "Wheel" + actionKeyToKeys(button) + ": " + description))
       };
     },
     init,
