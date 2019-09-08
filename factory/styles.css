@@ -19,3 +19,24 @@ canvas {
     border: 1px solid gray;
     box-sizing: content-box;
 }
+
+#message {
+  position: absolute;
+  left: 0;
+  top: 50%;
+  width: 100%;
+  display: none;
+  font-size: 30px;
+  text-align: center;
+  vertical-align: center;
+  z-index: 100;
+}
+
+#message div {
+  display: inline-block;
+  background-color: black;
+  color: white;
+  border-radius: 10px;
+  padding: 10px 15px;
+  cursor: pointer;
+}

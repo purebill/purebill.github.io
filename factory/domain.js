@@ -1,5 +1,24 @@
 const OUTPUT_WAIT_INTERVAL = 200;
 
+const Bus = {
+  subscribers: new Map(),
+
+  subscribe(type, callback) {
+    let subscribers = Bus.subscribers.get(type);
+    if (subscribers === undefined) {
+      subscribers = [];
+      Bus.subscribers.set(type, subscribers);
+    }
+    subscribers.push(callback);
+  },
+
+  post(type, message) {
+    let callbacks = Bus.subscribers.get(type);
+    if (callbacks !== undefined)
+      setTimeout(() => callbacks.forEach(callback => callback(message)), 0);
+  }
+};
+
 class Thing {
   constructor(id) {
     this.id = id;
@@ -34,7 +53,7 @@ class Thing {
   }
 
   onPower(powerOn, powerSource) {
-    message("[" + this.id + "] Power " + (powerOn ? "ON" : "OFF"));
+    message("[" + this.id + "] Power " + (powerOn ? "ON" : "OFF"), 2000);
   }
 
   toString() {
@@ -625,20 +644,36 @@ class ConstructionBox extends Thing {
 }
 
 class Sink extends InputOutput {
-  constructor() {
+  constructor(textToWait) {
     super("sink", null, 0);
 
-    this.thingsSinked = 0;
+    this.textToWait = textToWait;
+    this.reset();
   }
 
   reset() {
     super.reset();
 
-    this.thingsSinked = 0;
+    this.charsSinked = new Map();
+    this.textToWait.split("").forEach(ch => {
+      if (this.charsSinked.has(ch))
+        this.charsSinked.set(ch, this.charsSinked.get(ch) + 1);
+      else
+        this.charsSinked.set(ch, 1);
+    });
+    this.sutisfied = false;
   }
 
   _in(thing) {
-    this.thingsSinked++;
+    if (!this.charsSinked.has(thing.id)) return true;
+
+    if (this.charsSinked.get(thing.id) > 1) this.charsSinked.set(thing.id, this.charsSinked.get(thing.id) - 1);
+    else this.charsSinked.delete(thing.id);
+    if (this.charsSinked.size == 0) {
+      this.sutisfied = true;
+      Bus.post("Sink.sutisfied", this);
+    }
+
     return true;
   }
 }

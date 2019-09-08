@@ -525,11 +525,14 @@ class SinkNode extends AbstractNode {
     const xc = this.sink.hexaCell.xc;
     const yc = this.sink.hexaCell.yc;
 
-    ctx.strokeStyle = "#cccccc";
+    ctx.strokeStyle = "#999999";
     ctx.strokeRect(xc - 5, yc - 5, 10, 10);
 
     ctx.font = "16px serif";
-    ctx.fillText(this.sink.thingsSinked.toString(), xc + 10, yc + 10);
+    ctx.fillStyle = "#999999";
+    ctx.fillText(this.sink.textToWait, xc + 10, yc + 10);
+    // ctx.fillStyle = this.sink.sutisfied ? "#009900" : "#000000";
+    // ctx.fillText(this.sink.charsSinked, xc + 10, yc + 10);
   }
 }
 

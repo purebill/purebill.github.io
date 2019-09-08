@@ -1,6 +1,7 @@
 var Loop = (function () {
   let renders = [];
   let paused = false;
+  let speedCoef = 1.0;
 
   const canvas = document.createElement("canvas");
 
@@ -25,7 +26,8 @@ var Loop = (function () {
   function loop() {
     if (paused) return;
 
-    Timer.progress(new Date().getTime() - startTime);
+    let msPassed = (new Date().getTime() - startTime) * speedCoef;
+    Timer.progress(msPassed);
     startTime = new Date().getTime();
 
     render();
@@ -82,6 +84,8 @@ var Loop = (function () {
     clear: () => {
       renders = [];
       paused = false;
-    }
+    },
+    getSpeedCoef: () => speedCoef,
+    setSpeedCoef: value => speedCoef = value
   }
 })();

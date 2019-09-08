@@ -4,6 +4,7 @@ let state = {
   /** @type {HexaBoard} */
   board: null,
 
+  /** @type {PowerSource} */
   powerSource: null,
 
   /**@type {BaseBehaviour} */
@@ -47,7 +48,12 @@ function createWorld() {
 
   buildThingSource(15, 10, "a", 10, 1000, 10);
 
-  buildSink(6, 4);
+  buildSink(6, 4, "Sonya");
+
+  Bus.subscribe("Sink.sutisfied", sink => {
+    state.powerSource.powerOff();
+    message("You WIN!", 0);
+  });
 }
 
 function buildPowerSource(x, y, maxPower) {
@@ -67,7 +73,7 @@ function buildFacility(x, y, planString, capacity, powerNeeded) {
   let plans = planString.split(/\s*\|\s*/).map(str => ConstructionPlan.from(str));
 
   let facility = new ConstructionFacility(plans, capacity, powerNeeded);
-  let node = new FacilityNode(facility, cell.xc, cell.yc);
+  let node = new FacilityNode(facility);
   facility.node = node;
   Loop.add(node);
   state.powerSource.addConsumer(facility);
@@ -104,7 +110,7 @@ function connect(producer, consumer, cells) {
   else path = PathFinder.find(producer.hexaCells.values().next().value, consumer.hexaCells.values().next().value);
 
   if (path.length == 0) {
-    message("No path found");
+    message("No path found", 2000);
     return null;
   }
 
@@ -139,7 +145,7 @@ function buildTransporter(coords) {
   const powerPerUnitLength = 1;
 
   if (cells.length == 0) {
-    message("No path found");
+    message("No path found", 2000);
     return null;
   }
 
@@ -156,8 +162,8 @@ function buildTransporter(coords) {
   return transporter;
 }
 
-function buildSink(x, y) {
-  const sink = new Sink();
+function buildSink(x, y, text) {
+  const sink = new Sink(text);
   const cell = state.board.add(x, y, sink);
   const node = new SinkNode(sink);
   sink.node = node;

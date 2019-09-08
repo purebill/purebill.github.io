@@ -30,7 +30,7 @@ let Persister = (function () {
     "Sink": (x, y, thing) => {
       return {
         f: "buildSink",
-        args: [x, y]
+        args: [x, y, thing.textToWait]
       };
     },
     "RoundRobinRouter": (x, y, thing) => {

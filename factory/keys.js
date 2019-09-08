@@ -101,11 +101,7 @@ var Keys = (function () {
     e.preventDefault();
   };
 
-  var mousewheelevt = (/Firefox/i.test(navigator.userAgent))
-    ? "DOMMouseScroll"
-    : "mousewheel";
-
-  document.body.addEventListener(mousewheelevt, (e) => {
+  document.body.addEventListener("wheel", (e) => {
     if (e.target != canvas) return;
 
     let mapping = find(node => node.mouseZoomAction, actionKey(e, ""));
@@ -139,6 +135,7 @@ var Keys = (function () {
   };
 
   window.onkeyup = (e) => {
+    console.log(e.code);
     pressed[e.code] = false;
 
     let mapping = find(node => node.keyUp, actionKey(e, "code"));

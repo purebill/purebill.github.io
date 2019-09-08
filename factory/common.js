@@ -2,8 +2,36 @@ function assert(value, message) {
   if (!value) throw new Error("Assertion failed" + (message ? ": " + message : ""));
 }
 
-function message(m) {
-  console.log(m);
+let messagePromise = null;
+function message(m, ms) {
+  if (messagePromise === null) {
+    let root = document.getElementById("message");
+    root.innerHTML = "";
+    let div = document.createElement("div");
+    div.innerText = m;
+    root.appendChild(div);
+
+    root.style.display = "block";
+    messagePromise = new Promise(resolve => {
+      let timerId = null;
+      
+      const doResolve = () => {
+        root.style.display = "none";
+        messagePromise = null;
+        resolve();
+      };
+
+      if (ms > 0) {
+        timerId = setTimeout(doResolve, 5000);
+      }
+      div.onclick = () => {
+        if (timerId !== null) clearTimeout(timerId);
+        doResolve();
+      };
+  });
+  } else {
+    messagePromise.then(() => message(m));
+  }
 }
 
 class TimeLockBox {

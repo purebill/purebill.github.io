@@ -55,6 +55,10 @@ Keys.mouseZoom([], "Scroll to change the active output", (e) => {
   const cell = state.board.fromCoords(e.clientX, e.clientY);
   if (cell === null) return;
 
-  if (e.wheelDelta > 0) state.behaviour.mouseScrollUp(cell, e);
+  if (e.deltaY < 0) state.behaviour.mouseScrollUp(cell, e);
   else state.behaviour.mouseScrollDown(cell, e);
 });
+
+Keys.key("NumpadAdd", [], "Increase speed", e => Loop.setSpeedCoef(Math.min(10, Loop.getSpeedCoef() + 0.1)));
+Keys.key("NumpadSubtract", [], "Decrease speed", e => Loop.setSpeedCoef(Math.max(0, Loop.getSpeedCoef() - 0.1)));
+Keys.key("Digit0", [], "Reset speed to normal", e => Loop.setSpeedCoef(1.0));
