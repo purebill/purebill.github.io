@@ -6,8 +6,8 @@ var Loop = (function () {
   const canvas = document.createElement("canvas");
 
   function onResize() {
-    canvas.width = window.innerWidth - 50;
-    canvas.height = window.innerHeight - 50;
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
     canvas.style.width = canvas.width + "px";
     canvas.style.height = canvas.height + "px";
     canvas.style.display = "";

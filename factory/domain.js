@@ -1,19 +1,25 @@
 const OUTPUT_WAIT_INTERVAL = 200;
 
-const Bus = {
+class Message {}
+
+const MessageBus = {
   subscribers: new Map(),
 
-  subscribe(type, callback) {
-    let subscribers = Bus.subscribers.get(type);
+  subscribe(clazz, callback) {
+    const type = clazz.__proto__.name;
+
+    let subscribers = MessageBus.subscribers.get(type);
     if (subscribers === undefined) {
       subscribers = [];
-      Bus.subscribers.set(type, subscribers);
+      MessageBus.subscribers.set(type, subscribers);
     }
     subscribers.push(callback);
   },
 
-  post(type, message) {
-    let callbacks = Bus.subscribers.get(type);
+  post(/** @type {Message} */ message) {
+    const type = message.constructor.__proto__.name;
+
+    let callbacks = MessageBus.subscribers.get(type);
     if (callbacks !== undefined)
       setTimeout(() => callbacks.forEach(callback => callback(message)), 0);
   }
@@ -643,6 +649,16 @@ class ConstructionBox extends Thing {
   }
 }
 
+
+
+class SinkSatisfiedMessage extends Message {
+  constructor(/** @type {Sink} */ sink) {
+    super();
+
+    this.sink = sink;
+  }
+}
+
 class Sink extends InputOutput {
   constructor(textToWait) {
     super("sink", null, 0);
@@ -661,17 +677,21 @@ class Sink extends InputOutput {
       else
         this.charsSinked.set(ch, 1);
     });
-    this.sutisfied = false;
+    this.satisfied = false;
   }
 
   _in(thing) {
-    if (!this.charsSinked.has(thing.id)) return true;
+    const chars = thing.id.split("").filter(ch => this.charsSinked.has(ch));
+    if (chars.length == 0) return true;
 
-    if (this.charsSinked.get(thing.id) > 1) this.charsSinked.set(thing.id, this.charsSinked.get(thing.id) - 1);
-    else this.charsSinked.delete(thing.id);
+    for (let ch of chars) {
+      if (this.charsSinked.get(ch) > 1) this.charsSinked.set(ch, this.charsSinked.get(ch) - 1);
+      else this.charsSinked.delete(ch);
+    }
+
     if (this.charsSinked.size == 0) {
-      this.sutisfied = true;
-      Bus.post("Sink.sutisfied", this);
+      this.satisfied = true;
+      MessageBus.post(new SinkSatisfiedMessage(this));
     }
 
     return true;

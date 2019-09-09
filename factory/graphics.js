@@ -531,7 +531,27 @@ class SinkNode extends AbstractNode {
     ctx.font = "16px serif";
     ctx.fillStyle = "#999999";
     ctx.fillText(this.sink.textToWait, xc + 10, yc + 10);
-    // ctx.fillStyle = this.sink.sutisfied ? "#009900" : "#000000";
+
+    let chars = [];
+    for (let [ch, count] of this.sink.charsSinked) {
+      for (let i = 0; i < count; i++) chars.push(ch);
+    }
+    let x = xc + 10;
+    for (let ch of this.sink.textToWait) {
+      let idx = chars.indexOf(ch);
+      if (idx != -1) {
+        chars.splice(idx, 1);
+        ctx.fillStyle = "#000000";
+      } else {
+        ctx.fillStyle = "#009900";
+      }
+      ctx.fillText(ch, x, yc + 10);
+
+      let m = ctx.measureText(ch);
+      x += m.width;
+    }
+
+    // ctx.fillStyle = this.sink.satisfied ? "#009900" : "#000000";
     // ctx.fillText(this.sink.charsSinked, xc + 10, yc + 10);
   }
 }

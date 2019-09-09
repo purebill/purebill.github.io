@@ -4,7 +4,13 @@ function assert(value, message) {
 
 let messagePromise = null;
 function message(m, ms) {
-  if (messagePromise === null) {
+  if (messagePromise !== null) {
+    messagePromise.then(() => message(m));
+    return;
+  }
+
+  let doClose;
+  messagePromise = new Promise(resolve => {
     let root = document.getElementById("message");
     root.innerHTML = "";
     let div = document.createElement("div");
@@ -12,26 +18,29 @@ function message(m, ms) {
     root.appendChild(div);
 
     root.style.display = "block";
-    messagePromise = new Promise(resolve => {
-      let timerId = null;
-      
-      const doResolve = () => {
-        root.style.display = "none";
-        messagePromise = null;
-        resolve();
-      };
 
-      if (ms > 0) {
-        timerId = setTimeout(doResolve, 5000);
-      }
-      div.onclick = () => {
-        if (timerId !== null) clearTimeout(timerId);
-        doResolve();
-      };
+    let timerId = null;
+
+    doClose = () => {
+      if (timerId !== null) clearTimeout(timerId);
+      root.style.display = "none";
+      messagePromise = null;
+      resolve();
+    };
+
+    if (ms > 0) {
+      timerId = setTimeout(doClose, 5000);
+    }
+    div.onclick = () => {
+      if (timerId !== null) clearTimeout(timerId);
+      doClose();
+    };
   });
-  } else {
-    messagePromise.then(() => message(m));
-  }
+  messagePromise.close = doClose;
+}
+
+function hideMessage() {
+  if (messagePromise !== null) messagePromise.close();
 }
 
 class TimeLockBox {

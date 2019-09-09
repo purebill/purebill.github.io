@@ -135,7 +135,6 @@ var Keys = (function () {
   };
 
   window.onkeyup = (e) => {
-    console.log(e.code);
     pressed[e.code] = false;
 
     let mapping = find(node => node.keyUp, actionKey(e, "code"));
@@ -244,7 +243,7 @@ var Keys = (function () {
       return {
         keys: f(node => node.keyDown).map(({button, description}) => actionKeyToKeys(button) + ": " + description),
         mouse: f(node => node.mouseUp).map(({button, description}) => actionKeyToKeys(button) + ": " + description)
-          .concat(f(node => node.mouseZoomAction).map(({button, description}) => "Wheel" + actionKeyToKeys(button) + ": " + description))
+          .concat(f(node => node.mouseZoomAction).map(({button, description}) => actionKeyToKeys(button) + "Wheel" + ": " + description))
       };
     },
     init,

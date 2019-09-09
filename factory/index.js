@@ -11,17 +11,19 @@ let state = {
   behaviour: null,
 
   pushBehaviour: (newBehaviour) => {
-    state.behaviour.onPop();
+    if (state.behaviour !== null) state.behaviour.onPop();
+
     newBehaviour.__prevBehaviour = state.behaviour;
     state.behaviour = newBehaviour;
-    Keys.push();
+
+    state.behaviour.onPush();
   },
 
   popBehaviour() {
     if (state.behaviour.__prevBehaviour) {
       state.behaviour.onPop();
       state.behaviour = state.behaviour.__prevBehaviour;
-      Keys.pop();
+      state.behaviour.onPush();
     }
   },
 
@@ -31,7 +33,7 @@ let state = {
     Timer.clear();
     state.board = null;
     state.powerSource = null;
-    state.behaviour = new BaseBehaviour(state);
+    state.pushBehaviour(new MainBehaviour(state));
   }
 };
 state.reset();
@@ -50,15 +52,15 @@ function createWorld() {
 
   buildSink(6, 4, "Sonya");
 
-  Bus.subscribe("Sink.sutisfied", sink => {
+  MessageBus.subscribe(SinkSatisfiedMessage, m => {
     state.powerSource.powerOff();
-    message("You WIN!", 0);
+    state.pushBehaviour(new MessageBehaviour(state, "You WIN!"));
   });
 }
 
 function buildPowerSource(x, y, maxPower) {
   let powerSource = new PowerSource(maxPower);
-  const cell = state.board.add(x, y, powerSource);
+  state.board.add(x, y, powerSource);
   let node = new PowerSourceNode(powerSource);
   powerSource.node = node;
   Loop.add(node);
@@ -84,7 +86,7 @@ function buildFacility(x, y, planString, capacity, powerNeeded) {
 
 function buildThingSource(x, y, thingId, capacity, msPerThing, powerNeeded) {
   let source = new ThingSource(thingId, capacity, msPerThing, powerNeeded);
-  const cell = state.board.add(x, y, source);
+  state.board.add(x, y, source);
   let node = new ThingSourceNode(source);
   source.node = node;
   Loop.add(node);
@@ -164,7 +166,7 @@ function buildTransporter(coords) {
 
 function buildSink(x, y, text) {
   const sink = new Sink(text);
-  const cell = state.board.add(x, y, sink);
+  state.board.add(x, y, sink);
   const node = new SinkNode(sink);
   sink.node = node;
   Loop.add(node);

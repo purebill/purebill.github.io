@@ -1,19 +1,3 @@
-Keys.key("F1", [], "Show this help message (F1 again to hide)", () => {
-  let el = document.getElementById("help");
-
-  if (el.style.display == "block") {
-    el.style.display = "none";
-    return;
-  }
-
-  let help = Keys.help();
-  el.innerHTML =
-    "<h2>Keyboard</h2>\n<pre>" + help.keys.join("\n</pre><pre>") + "</pre>" +
-    "<h2>Mouse</h2>\n<pre>" + help.mouse.join("\n</pre><pre>") + "</pre>";
-
-  el.style.display = "block";
-});
-
 let currentCell = null;
 Keys.mouseMove([], "Move mouse to select a cell", (e) => {
   let cell = state.board.fromCoords(e.clientX, e.clientY);
@@ -59,6 +43,10 @@ Keys.mouseZoom([], "Scroll to change the active output", (e) => {
   else state.behaviour.mouseScrollDown(cell, e);
 });
 
-Keys.key("NumpadAdd", [], "Increase speed", e => Loop.setSpeedCoef(Math.min(10, Loop.getSpeedCoef() + 0.1)));
-Keys.key("NumpadSubtract", [], "Decrease speed", e => Loop.setSpeedCoef(Math.max(0, Loop.getSpeedCoef() - 0.1)));
-Keys.key("Digit0", [], "Reset speed to normal", e => Loop.setSpeedCoef(1.0));
+Keys.mouseZoom(["Ctrl"], "Scroll to change the router counter", (e) => {
+  const cell = state.board.fromCoords(e.clientX, e.clientY);
+  if (cell === null) return;
+
+  if (e.deltaY < 0) state.behaviour.mouseScrollUp(cell, e);
+  else state.behaviour.mouseScrollDown(cell, e);
+});

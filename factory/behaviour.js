@@ -1,7 +1,52 @@
 class BaseBehaviour {
   constructor(state) {
     this.state = state;
+  }
+
+  onPush() {
+    Keys.push();
+  }
+
+  onPop() {
+    Keys.pop();
+  }
+
+  rightClick(cell) {}
+  click(cell) {}
+  mouseMove(cell, e) {}
+  mouseLeave() {}
+  mouseScrollDown(cell, e) {}
+  mouseScrollUp(cell, e) {}
+}
+
+class MainBehaviour extends BaseBehaviour {
+  constructor(state) {
+    super(state);
     this.scrollTimer = null;
+  }
+
+  onPush() {
+    super.onPush();
+
+    Keys.key("F1", [], "Show this help message (F1 again to hide)", () => {
+      let el = document.getElementById("help");
+
+      if (el.style.display == "block") {
+        el.style.display = "none";
+        return;
+      }
+
+      let help = Keys.help();
+      el.innerHTML =
+        "<h2>Keyboard</h2>\n<pre>" + help.keys.join("\n</pre><pre>") + "</pre>" +
+        "<h2>Mouse</h2>\n<pre>" + help.mouse.join("\n</pre><pre>") + "</pre>";
+
+      el.style.display = "block";
+    });
+
+    Keys.key("NumpadAdd", [], "Increase speed", e => Loop.setSpeedCoef(Math.min(10, Loop.getSpeedCoef() + 1)));
+    Keys.key("NumpadSubtract", [], "Decrease speed", e => Loop.setSpeedCoef(Math.max(0, Loop.getSpeedCoef() - 1)));
+    Keys.key("Digit0", [], "Reset speed to normal", e => Loop.setSpeedCoef(1.0));
 
     Keys.key("KeyP", ["Ctrl"], "Pause ON/OFF", () => Loop.paused() ? Loop.resume() : Loop.pause());
 
@@ -22,6 +67,8 @@ class BaseBehaviour {
   }
 
   onPop() {
+    super.onPop();
+
     this.__clearScroll();
   }
 
@@ -71,12 +118,13 @@ class BaseBehaviour {
     }
   }
 
-  mouseLeave() {
-    this.__clearScroll();
-  }
-
   mouseScrollUp(cell, e) {
     for (let thing of cell.things) {
+      if (e.ctrlKey && thing instanceof CountingRouter) {
+        thing.count = Math.min(10, thing.count + 1);
+        thing.counter = thing.count;
+        return;
+      }
       if (thing instanceof AbstractRouter) {
         const last = thing._outputs.pop();
         thing._outputs.unshift(last);
@@ -96,6 +144,11 @@ class BaseBehaviour {
 
   mouseScrollDown(cell, e) {
     for (let thing of cell.things) {
+      if (e.ctrlKey && thing instanceof CountingRouter) {
+        thing.count = Math.max(1, thing.count - 1);
+        thing.counter = thing.count;
+        return;
+      }
       if (thing instanceof AbstractRouter) {
         let first = thing._outputs.shift();
         thing._outputs.push(first);
@@ -114,7 +167,7 @@ class BaseBehaviour {
   }
 
   mouseMove(cell, e) {
-    const reactionDist = 50;
+    /*const reactionDist = 50;
     const speed = 5;
 
     let dx = 0;
@@ -124,7 +177,11 @@ class BaseBehaviour {
     if (Math.abs(e.clientY - state.canvas.clientTop) < reactionDist) dy = speed;
     if (Math.abs(e.clientY - state.canvas.clientHeight - state.canvas.clientTop) < reactionDist) dy = -speed;
 
-    this.__startScrolling(dx, dy);
+    this.__startScrolling(dx, dy);*/
+  }
+
+  mouseLeave() {
+    // this.__clearScroll();
   }
 
   click(cell) {
@@ -154,9 +211,53 @@ class BaseBehaviour {
   }
 }
 
+class MessageBehaviour extends BaseBehaviour {
+  constructor(state, text) {
+    super(state);
+    this.text = text;
+  }
+
+  onPush() {
+    super.onPush();
+
+    Keys.key("Space", [], "Hide the message", () => this.state.popBehaviour());
+    Keys.key("Escape", [], "Hide the message", () => this.state.popBehaviour());
+    Keys.key("Enter", [], "Hide the message", () => this.state.popBehaviour());
+
+    message(this.text, 0);
+  }
+
+  onPop() {
+    super.onPop();
+    hideMessage();
+  }
+
+  click(cell) {
+    this.state.popBehaviour();
+  }
+
+  rightClick(cell) {
+    this.state.popBehaviour();
+  }
+}
+
 class ContextMenuBehaviour extends BaseBehaviour {
   constructor(state, cell) {
     super(state);
+    this.cell = cell;
+    this.menu = null;
+  }
+
+  rightClick() {
+    this.state.popBehaviour();
+  }
+
+  click() {
+    this.state.popBehaviour();
+  }
+
+  onPush() {
+    super.onPush();
 
     Keys.key("Escape", [], "Close context menu", () => this.state.popBehaviour());
 
@@ -164,23 +265,23 @@ class ContextMenuBehaviour extends BaseBehaviour {
 
     const alphabet = "abcdefghijklmnopqrstuvwxyz";
 
-    if (cell.things.length === 0) {
-      menu.add("a,a -> A", (cell) => {
+    if (this.cell.things.length === 0) {
+      menu.add("a,a -> A", cell => {
         const rules = alphabet.split("").map(it => it + "," + it + "->"  + it.toUpperCase()).join(" | ");
         let facility = buildFacility(cell.x, cell.y, rules, 1, 10);
         facility.name = "a,a -> A";
       });
-      menu.add("A -> a,a", (cell) => {
+      menu.add("A -> a,a", cell => {
         const rules = alphabet.split("").map(it => it.toUpperCase() + " -> " + it + "," + it).join(" | ");
         let facility = buildFacility(cell.x, cell.y, rules, 1, 10);
         facility.name = "A -> a,a";
       });
-      menu.add("a >> z", (cell) => {
+      menu.add("a >> z", cell => {
         const rules = alphabet.split("").map((it, i) => it + " -> " + alphabet[(i + 1) % alphabet.length]).join(" | ");
         let facility = buildFacility(cell.x, cell.y, rules, 1, 10);
         facility.name = "a >> z";
       });
-      menu.add("a << z", (cell) => {
+      menu.add("a << z", cell => {
         let l = alphabet.length;
         const rules = alphabet.split("").map((it, i) => it + " -> " + alphabet[(i + l - 1) % l]).join(" | ");
         let facility = buildFacility(cell.x, cell.y, rules, 1, 10);
@@ -188,20 +289,20 @@ class ContextMenuBehaviour extends BaseBehaviour {
       });
       menu.addSeparator();
 
-      menu.add("Factory", (cell) => this.startBuildFactory(cell));
+      menu.add("Factory", cell => this.startBuildFactory(cell));
       menu.addSeparator();
 
-      menu.add("Separator", (cell) => this.startBuildSeparator(cell));
-      menu.add("Round Robin", (cell) => buildRoundRobinRouter(cell.x, cell.y));
-      menu.add("Counting Router", (cell) => this.startBuildCountingRouter(cell));
-      menu.add("Delay", (cell) => this.startBuildDelay(cell));
+      menu.add("Separator", cell => this.startBuildSeparator(cell));
+      menu.add("Round Robin", cell => buildRoundRobinRouter(cell.x, cell.y));
+      menu.add("Counting Router", cell => this.startBuildCountingRouter(cell));
+      menu.add("Delay", cell => this.startBuildDelay(cell));
     }
 
-    if (cell.things.length > 0) {
-      menu.add("Reset", (cell) => cell.things.forEach(thing => thing.reset()));
+    if (this.cell.things.length > 0) {
+      menu.add("Reset", cell => cell.things.forEach(thing => thing.reset()));
     }
 
-    for (let thing of cell.things) {
+    for (let thing of this.cell.things) {
       menu.add("Delete " + thing.id, () => this.deleteThing(thing));
 
       if (thing instanceof PowerSource) {
@@ -219,15 +320,7 @@ class ContextMenuBehaviour extends BaseBehaviour {
 
     this.menu = menu;
 
-    this.menu.showForCell(cell);
-  }
-
-  rightClick() {
-    this.state.popBehaviour();
-  }
-
-  click() {
-    this.state.popBehaviour();
+    this.menu.showForCell(this.cell);
   }
 
   onPop() {
@@ -290,6 +383,10 @@ class ThingBehaviour extends BaseBehaviour {
     super(state);
     this.cell = cell;
     this.thing = thing;
+  }
+
+  onPush() {
+    super.onPush();
 
     Keys.key("Escape", [], "Cancel the action", () => this.finish());
   }
