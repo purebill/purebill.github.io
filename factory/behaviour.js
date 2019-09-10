@@ -137,7 +137,7 @@ class MainBehaviour extends BaseBehaviour {
         return;
       }
       if (thing instanceof PowerSource) {
-        thing.maxPower++;
+        thing.maxPower += e.ctrlKey ? 1000 : 1;
       }
     }
   }
@@ -161,7 +161,8 @@ class MainBehaviour extends BaseBehaviour {
         return;
       }
       if (thing instanceof PowerSource) {
-        if (thing.powerLeft > 0) thing.maxPower--;
+        const dp = e.ctrlKey ? 100 : 1;
+        if (thing.powerLeft >= dp) thing.maxPower -= dp;
       }
     }
   }
