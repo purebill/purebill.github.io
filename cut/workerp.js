@@ -38,17 +38,16 @@ Workerp.prototype._init = function () {
  * Returns a promise that will be resolved while the job been done by the worker.
  */
 Workerp.prototype.call = function (params) {
-  var self = this;
-  return new Promise(function (resolve, reject) {
+  return new Promise((resolve, reject) => {
     var callId = Workerp.callId;
     Workerp.callId++;
 
-    self.promises[callId] = {
+    this.promises[callId] = {
       resolve: resolve,
       reject: reject
     };
 
-    self.worker.postMessage({
+    this.worker.postMessage({
       callId: callId,
       params: params
     });
@@ -82,3 +81,24 @@ Workerp.prototype.reset = function () {
   this.worker.terminate();
   this._init();
 };
+
+class WorkerPool {
+  constructor(poolSize, scriptFile) {
+    this.pool = [];
+    this.idx = 0;
+
+    for (let i = 0; i < poolSize; i++) {
+      this.pool.push(new Workerp(scriptFile));
+    }
+  }
+
+  call(params) {
+    const result = this.pool[this.idx].call(params);
+    this.idx = (this.idx + 1) % this.pool.length;
+    return result;
+  }
+
+  reset() {
+    this.pool.forEach(thread => thread.reset());
+  }
+}
