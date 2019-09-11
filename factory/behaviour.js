@@ -3,6 +3,10 @@ class BaseBehaviour {
     this.state = state;
   }
 
+  _pop() {
+    this.state.popBehaviour(this);
+  }
+
   onPush() {
     Keys.push();
   }
@@ -221,9 +225,9 @@ class MessageBehaviour extends BaseBehaviour {
   onPush() {
     super.onPush();
 
-    Keys.key("Space", [], "Hide the message", () => this.state.popBehaviour());
-    Keys.key("Escape", [], "Hide the message", () => this.state.popBehaviour());
-    Keys.key("Enter", [], "Hide the message", () => this.state.popBehaviour());
+    Keys.key("Space", [], "Hide the message", () => this._pop());
+    Keys.key("Escape", [], "Hide the message", () => this._pop());
+    Keys.key("Enter", [], "Hide the message", () => this._pop());
 
     message(this.text, 0);
   }
@@ -234,11 +238,11 @@ class MessageBehaviour extends BaseBehaviour {
   }
 
   click(cell) {
-    this.state.popBehaviour();
+    this._pop();
   }
 
   rightClick(cell) {
-    this.state.popBehaviour();
+    this._pop();
   }
 }
 
@@ -250,43 +254,39 @@ class ContextMenuBehaviour extends BaseBehaviour {
   }
 
   rightClick() {
-    this.state.popBehaviour();
+    this._pop();
   }
 
   click() {
-    this.state.popBehaviour();
+    this._pop();
   }
 
   onPush() {
     super.onPush();
 
-    Keys.key("Escape", [], "Close context menu", () => this.state.popBehaviour());
+    Keys.key("Escape", [], "Close context menu", () => this._pop());
 
-    let menu = new ContextMenu(() => this.state.popBehaviour());
+    let menu = new ContextMenu(() => this._pop());
 
     const alphabet = "abcdefghijklmnopqrstuvwxyz";
 
     if (this.cell.things.length === 0) {
       menu.add("a,a -> A", cell => {
         const rules = alphabet.split("").map(it => it + "," + it + "->"  + it.toUpperCase()).join(" | ");
-        let facility = buildFacility(cell.x, cell.y, rules, 1, 10);
-        facility.name = "a,a -> A";
+        let facility = buildFacility(cell.x, cell.y, rules, 1, 10, "a,a -> A");
       });
       menu.add("A -> a,a", cell => {
         const rules = alphabet.split("").map(it => it.toUpperCase() + " -> " + it + "," + it).join(" | ");
-        let facility = buildFacility(cell.x, cell.y, rules, 1, 10);
-        facility.name = "A -> a,a";
+        let facility = buildFacility(cell.x, cell.y, rules, 1, 10, "A -> a,a");
       });
       menu.add("a >> z", cell => {
         const rules = alphabet.split("").map((it, i) => it + " -> " + alphabet[(i + 1) % alphabet.length]).join(" | ");
-        let facility = buildFacility(cell.x, cell.y, rules, 1, 10);
-        facility.name = "a >> z";
+        let facility = buildFacility(cell.x, cell.y, rules, 1, 10, "a >> z");
       });
       menu.add("a << z", cell => {
         let l = alphabet.length;
         const rules = alphabet.split("").map((it, i) => it + " -> " + alphabet[(i + l - 1) % l]).join(" | ");
-        let facility = buildFacility(cell.x, cell.y, rules, 1, 10);
-        facility.name = "a << z";
+        let facility = buildFacility(cell.x, cell.y, rules, 1, 10, "a << z");
       });
       menu.addSeparator();
 
@@ -394,7 +394,7 @@ class ThingBehaviour extends BaseBehaviour {
 
   finish() {
     this.state.board.clearSelection();
-    this.state.popBehaviour();
+    this._pop();
   }
 
   rightClick(cell) {

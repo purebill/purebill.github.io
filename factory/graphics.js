@@ -313,6 +313,8 @@ class HexaCell {
   }
 
   draw(ctx) {
+    // if (!this.selected) return;
+
     ctx.strokeStyle = "#cccccc";
     ctx.fillStyle = "#eeeeee";
     if (this.selected) {
@@ -329,7 +331,7 @@ class HexaCell {
     // ctx.font = "12px sefif";
     // let text = this.x + ", " + this.y;
     // let m = ctx.measureText(text);
-    // ctx.strokeText(text, xc - m.width / 2, yc + 6);
+    // ctx.strokeText(text, this.xc - m.width / 2, this.yc + 6);
   }
 
   neighbours() {

@@ -19,7 +19,9 @@ let state = {
     state.behaviour.onPush();
   },
 
-  popBehaviour() {
+  popBehaviour(behaviour) {
+    assert(state.behaviour === behaviour);
+
     if (state.behaviour.__prevBehaviour) {
       state.behaviour.onPop();
       state.behaviour = state.behaviour.__prevBehaviour;
@@ -70,15 +72,25 @@ function buildPowerSource(x, y, maxPower) {
   return powerSource;
 }
 
-function buildFacility(x, y, planString, capacity, powerNeeded) {
+function connectToPower(thing) {
+  if (!state.powerSource.addConsumer(thing)) {
+    message("Not enough power", 3000);
+    return false;
+  }
+  return true;
+}
+
+function buildFacility(x, y, planString, capacity, powerNeeded, name) {
   const cell = state.board.cells[x][y];
   let plans = planString.split(/\s*\|\s*/).map(str => ConstructionPlan.from(str));
 
   let facility = new ConstructionFacility(plans, capacity, powerNeeded);
+  if (!connectToPower(facility)) return null;
+  facility.name = name;
+
   let node = new FacilityNode(facility);
   facility.node = node;
   Loop.add(node);
-  state.powerSource.addConsumer(facility);
   cell.add(facility);
 
   return facility;
@@ -86,12 +98,11 @@ function buildFacility(x, y, planString, capacity, powerNeeded) {
 
 function buildThingSource(x, y, thingId, capacity, msPerThing, powerNeeded) {
   let source = new ThingSource(thingId, capacity, msPerThing, powerNeeded);
+  if (!connectToPower(source)) return null;
   state.board.add(x, y, source);
   let node = new ThingSourceNode(source);
   source.node = node;
   Loop.add(node);
-
-  state.powerSource.addConsumer(source);
 
   return source;
 }
@@ -109,7 +120,7 @@ function connect(producer, consumer, cells) {
 
   let path;
   if (cells && cells.length > 0) path = cells;
-  else path = PathFinder.find(producer.hexaCells.values().next().value, consumer.hexaCells.values().next().value);
+  else path = PathFinder.find(producer.hexaCell, consumer.hexaCell);
 
   if (path.length == 0) {
     message("No path found", 2000);
@@ -119,6 +130,8 @@ function connect(producer, consumer, cells) {
   if (path.length > 2) {
     let length = path.length - 1;
     let transporter = new Transporter(consumer, length, speed, length * powerPerUnitLength, path);
+    if (!connectToPower(transporter)) return null;
+
     producer.addOutput(transporter);
 
     path.forEach(it => it.add(transporter));
@@ -126,8 +139,6 @@ function connect(producer, consumer, cells) {
     let node = new TransporterNode(transporter);
     transporter.node = node;
     Loop.add(node);
-
-    state.powerSource.addConsumer(transporter);
 
     return transporter;
   } else {
@@ -154,12 +165,11 @@ function buildTransporter(coords) {
   const length = cells.length - 1;
   let transporter = new Transporter(null, length, speed, length * powerPerUnitLength, cells);
   cells.forEach(it => it.add(transporter));
+  if (!connectToPower(transporter)) return null;
 
   let node = new TransporterNode(transporter);
   transporter.node = node;
   Loop.add(node);
-
-  state.powerSource.addConsumer(transporter);
 
   return transporter;
 }
@@ -177,12 +187,11 @@ function buildSink(x, y, text) {
 function buildABRouter(x, y) {
   const cell = state.board.cells[x][y];
   const router = new ABRouter(10);
+  if (!connectToPower(router)) return null;
   cell.add(router);
   const node = new ABRouterNode(router);
   router.node = node;
   Loop.add(node);
-
-  state.powerSource.addConsumer(router);
 
   return router;
 }
@@ -190,12 +199,11 @@ function buildABRouter(x, y) {
 function buildRoundRobinRouter(x, y) {
   const cell = state.board.cells[x][y];
   const router = new RoundRobinRouter(10);
+  if (!connectToPower(router)) return null;
   cell.add(router);
   const node = new RoundRobinRouterNode(router);
   router.node = node;
   Loop.add(node);
-
-  state.powerSource.addConsumer(router);
 
   return router;
 }
@@ -203,12 +211,11 @@ function buildRoundRobinRouter(x, y) {
 function buildSeparator(x, y, thingId, powerNeeded) {
   const cell = state.board.cells[x][y];
   const router = new SeparatorRouter(thingId, powerNeeded);
+  if (!connectToPower(router)) return null;
   cell.add(router);
   const node = new SeparatorRouterNode(router);
   router.node = node;
   Loop.add(node);
-
-  state.powerSource.addConsumer(router);
 
   return router;
 }
@@ -216,12 +223,11 @@ function buildSeparator(x, y, thingId, powerNeeded) {
 function buildCountingRouter(x, y, count, powerNeeded) {
   const cell = state.board.cells[x][y];
   const router = new CountingRouter(count, powerNeeded);
+  if (!connectToPower(router)) return null;
   cell.add(router);
   const node = new CountingRouterNode(router);
   router.node = node;
   Loop.add(node);
-
-  state.powerSource.addConsumer(router);
 
   return router;
 }
@@ -229,12 +235,11 @@ function buildCountingRouter(x, y, count, powerNeeded) {
 function buildDelay(x, y, delayMs, powerNeeded) {
   const cell = state.board.cells[x][y];
   const delay = new Delay(delayMs, powerNeeded);
+  if (!connectToPower(delay)) return null;
   cell.add(delay);
   const node = new DelayNode(delay);
   delay.node = node;
   Loop.add(node);
-
-  state.powerSource.addConsumer(delay);
 
   return delay;
 }
