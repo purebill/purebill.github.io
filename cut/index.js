@@ -53,6 +53,7 @@ let state = {
         const v = state.board.get(col, row);
 
         const td = document.createElement("td");
+        td.classList.add("color" + v);
 
         if (v != -1) {
           if (row > 0 && state.board.get(col, row - 1) == v) td.style.borderTop = whiteBorder;
