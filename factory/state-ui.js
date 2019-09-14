@@ -94,8 +94,8 @@ class ContextMenu {
       const button = document.createElement("button");
       button.innerText = item.text;
       button.onclick = () => {
-        item.callback(cell);
         if (this.onClick) this.onClick();
+        item.callback(cell);
       };
 
       const p = document.createElement("p");

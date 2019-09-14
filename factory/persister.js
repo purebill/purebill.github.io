@@ -24,7 +24,7 @@ let Persister = (function () {
       let plans = thing.constructionPlans.map(it => it.asString()).join(" | ");
       return {
         f: "buildFacility",
-        args: [x, y, plans, thing.capacity, thing.powerNeeded]
+        args: [x, y, plans, thing.capacity, thing.powerNeeded, thing.name]
       };
     },
     "Sink": (x, y, thing) => {
