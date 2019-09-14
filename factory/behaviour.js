@@ -51,7 +51,7 @@ class MainBehaviour extends BaseBehaviour {
     Keys.key("KeyP", ["Ctrl"], "Pause ON/OFF", () => Loop.paused() ? Loop.resume() : Loop.pause());
 
     Keys.key("KeyS", ["Ctrl"], "Save", () => window.localStorage.saved = JSON.stringify(Persister.persist(state)));
-    Keys.key("KeyL", ["Ctrl"], "Load", () => Persister.restore(JSON.parse(window.localStorage.saved)));
+    Keys.key("KeyL", ["Ctrl"], "Load", () => window.localStorage.saved && Persister.restore(JSON.parse(window.localStorage.saved)));
 
     Keys.key("ArrowLeft", [], "Move board left", () => this.__startScrolling(10, 0), () => this.__clearScroll());
     Keys.key("ArrowRight", [], "Move board right", () => this.__startScrolling(-10, 0), () => this.__clearScroll());
