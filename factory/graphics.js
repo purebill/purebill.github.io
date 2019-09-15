@@ -97,7 +97,7 @@ class ThingSourceNode extends AbstractNode {
     const y = this.thing.hexaCell.yc;
 
     ctx.font = "16px serif";
-    ctx.fillText(this.thing.thingId + ": " + this.thing.suply, x + 10, y + 10);
+    ctx.fillText(this.thing.thingId + ": " + this.thing.suply, x + 17, y + 10);
 
     AbstractNode.drawWaitingThings(this.thing, ctx, x, y);
 
@@ -315,11 +315,17 @@ class HexaCell {
       this._hex(ctx);
       ctx.fill();
     }
+    // else {
+    //   ctx.strokeStyle = "#cccccc";
+    //   this._hex(ctx);
+    //   ctx.stroke();
+    // }
 
+    // ctx.fillStyle = Theme.fg;
     // ctx.font = "12px sefif";
     // let text = this.x + ", " + this.y;
     // let m = ctx.measureText(text);
-    // ctx.strokeText(text, this.xc - m.width / 2, this.yc + 6);
+    // ctx.fillText(text, this.xc - m.width / 2, this.yc + 6);
   }
 
   neighbours() {
