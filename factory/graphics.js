@@ -1,5 +1,9 @@
 class AbstractNode {
-  constructor() {}
+  constructor(thing) {
+    this.thing = thing;
+    thing.onDestroy(() => this.destroy());
+    Loop.add(this);
+  }
 
   destroy() {
     Loop.remove(this);
@@ -10,12 +14,12 @@ class AbstractNode {
   }
 
   __markOutput(ctx, idx) {
-    if (idx < this.router._outputs.length && this.router._outputs[idx] instanceof Transporter) {
-      const cell1 = this.router._outputs[idx].cells[0];
-      const cell2 = this.router._outputs[idx].cells[1];
+    if (idx < this.thing._outputs.length && this.thing._outputs[idx] instanceof Transporter) {
+      const cell1 = this.thing._outputs[idx].cells[0];
+      const cell2 = this.thing._outputs[idx].cells[1];
       const x = (cell1.xc + cell2.xc) / 2;
       const y = (cell1.yc + cell2.yc) / 2;
-      ctx.fillStyle = "#009900";
+      ctx.fillStyle = Theme.fg2;
       ctx.beginPath();
       ctx.arc(x, y, 4, 0, 2 * Math.PI);
       ctx.fill();
@@ -38,7 +42,7 @@ class AbstractNode {
   }
 
   static drawProgress(box, ctx, x, y) {
-    ctx.strokeStyle = "#000000";
+    ctx.strokeStyle = Theme.fg3;//"#000000";
     ctx.lineWidth = 2;
     ctx.beginPath();
     ctx.arc(x, y, 13, 0, 2 * Math.PI * box.progress);
@@ -61,18 +65,16 @@ class AbstractNode {
 
 class PowerSourceNode extends AbstractNode {
   constructor(/**@type {PowerSource} */ powerSource) {
-    super();
-
-    this.powerSource = powerSource;
+    super(powerSource);
   }
 
   draw(ctx) {
     ctx.fillStyle = "#006600";
 
-    const x = this.powerSource.hexaCell.xc;
-    const y = this.powerSource.hexaCell.yc;
+    const x = this.thing.hexaCell.xc;
+    const y = this.thing.hexaCell.yc;
 
-    if (this.powerSource.isOn())
+    if (this.thing.isOn())
       ctx.fillRect(x - 5, y - 5, 10, 10);
     else {
       ctx.strokeStyle = "#006600";
@@ -81,66 +83,46 @@ class PowerSourceNode extends AbstractNode {
 
     ctx.font = "12px serif";
     ctx.fillStyle = "#000000";
-    ctx.fillText(Math.round(this.powerSource.powerLeft) + " / " + this.powerSource.maxPower, x + 10, y + 10);
-
-    /*for (let box of this.powerSource.consumers) {
-      if (this.powerSource.isOn()) ctx.strokeStyle = "rgba(0, 100, 0, .2)";
-      else ctx.strokeStyle = "rgba(255, 0, 0, .2)";
-      
-      ctx.beginPath();
-      ctx.moveTo(x, y);
-      ctx.lineTo(box.consumer.node.x, box.consumer.node.y);
-      ctx.stroke();
-    }*/
+    ctx.fillText(Math.round(this.thing.powerLeft) + " / " + this.thing.maxPower, x + 10, y + 10);
   }
 }
 
 class ThingSourceNode extends AbstractNode {
   constructor(/**@type {ThingSource} */ thingSource) {
-    super();
-
-    this.thingSource = thingSource;
+    super(thingSource);
   }
 
   draw(ctx) {
-    const x = this.thingSource.hexaCell.xc;
-    const y = this.thingSource.hexaCell.yc;
-
-    ctx.fillStyle = "#0000ff";
-    ctx.fillRect(x - 5, y - 5, 10, 10);
+    const x = this.thing.hexaCell.xc;
+    const y = this.thing.hexaCell.yc;
 
     ctx.font = "16px serif";
-    ctx.fillText(this.thingSource.thingId + ": " + this.thingSource.suply, x + 10, y + 10);
+    ctx.fillText(this.thing.thingId + ": " + this.thing.suply, x + 10, y + 10);
 
-    AbstractNode.drawWaitingThings(this.thingSource, ctx, x, y);
+    AbstractNode.drawWaitingThings(this.thing, ctx, x, y);
 
-    AbstractNode.drawTimeLock(this.thingSource.timeLock, ctx, x, y);
+    AbstractNode.drawTimeLock(this.thing.timeLock, ctx, x, y);
   }
 }
 
 class FacilityNode extends AbstractNode {
   constructor(/**@type {ConstructionFacility} */ facility) {
-    super();
-
-    this.facility = facility;
+    super(facility);
   }
 
   draw(ctx) {
-    const xc = this.facility.hexaCell.xc;
-    const yc = this.facility.hexaCell.yc;
-
-    ctx.fillStyle = "#000000";
-    ctx.fillRect(xc - 5, yc - 5, 10, 10);
+    const xc = this.thing.hexaCell.xc;
+    const yc = this.thing.hexaCell.yc;
 
     let x = xc + 10;
     let y = yc - 10;
     ctx.font = "16px serif";
 
     ctx.fillStyle = "#000000";
-    let name = this.facility.name || this.facility.constructionPlans.toString();
+    let name = this.thing.name || this.thing.constructionPlans.toString();
     ctx.fillText(name, xc, yc + 20);
 
-    for (let box of this.facility.boxes) {
+    for (let box of this.thing.boxes) {
       for (let k of box.slots.keys()) {
         box.slots.get(k).forEach(id => {
           if (id === null) ctx.fillStyle = "#cccccc";
@@ -159,27 +141,25 @@ class FacilityNode extends AbstractNode {
       y -= 5;
     }
 
-    AbstractNode.drawWaitingThings(this.facility, ctx, xc, yc);
+    AbstractNode.drawWaitingThings(this.thing, ctx, xc, yc);
   }
 }
 
 class TransporterNode extends AbstractNode {
   constructor(/**@type {Transporter} */ transporter) {
-    super();
+    super(transporter);
 
-    this.color = "#000000";
+    this.color = Theme.fg;
    
-    this.transporter = transporter;
-
     const centerIdx = Math.round(transporter.cells.length / 2);
     this.centerCell = transporter.cells[centerIdx];
   }
 
   pointForProgress(progress) {
-    let l = progress * this.transporter.length;
+    let l = progress * this.thing.length;
     let accL = 0;
     let i;
-    const points = this.transporter.cells;
+    const points = this.thing.cells;
     for (i = 1; i < points.length; i++) {
       accL += 1;
       if (accL >= l) {
@@ -195,7 +175,7 @@ class TransporterNode extends AbstractNode {
   }
 
   draw(ctx) {
-    const points = this.transporter.cells;
+    const points = this.thing.cells;
 
     if (points.length < 2) return;
 
@@ -211,7 +191,7 @@ class TransporterNode extends AbstractNode {
     ctx.lineTo(endX, endY);
     ctx.stroke();
 
-    // Arraw
+    // Arrow
     ctx.fillStyle = this.color;
     ctx.beginPath();
     const startX = points[points.length - 2].xc;
@@ -225,13 +205,14 @@ class TransporterNode extends AbstractNode {
     ctx.lineTo(startX, startY);
     ctx.fill();
 
-    for (let box of this.transporter.timeLock.slots) {
+    // Things being transported
+    for (let box of this.thing.timeLock.slots) {
       let p = this.pointForProgress(box.progress);
 
       let textPoint = {x: p.x + 10, y: p.y};
 
-      ctx.strokeStyle = "#000000";
-      ctx.fillStyle = "#000000";
+      ctx.strokeStyle = Theme.fg;
+      ctx.fillStyle = Theme.fg;
       ctx.beginPath();
       ctx.arc(p.x, p.y, 5, 0, Math.PI * 2);
       ctx.fill();
@@ -240,7 +221,7 @@ class TransporterNode extends AbstractNode {
       ctx.fillText(box.thing.id, textPoint.x, textPoint.y);
     }
 
-    AbstractNode.drawWaitingThings(this.transporter, ctx, this.centerCell.xc, this.centerCell.yc);
+    AbstractNode.drawWaitingThings(this.thing, ctx, this.centerCell.xc, this.centerCell.yc);
   }
 }
 
@@ -254,6 +235,7 @@ class HexaCell {
     this.selected = false;
     /**@type {Thing[]} */
     this.things = [];
+    this.type = "ground";
 
     /**@type {HexaCell[]} */
     this._neighboursCache = undefined;
@@ -274,9 +256,14 @@ class HexaCell {
   /**
    * @param {Thing} thing 
    */
-  add(thing) {
+  add(thing, cellType) {
     this.things.push(thing);
     thing.hexaCells.add(this);
+    if (cellType) {
+      const oldType = this.type;
+      this.type = cellType;
+      thing.onDestroy(() => this.type = oldType);
+    }
   }
 
   /**
@@ -295,37 +282,38 @@ class HexaCell {
     return false;
   }
 
+  _drawImage(ctx) {
+    const w = 40;
+    const h = 34;
+
+    ctx.drawImage(Assets.get(this.type), this.xc - w/2, this.yc - h/2);
+  }
+
   _hex(ctx) {
     const xc = this.xc;
     const yc = this.yc;
     const r = this.board.r;
     const h = this.board.h;
+    const r2 = Math.round(r/2);
 
     ctx.beginPath();
     // ctx.arc(xc, yc, 3, 0, 2*Math.PI);
     ctx.moveTo(xc - r, yc);
-    ctx.lineTo(xc - r/2, yc - h);
-    ctx.lineTo(xc + r/2, yc - h);
+    ctx.lineTo(xc - r2, yc - h);
+    ctx.lineTo(xc + r2, yc - h);
     ctx.lineTo(xc + r, yc);
-    ctx.lineTo(xc + r/2, yc + h);
-    ctx.lineTo(xc - r/2, yc + h);
+    ctx.lineTo(xc + r2, yc + h);
+    ctx.lineTo(xc - r2, yc + h);
     ctx.lineTo(xc - r, yc);
   }
 
   draw(ctx) {
-    // if (!this.selected) return;
+    this._drawImage(ctx);
 
-    ctx.strokeStyle = "#cccccc";
-    ctx.fillStyle = "#eeeeee";
     if (this.selected) {
+      ctx.fillStyle = "rgba(0, 0, 0, 0.2)";
       this._hex(ctx);
       ctx.fill();
-      this._hex(ctx);
-      ctx.stroke();
-    }
-    else {
-      this._hex(ctx);
-      ctx.stroke();
     }
 
     // ctx.font = "12px sefif";
@@ -405,7 +393,7 @@ class HexaBoard {
     this.width = width;
     this.height = height;
     this.r = 20;
-    this.h = this.r * Math.sqrt(3) / 2;
+    this.h = Math.round(this.r * Math.sqrt(3) / 2);
     this.xShift = this.r;
     this.yShift = this.h;
     /**@type {Set<HexaCell>} */
@@ -419,8 +407,8 @@ class HexaBoard {
         const r = this.r;
         const h = this.h;
     
-        let yc = y * h;
-        let xc = x * r * 3;
+        let yc = Math.round(y * h);
+        let xc = Math.round(x * r * 3);
     
         if (y % 2 == 1) {
           xc += 1.5*r;
@@ -435,11 +423,11 @@ class HexaBoard {
     this.cells.forEach(col => col.forEach(cell => cell.reset()));
   }
 
-  add(x, y, thing) {
+  add(x, y, thing, cellType) {
     assert(x >= 0 && x < this.width && y >= 0 && y < this.height);
 
     const cell = this.cells[x][y];
-    cell.add(thing);
+    cell.add(thing, cellType);
     return cell;
   }
 
@@ -518,58 +506,46 @@ class SinkNode extends AbstractNode {
    * @param {Sink} sink
    */
   constructor(sink) {
-    super();
-
-    this.sink = sink;
+    super(sink);
   }
 
   draw(ctx) {
-    const xc = this.sink.hexaCell.xc;
-    const yc = this.sink.hexaCell.yc;
-
-    ctx.strokeStyle = "#999999";
-    ctx.strokeRect(xc - 5, yc - 5, 10, 10);
+    const xc = this.thing.hexaCell.xc;
+    const yc = this.thing.hexaCell.yc;
 
     ctx.font = "16px serif";
-    ctx.fillStyle = "#999999";
-    ctx.fillText(this.sink.textToWait, xc + 10, yc + 10);
 
     let chars = [];
-    for (let [ch, count] of this.sink.charsSinked) {
+    for (let [ch, count] of this.thing.charsSinked) {
       for (let i = 0; i < count; i++) chars.push(ch);
     }
-    let x = xc + 10;
-    for (let ch of this.sink.textToWait) {
+    let x = xc + 16;
+    for (let ch of this.thing.textToWait) {
       let idx = chars.indexOf(ch);
       if (idx != -1) {
         chars.splice(idx, 1);
-        ctx.fillStyle = "#000000";
+        ctx.fillStyle = Theme.fg3;
       } else {
-        ctx.fillStyle = "#009900";
+        ctx.fillStyle = Theme.fg;
       }
       ctx.fillText(ch, x, yc + 10);
 
       let m = ctx.measureText(ch);
       x += m.width;
     }
-
-    // ctx.fillStyle = this.sink.satisfied ? "#009900" : "#000000";
-    // ctx.fillText(this.sink.charsSinked, xc + 10, yc + 10);
   }
 }
 
 class ABRouterNode extends AbstractNode {
   constructor(abRouter) {
-    super();
-
-    this.abRouter = abRouter;
+    super(abRouter);
   }
 
   draw(ctx) {
-    const xc = this.abRouter.hexaCell.xc;
-    const yc = this.abRouter.hexaCell.yc;
+    const xc = this.thing.hexaCell.xc;
+    const yc = this.thing.hexaCell.yc;
 
-    ctx.strokeStyle = "#000000";
+    ctx.strokeStyle = Theme.fg;
     ctx.beginPath();
     ctx.moveTo(xc + 4, yc);
     ctx.lineTo(xc, yc);
@@ -582,109 +558,61 @@ class ABRouterNode extends AbstractNode {
 
 class RoundRobinRouterNode extends AbstractNode {
   constructor(router) {
-    super();
-
-    this.router = router;
+    super(router);
   }
 
   draw(ctx) {
-    const xc = this.router.hexaCell.xc;
-    const yc = this.router.hexaCell.yc;
-
-    ctx.strokeStyle = "#000000";
-    ctx.beginPath();
-    ctx.moveTo(xc + 4, yc);
-    ctx.lineTo(xc, yc);
-    ctx.lineTo(xc - 4, yc - 4);
-    ctx.moveTo(xc, yc);
-    ctx.lineTo(xc - 4, yc + 4);
-    ctx.stroke();
-
-    ctx.strokeStyle = "#999999";
-    ctx.beginPath();
-    ctx.arc(xc, yc, 10, 0, Math.PI * 2);
-    ctx.stroke();
-
-    this.__markOutput(ctx, this.router._idx);
+    this.__markOutput(ctx, this.thing._idx);
   }
 }
 
 class SeparatorRouterNode extends AbstractNode {
   constructor(router) {
-    super();
-
-    this.router = router;
+    super(router);
   }
 
   draw(ctx) {
-    const xc = this.router.hexaCell.xc;
-    const yc = this.router.hexaCell.yc;
-
-    ctx.strokeStyle = "#000000";
-    ctx.beginPath();
-    ctx.moveTo(xc + 4, yc);
-    ctx.lineTo(xc, yc);
-    ctx.lineTo(xc - 4, yc - 4);
-    ctx.moveTo(xc, yc);
-    ctx.lineTo(xc - 4, yc + 4);
-    ctx.stroke();
+    const xc = this.thing.hexaCell.xc;
+    const yc = this.thing.hexaCell.yc;
 
     this.__markFirstOutput(ctx);
 
-    ctx.fillStyle = "#000000";
+    ctx.fillStyle = Theme.fg2;
     ctx.font = "16px serif";
-    ctx.fillText(this.router.thingId, xc - 4, yc - 4);
+    ctx.fillText(this.thing.thingId, xc + 4, yc - 4);
   }
 }
 
 class CountingRouterNode extends AbstractNode {
   constructor(router) {
-    super();
-
-    this.router = router;
+    super(router);
   }
 
   draw(ctx) {
-    const xc = this.router.hexaCell.xc;
-    const yc = this.router.hexaCell.yc;
-
-    ctx.strokeStyle = "#000000";
-    ctx.beginPath();
-    ctx.moveTo(xc + 4, yc);
-    ctx.lineTo(xc, yc);
-    ctx.lineTo(xc - 4, yc - 4);
-    ctx.moveTo(xc, yc);
-    ctx.lineTo(xc - 4, yc + 4);
-    ctx.stroke();
+    const xc = this.thing.hexaCell.xc;
+    const yc = this.thing.hexaCell.yc;
 
     this.__markFirstOutput(ctx);
 
-    ctx.fillStyle = "#000000";
+    ctx.fillStyle = Theme.fg2;
     ctx.font = "16px serif";
-    ctx.fillText(this.router.counter, xc - 4, yc - 4);
+    ctx.fillText(this.thing.counter, xc + 4, yc - 4);
   }
 }
 
 class DelayNode extends AbstractNode {
   constructor(delay) {
-    super();
-
-    this.delay = delay;
+    super(delay);
   }
 
   draw(ctx) {
-    const cell = this.delay.hexaCell;
+    const cell = this.thing.hexaCell;
 
-    ctx.strokeStyle = "#999999";
-    ctx.beginPath();
-    ctx.arc(cell.xc, cell.yc, 13, 0, 2 * Math.PI);
-    ctx.stroke();
-
-    ctx.strokeStyle = "#000000";
+    ctx.strokeStyle = Theme.fg3;
     ctx.lineWidth = 2;
     ctx.beginPath();
-    const progress = this.delay.timerId !== null ? Timer.getProgress(this.delay.timerId) : 0;
-    ctx.arc(cell.xc, cell.yc, 13, 0, progress * 2 * Math.PI);
+    const progress = this.thing.timerId !== null ? Timer.getProgress(this.thing.timerId) : 0;
+    ctx.arc(cell.xc, cell.yc, 17, 0, progress * 2 * Math.PI);
     ctx.stroke();
   }
 }

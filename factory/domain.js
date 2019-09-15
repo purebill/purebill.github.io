@@ -5,8 +5,8 @@ class Message {}
 const MessageBus = {
   subscribers: new Map(),
 
-  subscribe(clazz, callback) {
-    const type = clazz.__proto__.name;
+  subscribe(constructor, callback) {
+    const type = constructor.name;
 
     let subscribers = MessageBus.subscribers.get(type);
     if (subscribers === undefined) {
@@ -17,7 +17,7 @@ const MessageBus = {
   },
 
   post(/** @type {Message} */ message) {
-    const type = message.constructor.__proto__.name;
+    const type = message.constructor.name;
 
     let callbacks = MessageBus.subscribers.get(type);
     if (callbacks !== undefined)
@@ -31,13 +31,11 @@ class Thing {
     this.name = null;
     this.dead = false;
     this.size = 1;
+    this.__destroyListeners = [];
 
     /**@type {PowerSource} */
     this.powerSource = null;
     
-    /** @type {AbstractNode} */
-    this.node = null;
-
     /**@type {Set<HexaCell>} */
     this.hexaCells = new Set();
   }
@@ -48,8 +46,12 @@ class Thing {
 
   destroy() {
     this.hexaCells.forEach(hexaCell => hexaCell.remove(this));
-    this.node.destroy();
     if (this.powerSource !== null) this.powerSource.removeConsumer(this);
+    this.__destroyListeners.forEach(listener => listener(this));
+  }
+
+  onDestroy(listener) {
+    this.__destroyListeners.push(listener);
   }
 
   reset() {}
@@ -399,10 +401,11 @@ class ConstructionFacility extends InputOutput {
    * @param {number} capacity
    * @param {number} powerNeeded
    */
-  constructor(constructionPlans, capacity, powerNeeded) {
+  constructor(constructionPlans, capacity, powerNeeded, name) {
     super("construction-facility", null, powerNeeded);
     this.constructionPlans = constructionPlans;
     this.capacity = capacity;
+    this.name = name;
 
     /** @type {ConstructionBox[]} */
     this.boxes = [];
@@ -523,7 +526,7 @@ class ConstructionPlan {
     const resultItems = ConstructionPlan.__toPlanItems(m[5]);
 
     let constructionTimeMs = parseInt(m[4]);
-    if (isNaN(constructionTimeMs)) constructionTimeMs = 500;
+    if (isNaN(constructionTimeMs)) constructionTimeMs = 0;
 
     return new ConstructionPlan(items, resultItems, constructionTimeMs);
   }
@@ -721,6 +724,9 @@ class AbstractRouter extends InputOutput {
     super.destroy();
   }
 
+  /**
+   * @returns {boolean}
+   */
   _route() {
     throw new Error("Not implemented");
   }

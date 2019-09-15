@@ -273,20 +273,26 @@ class ContextMenuBehaviour extends BaseBehaviour {
     if (this.cell.things.length === 0) {
       menu.add("a,a -> A", cell => {
         const rules = alphabet.split("").map(it => it + "," + it + "->"  + it.toUpperCase()).join(" | ");
-        let facility = buildFacility(cell.x, cell.y, rules, 1, 10, "a,a -> A");
+        buildFacility(cell.x, cell.y, rules, 1, 10, "a,a -> A");
       });
       menu.add("A -> a,a", cell => {
         const rules = alphabet.split("").map(it => it.toUpperCase() + " -> " + it + "," + it).join(" | ");
-        let facility = buildFacility(cell.x, cell.y, rules, 1, 10, "A -> a,a");
+        buildFacility(cell.x, cell.y, rules, 1, 10, "A -> a,a");
       });
       menu.add("a >> z", cell => {
-        const rules = alphabet.split("").map((it, i) => it + " -> " + alphabet[(i + 1) % alphabet.length]).join(" | ");
-        let facility = buildFacility(cell.x, cell.y, rules, 1, 10, "a >> z");
+        const rules = 
+          alphabet.split("").map((it, i) => it + " -> " + alphabet[(i + 1) % alphabet.length])
+          .concat(alphabet.split("").map((it, i) => it.toUpperCase() + " -> " + alphabet[(i + 1) % alphabet.length].toUpperCase()))
+          .join(" | ");
+        buildFacility(cell.x, cell.y, rules, 1, 10, "a >> z");
       });
       menu.add("a << z", cell => {
         let l = alphabet.length;
-        const rules = alphabet.split("").map((it, i) => it + " -> " + alphabet[(i + l - 1) % l]).join(" | ");
-        let facility = buildFacility(cell.x, cell.y, rules, 1, 10, "a << z");
+        const rules = 
+          alphabet.split("").map((it, i) => it + " -> " + alphabet[(i + l - 1) % l])
+          .concat(alphabet.split("").map((it, i) => it.toUpperCase() + " -> " + alphabet[(i + l - 1) % l].toUpperCase()))
+          .join(" | ");
+        buildFacility(cell.x, cell.y, rules, 1, 10, "a << z");
       });
       menu.addSeparator();
 
@@ -379,7 +385,7 @@ class ContextMenuBehaviour extends BaseBehaviour {
   }
 }
 
-class ThingBehaviour extends BaseBehaviour {
+class ThingBehaviour extends MainBehaviour {
   constructor(thing, cell, state) {
     super(state);
     this.cell = cell;

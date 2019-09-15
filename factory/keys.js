@@ -67,59 +67,45 @@ var Keys = (function () {
       + (buttonToName[parsed[0]] ? buttonToName[parsed[0]] : parsed[0].replace(/^Key/, ""));
   }
 
-  window.onmousedown = e => {
-    if (e.target != canvas) return;
-
-    let mapping = find(node => node.mouseDown, actionKey(e, "button"));
-    if (mapping) {
-      mapping.callback(e);
-      e.preventDefault();
-    }
-  };
-
-  window.onmousemove = e => {
-    if (e.target != canvas) return;
-
-    let mapping = find(node => node.mouseMoveAction, actionKey(e, ""));
-    if (mapping) {
-      mapping.callback(e);
-      e.preventDefault();
-    }
-  };
-
-  window.onmouseup = e => {
-    if (e.target != canvas) return;
-
-    let mapping = find(node => node.mouseUp, actionKey(e, "button"));
-    if (mapping) {
-      mapping.callback(e);
-      e.preventDefault();
-    }
-  };
-
-  window.oncontextmenu = (e) => {
-    e.preventDefault();
-  };
-
-  document.body.addEventListener("wheel", (e) => {
-    if (e.target != canvas) return;
-
-    let mapping = find(node => node.mouseZoomAction, actionKey(e, ""));
-    if (mapping) {
-      mapping.callback(e);
-      e.preventDefault();
-    }
-  }, false);
-
   function init(target) {
     canvas = target;
 
+    canvas.onmousedown = e => {
+      e.preventDefault();
+  
+      let mapping = find(node => node.mouseDown, actionKey(e, "button"));
+      if (mapping) mapping.callback(e);
+    };
+  
+    canvas.onmousemove = e => {
+      e.preventDefault();
+  
+      let mapping = find(node => node.mouseMoveAction, actionKey(e, ""));
+      if (mapping) mapping.callback(e);
+    };
+  
+    canvas.onmouseup = e => {
+      e.preventDefault();
+  
+      let mapping = find(node => node.mouseUp, actionKey(e, "button"));
+      if (mapping) mapping.callback(e);
+    };
+  
+    // just prevent showing the browser's context menu
+    window.oncontextmenu = (e) => e.preventDefault();
+  
+    canvas.addEventListener("wheel", (e) => {
+      e.preventDefault();
+  
+      let mapping = find(node => node.mouseZoomAction, actionKey(e, ""));
+      if (mapping) mapping.callback(e);
+    }, false);
+  
     canvas.addEventListener("mouseleave", (e) => {
+      e.preventDefault();
+      
       let callback = find(node => node.mouseLeave, "callback");
-      if (callback) {
-        callback(e);
-        e.preventDefault();
-      }
+      if (callback) callback(e);
     });
   }
 
