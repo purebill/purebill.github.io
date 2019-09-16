@@ -10,6 +10,9 @@ let state = {
   /**@type {BaseBehaviour} */
   behaviour: null,
 
+  /**@type {Level} */
+  level: null,
+
   pushBehaviour: (newBehaviour) => {
     if (state.behaviour !== null) state.behaviour.onPop();
 
@@ -35,7 +38,20 @@ let state = {
     Timer.clear();
     state.board = null;
     state.powerSource = null;
-    state.pushBehaviour(new MainBehaviour(state));
+    state.level = null;
+    state.behaviour = new MainBehaviour(state);
+    state.behaviour.onPush();
+  },
+
+  setLevel(/**@type {Level}*/ level) {
+    state.reset();
+    state.level = level;
+
+    state.board = new HexaBoard(30, 50, state.canvas);
+    Loop.add(state.board);
+
+    buildPowerSource(0, 0, level.maxPower);
+    level.createWorld();
   }
 };
 
@@ -43,8 +59,15 @@ Assets.load().then(() => {
   state.reset();
   StateUi(state);
   state.canvas = Loop.start();
-  
-  createWorld();
+
+  MessageBus.subscribe(SinkSatisfiedMessage, m => {
+    state.powerSource.powerOff();
+    state.pushBehaviour(new MessageBehaviour(state, "You WIN!", 
+      () => state.setLevel(state.level.nextLevel())));
+  });
+
+  state.setLevel(new Level1());
+  // createWorld();
 });
 
 function createWorld() {
@@ -59,7 +82,8 @@ function createWorld() {
 
   MessageBus.subscribe(SinkSatisfiedMessage, m => {
     state.powerSource.powerOff();
-    state.pushBehaviour(new MessageBehaviour(state, "You WIN!"));
+    state.pushBehaviour(new MessageBehaviour(state, "You WIN!", 
+      () => state.setLevel(state.level.nextLevel())));
   });
 }
 

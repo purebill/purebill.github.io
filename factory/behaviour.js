@@ -217,9 +217,10 @@ class MainBehaviour extends BaseBehaviour {
 }
 
 class MessageBehaviour extends BaseBehaviour {
-  constructor(state, text) {
+  constructor(state, text, callback) {
     super(state);
     this.text = text;
+    this.callback = callback;
   }
 
   onPush() {
@@ -235,6 +236,7 @@ class MessageBehaviour extends BaseBehaviour {
   onPop() {
     super.onPop();
     hideMessage();
+    this.callback && this.callback();
   }
 
   click(cell) {
@@ -271,38 +273,40 @@ class ContextMenuBehaviour extends BaseBehaviour {
     const alphabet = "abcdefghijklmnopqrstuvwxyz";
 
     if (this.cell.things.length === 0) {
-      menu.add("a,a -> A", cell => {
-        const rules = alphabet.split("").map(it => it + "," + it + "->"  + it.toUpperCase()).join(" | ");
-        buildFacility(cell.x, cell.y, rules, 1, 10, "a,a -> A");
-      });
-      menu.add("A -> a,a", cell => {
-        const rules = alphabet.split("").map(it => it.toUpperCase() + " -> " + it + "," + it).join(" | ");
-        buildFacility(cell.x, cell.y, rules, 1, 10, "A -> a,a");
-      });
-      menu.add("a >> z", cell => {
-        const rules = 
-          alphabet.split("").map((it, i) => it + " -> " + alphabet[(i + 1) % alphabet.length])
-          .concat(alphabet.split("").map((it, i) => it.toUpperCase() + " -> " + alphabet[(i + 1) % alphabet.length].toUpperCase()))
-          .join(" | ");
-        buildFacility(cell.x, cell.y, rules, 1, 10, "a >> z");
-      });
-      menu.add("a << z", cell => {
-        let l = alphabet.length;
-        const rules = 
-          alphabet.split("").map((it, i) => it + " -> " + alphabet[(i + l - 1) % l])
-          .concat(alphabet.split("").map((it, i) => it.toUpperCase() + " -> " + alphabet[(i + l - 1) % l].toUpperCase()))
-          .join(" | ");
-        buildFacility(cell.x, cell.y, rules, 1, 10, "a << z");
-      });
+      state.level.factories.forEach(item => menu.add(item.name, item.callback));
+      // menu.add("a,a -> A", cell => {
+      //   const rules = alphabet.split("").map(it => it + "," + it + "->"  + it.toUpperCase()).join(" | ");
+      //   buildFacility(cell.x, cell.y, rules, 1, 10, "a,a -> A");
+      // });
+      // menu.add("A -> a,a", cell => {
+      //   const rules = alphabet.split("").map(it => it.toUpperCase() + " -> " + it + "," + it).join(" | ");
+      //   buildFacility(cell.x, cell.y, rules, 1, 10, "A -> a,a");
+      // });
+      // menu.add("a >> z", cell => {
+      //   const rules = 
+      //     alphabet.split("").map((it, i) => it + " -> " + alphabet[(i + 1) % alphabet.length])
+      //     .concat(alphabet.split("").map((it, i) => it.toUpperCase() + " -> " + alphabet[(i + 1) % alphabet.length].toUpperCase()))
+      //     .join(" | ");
+      //   buildFacility(cell.x, cell.y, rules, 1, 10, "a >> z");
+      // });
+      // menu.add("a << z", cell => {
+      //   let l = alphabet.length;
+      //   const rules = 
+      //     alphabet.split("").map((it, i) => it + " -> " + alphabet[(i + l - 1) % l])
+      //     .concat(alphabet.split("").map((it, i) => it.toUpperCase() + " -> " + alphabet[(i + l - 1) % l].toUpperCase()))
+      //     .join(" | ");
+      //   buildFacility(cell.x, cell.y, rules, 1, 10, "a << z");
+      // });
       menu.addSeparator();
 
       menu.add("Factory", cell => this.startBuildFactory(cell));
       menu.addSeparator();
 
-      menu.add("Separator", cell => this.startBuildSeparator(cell));
-      menu.add("Round Robin", cell => buildRoundRobinRouter(cell.x, cell.y));
-      menu.add("Counting Router", cell => this.startBuildCountingRouter(cell));
-      menu.add("Delay", cell => this.startBuildDelay(cell));
+      state.level.routers.forEach(item => menu.add(item.name, item.callback));
+      // menu.add("Separator", cell => this.startBuildSeparator(cell));
+      // menu.add("Round Robin", cell => buildRoundRobinRouter(cell.x, cell.y));
+      // menu.add("Counting Router", cell => this.startBuildCountingRouter(cell));
+      // menu.add("Delay", cell => this.startBuildDelay(cell));
     }
 
     if (this.cell.things.length > 0) {
@@ -340,31 +344,6 @@ class ContextMenuBehaviour extends BaseBehaviour {
     if (str === null) return;
 
     buildFacility(cell.x, cell.y, str, 1, 10);
-  }
-
-  startBuildDelay(cell) {
-    const str = prompt("Delay, ms");
-    if (str === null) return;
-    const delayMs = parseInt(str);
-    if (isNaN(delayMs)) return;
-
-    buildDelay(cell.x, cell.y, delayMs, 10);
-  }
-
-  startBuildCountingRouter(cell) {
-    const str = prompt("Count");
-    if (str === null) return;
-    let count = parseInt(str);
-    if (isNaN(count)) return;
-
-    buildCountingRouter(cell.x, cell.y, count, 10);
-  }
-
-  startBuildSeparator(cell) {
-    const str = prompt("Thing to separate");
-    if (str === null) return;
-
-    buildSeparator(cell.x, cell.y, str, 10);
   }
 
   buildABRouter(cell) {
