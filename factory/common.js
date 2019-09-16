@@ -2,45 +2,35 @@ function assert(value, message) {
   if (!value) throw new Error("Assertion failed" + (message ? ": " + message : ""));
 }
 
-let messagePromise = null;
+let messageCalls = [];
 function message(m, ms) {
-  if (messagePromise !== null) {
-    messagePromise.then(() => message(m));
-    return;
+  if (m !== undefined) {
+    messageCalls.push({m, ms});
+    if (messageCalls.length > 1) return;
   }
+  
+  if (messageCalls.length === 0) return;
 
-  let doClose;
-  messagePromise = new Promise(resolve => {
-    let root = document.getElementById("message");
-    root.innerHTML = "";
-    let div = document.createElement("div");
-    div.innerText = m;
-    root.appendChild(div);
+  const params = messageCalls[0];
 
-    root.style.display = "block";
+  let root = document.getElementById("message");
+  root.innerHTML = "";
+  let div = document.createElement("div");
+  div.innerText = params.m;
+  root.appendChild(div);
 
-    let timerId = null;
+  root.style.display = "block";
 
-    doClose = () => {
-      if (timerId !== null) clearTimeout(timerId);
-      root.style.display = "none";
-      messagePromise = null;
-      resolve();
-    };
+  let timerId = null;
 
-    if (ms > 0) {
-      timerId = setTimeout(doClose, 5000);
-    }
-    div.onclick = () => {
-      if (timerId !== null) clearTimeout(timerId);
-      doClose();
-    };
-  });
-  messagePromise.close = doClose;
-}
+  div.onclick = () => {
+    if (timerId !== null) clearTimeout(timerId);
+    root.style.display = "none";
+    messageCalls.shift();
+    message();
+  };
 
-function hideMessage() {
-  if (messagePromise !== null) messagePromise.close();
+  if (params.ms > 0) timerId = setTimeout(div.onclick, params.ms);
 }
 
 class TimeLockBox {

@@ -39,12 +39,15 @@ let state = {
     state.board = null;
     state.powerSource = null;
     state.level = null;
-    state.behaviour = new MainBehaviour(state);
-    state.behaviour.onPush();
+    state.pushBehaviour(new MainBehaviour(state));
   },
 
   setLevel(/**@type {Level}*/ level) {
-    state.reset();
+    Loop.clear();
+    Timer.clear();
+    state.board = null;
+    state.powerSource = null;
+    
     state.level = level;
 
     state.board = new HexaBoard(30, 50, state.canvas);

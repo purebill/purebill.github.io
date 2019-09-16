@@ -60,9 +60,7 @@ class Thing {
     return this.powerSource !== null && this.powerSource.isOn();
   }
 
-  onPower(powerOn, powerSource) {
-    message("[" + this.id + "] Power " + (powerOn ? "ON" : "OFF"), 2000);
-  }
+  onPower(powerOn, powerSource) {}
 
   toString() {
     return "Thing: " + JSON.stringify(this);

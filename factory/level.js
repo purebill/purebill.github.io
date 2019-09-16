@@ -15,6 +15,31 @@ class Level {
   nextLevel() {
     throw new Error("Not implemented");
   }
+
+  startBuildDelay(cell) {
+    const str = prompt("Delay, ms");
+    if (str === null) return;
+    const delayMs = parseInt(str);
+    if (isNaN(delayMs)) return;
+
+    buildDelay(cell.x, cell.y, delayMs, 10);
+  }
+
+  startBuildCountingRouter(cell) {
+    const str = prompt("Count");
+    if (str === null) return;
+    let count = parseInt(str);
+    if (isNaN(count)) return;
+
+    buildCountingRouter(cell.x, cell.y, count, 10);
+  }
+
+  startBuildSeparator(cell) {
+    const str = prompt("Thing to separate");
+    if (str === null) return;
+
+    buildSeparator(cell.x, cell.y, str, 10);
+  }
 }
 
 class LevelItem {
@@ -77,40 +102,29 @@ class Level1 extends Level {
   nextLevel() {
     return new Level2();
   }
-
-  startBuildDelay(cell) {
-    const str = prompt("Delay, ms");
-    if (str === null) return;
-    const delayMs = parseInt(str);
-    if (isNaN(delayMs)) return;
-
-    buildDelay(cell.x, cell.y, delayMs, 10);
-  }
-
-  startBuildCountingRouter(cell) {
-    const str = prompt("Count");
-    if (str === null) return;
-    let count = parseInt(str);
-    if (isNaN(count)) return;
-
-    buildCountingRouter(cell.x, cell.y, count, 10);
-  }
-
-  startBuildSeparator(cell) {
-    const str = prompt("Thing to separate");
-    if (str === null) return;
-
-    buildSeparator(cell.x, cell.y, str, 10);
-  }
 }
 
 class Level2 extends Level {
   constructor() {
-    super([], [], 0);
+    const factories = [];
+    factories.push(new LevelItem(
+      "NOT",
+      cell => buildFacility(cell.x, cell.y,
+        "0 -> 1 | 1 -> 0",
+        1, 10, "NOT")));
+
+    const routers = [];
+    routers.push(new LevelItem("Separator", cell => this.startBuildSeparator(cell)));
+    routers.push(new LevelItem("Round Robin", cell => buildRoundRobinRouter(cell.x, cell.y)));
+    routers.push(new LevelItem("Counting Router", cell => this.startBuildCountingRouter(cell)));
+    routers.push(new LevelItem("Delay", cell => this.startBuildDelay(cell)));
+
+    super(factories, routers, 100);
   }
 
   createWorld() {
-
+    buildThingSource(15, 10, "0", 10, 1000, 10);
+    buildSink(6, 4, "101");
   }
 
   nextLevel() {

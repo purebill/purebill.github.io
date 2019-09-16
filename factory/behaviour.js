@@ -230,12 +230,14 @@ class MessageBehaviour extends BaseBehaviour {
     Keys.key("Escape", [], "Hide the message", () => this._pop());
     Keys.key("Enter", [], "Hide the message", () => this._pop());
 
-    message(this.text, 0);
+    this.__message(this.text);
   }
 
   onPop() {
     super.onPop();
-    hideMessage();
+
+    document.getElementById("message").style.display = "none";
+
     this.callback && this.callback();
   }
 
@@ -245,6 +247,18 @@ class MessageBehaviour extends BaseBehaviour {
 
   rightClick(cell) {
     this._pop();
+  }
+
+  __message(m) {
+    let root = document.getElementById("message");
+    root.innerHTML = "";
+    let div = document.createElement("div");
+    div.innerText = m;
+    root.appendChild(div);
+
+    root.style.display = "block";
+
+    div.onclick = () => this._pop();
   }
 }
 
