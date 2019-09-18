@@ -118,29 +118,18 @@ class FacilityNode extends AbstractNode {
     let y = yc - 10;
     ctx.font = "16px serif";
 
-    ctx.fillStyle = "#000000";
+    ctx.fillStyle = Theme.fg2;
+    ctx.textAlign = "center";
     let name = this.thing.name || this.thing.constructionPlans.toString();
-    ctx.fillText(name, xc, yc + 20);
+    ctx.fillText(name, xc, yc + 23);
 
-    for (let box of this.thing.boxes) {
-      for (let k of box.slots.keys()) {
-        box.slots.get(k).forEach(id => {
-          if (id === null) ctx.fillStyle = "#cccccc";
-          else ctx.fillStyle = "#000000";
-
-          ctx.fillText(k, x, y);
-
-          y -= 15;
-        });
-      }
-
-      if (box.timeLockBox) {
-        AbstractNode.drawProgress(box.timeLockBox, ctx, xc, yc);
-      }
-
-      y -= 5;
+    for (let thing of this.thing.thingsBoxed) {
+      ctx.fillStyle = Theme.fg2;
+      ctx.fillText(thing.id, x, y);
+      y -= 20;
     }
 
+    AbstractNode.drawProgress(this.thing.readyBoxes, ctx, xc, yc);
     AbstractNode.drawWaitingThings(this.thing, ctx, xc, yc);
   }
 }
@@ -328,64 +317,70 @@ class HexaCell {
     // ctx.fillText(text, this.xc - m.width / 2, this.yc + 6);
   }
 
+  /**
+   * @return {HexaCell} Left-up from the cell.
+   */
+  lu() {
+    const y = this.y - 1;
+    const x = this.x - 1 + this.y % 2;
+    if (x >= 0 && y >= 0) return this.board.cells[x][y];
+    return null;
+  }
+
+  /**
+   * @return {HexaCell} Up from the cell.
+   */
+  u() {
+    if (this.y > 1) return this.board.cells[this.x][this.y - 2];
+    return null;
+  }
+
+  /**
+   * @return {HexaCell} Right-up from the cell.
+   */
+  ru() {
+    const x = this.x + this.y % 2;
+    const y = this.y - 1;
+    if (x >= this.board.width || y < 0) return null;
+    return this.board.cells[x][y];
+  }
+
+  /**
+   * @return {HexaCell} Right-down from the cell.
+   */
+  rd() {
+    const x = this.x + this.y % 2;
+    const y = this.y + 1;
+    if (x >= this.board.width || y >= this.board.height) return null;
+    return this.board.cells[x][y];
+  }
+
+  /**
+   * @return {HexaCell} Down from the cell.
+   */
+  d() {
+    if (this.y >= this.board.height - 2) return null;
+    return this.board.cells[this.x][this.y + 2];
+  }
+
+  /**
+   * @return {HexaCell} Left-down from the cell.
+   */
+  ld() {
+    const y = this.y + 1;
+    const x = this.x - 1 + this.y % 2;
+    if (y < this.board.height && x >= 0) return this.board.cells[x][y];
+    return null;
+  }
+
+  /**
+   * @return {HexaCell[]}
+   */
   neighbours() {
     if (this._neighboursCache) return this._neighboursCache;
 
-    const b = this.board.cells;
-
-    let a = [];
-
-    if (this.y > 1)
-      a.push(b[this.x][this.y - 2]);
-    
-    if (this.y < this.board.height - 2)
-      a.push(b[this.x][this.y + 2]);
-
-    if (this.x % 2 == 0) {
-      if (this.y % 2 == 0) {
-        if (this.x > 0 && this.y > 0)
-          a.push(b[this.x - 1][this.y - 1]);
-
-        if (this.x > 0 && this.y < this.board.height - 1)
-          a.push(b[this.x - 1][this.y + 1]);
-
-        if (this.y > 0)
-          a.push(b[this.x][this.y - 1]);
-
-        if (this.y < this.board.height - 1)
-          a.push(b[this.x][this.y + 1]);
-      } else {
-        if (this.y > 0)
-          a.push(b[this.x][this.y - 1]);
-        if (this.y < this.board.height -1)
-          a.push(b[this.x][this.y + 1]);
-        if (this.x < this.board.width - 1 && this.y > 0)
-          a.push(b[this.x + 1][this.y - 1]);
-        if (this.x < this.board.width - 1 && this.y < this.board.height - 1)
-          a.push(b[this.x + 1][this.y + 1]);
-      }
-    } else {
-      if (this.y % 2 == 0) {
-        if (this.x > 0 && this.y > 0)
-          a.push(b[this.x - 1][this.y - 1]);
-        if (this.x > 0 && this.y < this.board.height - 1)
-          a.push(b[this.x - 1][this.y + 1]);
-        if (this.y > 0)
-          a.push(b[this.x][this.y - 1]);
-        if (this.y < this.board.height - 1)
-          a.push(b[this.x][this.y + 1]);
-
-      } else {
-        if (this.y > 0)
-          a.push(b[this.x][this.y - 1]);
-        if (this.y < this.board.height -1)
-          a.push(b[this.x][this.y + 1]);
-        if (this.x < this.board.width - 1 && this.y > 0)
-          a.push(b[this.x + 1][this.y - 1]);
-        if (this.x < this.board.width - 1 && this.y < this.board.height - 1)
-          a.push(b[this.x + 1][this.y + 1]);
-      }
-    }
+    let a = [this.u(), this.ru(), this.rd(), this.d(), this.ld(), this.lu()]
+        .filter(it => it !== null);
 
     this._neighboursCache = a;
 

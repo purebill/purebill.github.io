@@ -70,7 +70,6 @@ Assets.load().then(() => {
   });
 
   state.setLevel(new Level1());
-  // createWorld();
 });
 
 function createWorld() {
@@ -108,9 +107,9 @@ function connectToPower(thing) {
   return true;
 }
 
-function buildFacility(x, y, planString, capacity, powerNeeded, name) {
+function buildFacility(x, y, planString, powerNeeded, name) {
   let plans = planString.split(/\s*\|\s*/).map(str => ConstructionPlan.from(str));
-  return __wireThing(x, y, new ConstructionFacility(plans, capacity, powerNeeded, name), "factory", FacilityNode);
+  return __wireThing(x, y, new ConstructionFacility(plans, powerNeeded, name), "factory", FacilityNode);
 }
 
 function buildThingSource(x, y, thingId, capacity, msPerThing, powerNeeded) {
@@ -186,6 +185,9 @@ function buildABRouter(x, y) {
   return __wireThing(x, y, new ABRouter(10), "router", ABRouterNode);
 }
 
+/**
+ * @return {RoundRobinRouter}
+ */
 function buildRoundRobinRouter(x, y) {
   return __wireThing(x, y, new RoundRobinRouter(10), "router", RoundRobinRouterNode);
 }

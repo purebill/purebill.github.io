@@ -77,6 +77,7 @@ let Persister = (function () {
 
   function persist(state) {
     let snapshot = {
+      level: state.level.__proto__.constructor.name,
       calls: [],
       connectionCalls: [],
       width:  state.board.width,
@@ -126,6 +127,10 @@ let Persister = (function () {
 
   function restore(snapshot) {
     state.reset();
+
+    const constructorFunction = eval(snapshot.level);
+    const level = new constructorFunction();
+    state.setLevel(level);
 
     state.board = new HexaBoard(snapshot.width, snapshot.height, state.canvas);
     Loop.add(state.board);

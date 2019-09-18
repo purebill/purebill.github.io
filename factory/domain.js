@@ -40,6 +40,9 @@ class Thing {
     this.hexaCells = new Set();
   }
 
+  /**
+   * @return {HexaCell}
+   */
   get hexaCell() {
     return this.hexaCells.keys().next().value;
   }
@@ -259,7 +262,7 @@ class ThingSource extends InputOutput {
   constructor(thingId, capacity, msPerThing, powerNeeded) {
     super("thing-source", null, powerNeeded);
 
-    assert(msPerThing > 0);
+    assert(msPerThing >= 0);
     assert(capacity > 0);
     assert(powerNeeded >= 0);
 
@@ -396,17 +399,16 @@ Transporter.STATE_TRANSPORTED = "transported";
 class ConstructionFacility extends InputOutput {
   /**
    * @param {ConstructionPlan[]} constructionPlans
-   * @param {number} capacity
    * @param {number} powerNeeded
+   * @param {string} name
    */
-  constructor(constructionPlans, capacity, powerNeeded, name) {
+  constructor(constructionPlans, powerNeeded, name) {
     super("construction-facility", null, powerNeeded);
     this.constructionPlans = constructionPlans;
-    this.capacity = capacity;
     this.name = name;
 
-    /** @type {ConstructionBox[]} */
-    this.boxes = [];
+    /**@type {Thing[]} */
+    this.thingsBoxed = [];
 
     this.readyBoxes = new TimeLock();
   }
@@ -414,7 +416,7 @@ class ConstructionFacility extends InputOutput {
   reset() {
     super.reset();
 
-    this.boxes = [];
+    this.thingsBoxed = [];
     this.readyBoxes.clear();
   }
 
@@ -427,8 +429,7 @@ class ConstructionFacility extends InputOutput {
   toString() {
     return "Construction facility:"
       + "\n" + this.constructionPlans
-      + "\ncapacity: " + this.capacity
-      + "\nboxes: " + this.boxes.map(it => it.toString())
+      + "\nthingsBoxed: " + this.thingsBoxed.map(it => it.toString())
       + "\nreadyBoxes: " + this.readyBoxes;
   }
 
@@ -444,37 +445,39 @@ class ConstructionFacility extends InputOutput {
 
     if (!this.isPowered()) return false;
 
-    for (let box of this.boxes) {
-      if (box.isRequired(thing)) {
-        box.add(thing);
-        return true;
+    if (this.readyBoxes.size > 0) return false;
+
+    if (this.waitingThings.size > 0) return false;
+
+    let consumed = false;
+    const newThingsBoxed = this.thingsBoxed.concat(thing);
+    for (const plan of this.constructionPlans) {
+      if (plan.isRequired(newThingsBoxed)) {
+        this.thingsBoxed = newThingsBoxed;
+        consumed = true;
+        break;
       }
     }
 
-    if (this.boxes.length >= this.capacity) return false;
+    for (const plan of this.constructionPlans) {
+      if (plan.isSatifsfies(this.thingsBoxed)) {
+        const things = this.thingsBoxed;
+        this.thingsBoxed = [];
+        this._done(plan, things);
+      }
+    }
 
-    if (this.readyBoxes.size >= this.capacity) return false;
-
-    if (this.waitingThings.size >= this.capacity) return false;
-
-    let readyPlans = this.constructionPlans.filter(plan => plan.isRequired(thing));
-    if (readyPlans.length == 0) return false;
-
-    let box = new ConstructionBox(this, readyPlans[0]);
-    this.boxes.push(box);
-    box.add(thing);
-
-    return true;
+    return consumed;
   }
 
-  _done(constructionBox) {
-    assert(constructionBox.constructionFacility === this);
-    assert(this.boxes.indexOf(constructionBox) !== -1);
-
+  /**
+   * @param {ConstructionPlan} constructionPlan 
+   */
+  _done(constructionPlan, things) {
     // produce the results from the box
-    this.readyBoxes.add(constructionBox, ConstructionFacility.STATE_CONSTRUCTION, () => {
+    this.readyBoxes.add(this, ConstructionFacility.STATE_CONSTRUCTION, () => {
       let promises = [];
-      constructionBox.constructionPlans.resultItems.forEach(item => {
+      constructionPlan.resultItems.forEach(item => {
         for (let i = 0; i < item.amount; i++) {
           promises.push(this._sendToOutput(new Thing(item.id)));
         }
@@ -482,13 +485,9 @@ class ConstructionFacility extends InputOutput {
 
       Promise.all(promises).then(() => {
         // mark all used things in the box as 'dead'
-        constructionBox.slots.forEach((l) => l.forEach(it => it.dead = true));
-
-        // remove the box from the facility
-        constructionBox.constructionFacility = null;
-        this.boxes.splice(this.boxes.indexOf(constructionBox), 1);
+        things.forEach(it => it.dead = true);
       });
-    }, constructionBox.constructionPlans.constructionTimeMs);
+    }, constructionPlan.constructionTimeMs);
   }
 }
 
@@ -502,17 +501,56 @@ class PlanItem {
 }
 
 class ConstructionPlan {
+  /**
+   * @param {PlanItem[]} items 
+   * @param {PlanItem[]} resultItems 
+   * @param {number} constructionTimeMs 
+   */
   constructor(items, resultItems, constructionTimeMs) {
     this.items = items;
     this.resultItems = resultItems;
     this.constructionTimeMs = constructionTimeMs;
   }
 
-  isRequired(thing) {
-    assert(!thing.dead);
+  /**
+   * @param {Thing[]} things 
+   */
+  isRequired(things) {
+    const thingsLeft = things.slice();
+    const allIds = [];
+    this.items.forEach(it => {
+      for (let i = 0; i < it.amount; i++) allIds.push(it.id)
+    });
+    const withoutStars = allIds.filter(it => it != "*");
+    const numberOfStars = allIds.length - withoutStars.length;
+    for (const thing of things) {
+      const idx = withoutStars.indexOf(thing.id);
+      if (idx > -1) {
+        withoutStars.splice(idx, 1);
+        thingsLeft.splice(thingsLeft.indexOf(thing.id), 1);
+      }
+    }
+    return thingsLeft.length <= numberOfStars;
+  }
 
-    return this.items.find(it => it.id == thing.id) !== undefined
-      || this.items.find(it => it.id == "*") !== undefined;
+  /**
+   * @param {Thing[]} things 
+   */
+  isSatifsfies(things) {
+    const allIds = [];
+    this.items.forEach(it => {
+      for (let i = 0; i < it.amount; i++) allIds.push(it.id)
+    });
+    let thingsLeft = things.length;
+    for (const thing of things) {
+      const idx = allIds.indexOf(thing.id);
+      if (idx > -1) {
+        allIds.splice(idx, 1);
+        thingsLeft--;
+      }
+    }
+    const nonStartLeft = allIds.filter(it => it !== "*").length;
+    return nonStartLeft === 0 && allIds.length === thingsLeft;
   }
 
   static from(str) {
@@ -547,110 +585,6 @@ class ConstructionPlan {
       + this.resultItems.map(it => (it.amount > 1 ? it.amount + "*" : "") + it.id);
   }
 }
-
-class ConstructionBox extends Thing {
-  /**
-   * @param {ConstructionFacility} constructionFacility
-   * @param {ConstructionPlan} constructionPlan
-   */
-  constructor (constructionFacility, constructionPlan) {
-    super("constructor-box");
-
-    this.constructionFacility = constructionFacility;
-    this.constructionPlans = constructionPlan;
-    this.waitingForCount = 0;
-
-    let slots = new Map();
-    this.constructionPlans.items.forEach(item => {
-      if (!slots.has(item.id)) slots.set(item.id, []);
-      for (let i = 0; i < item.amount; i++) slots.get(item.id).push(null);
-      this.waitingForCount += item.amount;
-    });
-    this.slots = slots;
-  }
-
-  toString() {
-    let s = "Construction box: ";
-    for (let pair of this.slots) s += "\n" + pair[0] + ": " + pair[1];
-    return s;
-  }
-
-  _findSlotFor(thing) {
-    assert(!thing.dead);
-
-    if (!this.slots.has(thing.id) && !this.slots.has("*")) return -1;
-
-    let l = this.slots.get(thing.id);
-    if (l) {
-      for (let i = 0; i < l.length; i++) {
-        if (l[i] === null) {
-          return i;
-        }
-      }
-    }
-
-    // wildcard
-    l = this.slots.get("*");
-    if (!l) return -1;
-
-    for (let i = 0; i < l.length; i++) {
-      if (l[i] === null) {
-        return i;
-      }
-    }
-
-    return -1;
-  }
-
-  isRequired(thing) {
-    return this._findSlotFor(thing) !== -1;
-  }
-
-  add(thing) {
-    assert(!thing.dead);
-
-    let idx = this._findSlotFor(thing);
-
-    if (idx === -1) throw new Error("No space for the thing or it is not expected: " + thing.id);
-    if (!this.slots.has(thing.id) && !this.slots.has("*")) throw new Error("Non-expected thing " + thing.id);
-
-    let found = false;
-
-    let l = this.slots.get(thing.id) || [];
-    for (let i = 0; i < l.length; i++) {
-      if (l[i] === null) {
-        l[i] = thing;
-        found = true;
-        break;
-      }
-    }
-    if (!found) {
-      l = this.slots.get("*") || [];
-      for (let i = 0; i < l.length; i++) {
-        if (l[i] === null) {
-          l[i] = thing;
-          found = true;
-          break;
-        }
-      }
-    }
-
-    assert(found, "No free space for the thing");
-    this.waitingForCount--;
-
-    if (this.isSatisfied()) this.constructionFacility._done(this);
-  }
-
-  thingsLeft() {
-    return this.waitingForCount;
-  }
-
-  isSatisfied() {
-    return this.waitingForCount === 0;
-  }
-}
-
-
 
 class SinkSatisfiedMessage extends Message {
   constructor(/** @type {Sink} */ sink) {

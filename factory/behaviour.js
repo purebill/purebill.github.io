@@ -190,6 +190,11 @@ class MainBehaviour extends BaseBehaviour {
   }
 
   click(cell) {
+    if (cell.things.length == 0) {
+      this.state.pushBehaviour(new ContextMenuBehaviour(this.state, cell));
+      return;
+    }
+
     for (let thing of cell.things) {
       if ((thing instanceof ThingSource
         || thing instanceof ConstructionFacility
@@ -201,11 +206,6 @@ class MainBehaviour extends BaseBehaviour {
 
       if (thing instanceof AbstractRouter && thing._canAddOutput()) {
         this.state.pushBehaviour(new BuildTransporterBehaviour(thing, cell, this.state));
-        break;
-      }
-
-      if (thing instanceof PowerSource) {
-        this.state.pushBehaviour(new ConnectPowerBehaviour(thing, cell, this.state));
         break;
       }
     }
@@ -357,7 +357,7 @@ class ContextMenuBehaviour extends BaseBehaviour {
     const str = prompt("Construction Plan");
     if (str === null) return;
 
-    buildFacility(cell.x, cell.y, str, 1, 10);
+    buildFacility(cell.x, cell.y, str, 10);
   }
 
   buildABRouter(cell) {
@@ -397,20 +397,6 @@ class ThingBehaviour extends MainBehaviour {
   }
 
   rightClick(cell) {
-    this.finish();
-  }
-}
-
-class ConnectPowerBehaviour extends ThingBehaviour {
-  constructor(thing, cell, state) {
-    super(thing, cell, state);
-  }
-
-  click(cell) {
-    cell.things
-      .filter(it => it instanceof ConstructionFacility || it instanceof Transporter || it instanceof ThingSource || it instanceof AbstractRouter)
-      .forEach(it => this.thing.addConsumer(it, 10));
-
     this.finish();
   }
 }

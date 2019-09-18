@@ -54,37 +54,11 @@ class Level1 extends Level {
     const factories = [];
     const routers = [];
   
-    const alphabet = "abcdefghijklmnopqrstuvwxyz";
-  
     factories.push(new LevelItem(
-      "a,a -> A",
+      "Factory 1",
       cell => buildFacility(cell.x, cell.y,
-        alphabet.split("").map(it => it + "," + it + "->"  + it.toUpperCase()).join(" | "),
-        1, 10, "a,a -> A")));
-    factories.push(new LevelItem(
-      "A -> a,a",
-      cell => buildFacility(cell.x, cell.y,
-        alphabet.split("").map(it => it.toUpperCase() + " -> " + it + "," + it).join(" | "),
-        1, 10, "A -> a,a")));
-    factories.push(new LevelItem(
-      "a >> z", cell => {
-        const rules = 
-          alphabet.split("").map((it, i) => it + " -> " + alphabet[(i + 1) % alphabet.length])
-          .concat(alphabet.split("").map((it, i) => it.toUpperCase() + " -> " + alphabet[(i + 1) % alphabet.length].toUpperCase()))
-          .join(" | ");
-        buildFacility(cell.x, cell.y, rules, 1, 10, "a >> z");
-      }
-    ));
-    factories.push(new LevelItem(
-      "a << z", cell => {
-        let l = alphabet.length;
-        const rules = 
-          alphabet.split("").map((it, i) => it + " -> " + alphabet[(i + l - 1) % l])
-          .concat(alphabet.split("").map((it, i) => it.toUpperCase() + " -> " + alphabet[(i + l - 1) % l].toUpperCase()))
-          .join(" | ");
-        buildFacility(cell.x, cell.y, rules, 1, 10, "a << z");
-      }
-    ));
+        "stuff -> catalyst | *,catalyst -> gold",
+        10, "Factory 1")));
   
     routers.push(new LevelItem("Separator", cell => this.startBuildSeparator(cell)));
     routers.push(new LevelItem("Round Robin", cell => buildRoundRobinRouter(cell.x, cell.y)));
@@ -95,8 +69,19 @@ class Level1 extends Level {
   }
 
   createWorld() {
-    buildThingSource(15, 10, "a", 10, 1000, 10);
-    buildSink(6, 4, "a");
+    const source = buildThingSource(15, 10, "stuff", 2, 0, 10);
+    buildSink(6, 4, "gold");
+    const f1 = buildFacility(10, 11,
+      "stuff -> catalyst | *,catalyst -> gold",
+      10, "F1");
+    connect(source, f1, PathFinder.find(source.hexaCell, f1.hexaCell, []));
+
+    const router = buildRoundRobinRouter(8, 11);
+    connect(f1, router, PathFinder.find(f1.hexaCell, router.hexaCell, []));
+
+    connect(router, router, 
+      PathFinder.pathBuilder(router.hexaCell)
+          .leftUp().leftUp().rightUp().rightUp().down().down().build());
   }
 
   nextLevel() {
@@ -111,7 +96,17 @@ class Level2 extends Level {
       "NOT",
       cell => buildFacility(cell.x, cell.y,
         "0 -> 1 | 1 -> 0",
-        1, 10, "NOT")));
+        10, "NOT")));
+    factories.push(new LevelItem(
+      "AND",
+      cell => buildFacility(cell.x, cell.y,
+        "0,0 -> 0 | 0,1 -> 0 | 1,0 -> 0 | 1,1 -> 1",
+        10, "AND")));
+    factories.push(new LevelItem(
+      "OR",
+      cell => buildFacility(cell.x, cell.y,
+        "0,0 -> 0 | 0,1 -> 1 | 1,0 -> 1 | 1,1 -> 1",
+        10, "OR")));
 
     const routers = [];
     routers.push(new LevelItem("Separator", cell => this.startBuildSeparator(cell)));
