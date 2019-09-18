@@ -1,4 +1,4 @@
-const OUTPUT_WAIT_INTERVAL = 200;
+const OUTPUT_WAIT_INTERVAL = 10;
 
 class Message {}
 

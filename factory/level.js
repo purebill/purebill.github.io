@@ -79,9 +79,7 @@ class Level1 extends Level {
     const router = buildRoundRobinRouter(8, 11);
     connect(f1, router, PathFinder.find(f1.hexaCell, router.hexaCell, []));
 
-    connect(router, router, 
-      PathFinder.pathBuilder(router.hexaCell)
-          .leftUp().leftUp().rightUp().rightUp().down().down().build());
+    connect(router, router, new PathBuilder(router.hexaCell).lu().lu().ru().ru().d().d().build());
   }
 
   nextLevel() {

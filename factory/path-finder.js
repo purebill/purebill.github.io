@@ -93,63 +93,55 @@ let PathFinder = (function () {
     return minCell;
   }
 
-  class PathBuilder {
-    /**
-     * 
-     * @param {HexaCell} cell 
-     */
-    constructor(cell) {
-      this.__cell = cell;
-      this.__cells = [cell];
-    }
-
-    _add(cell) {
-      if (cell === null) throw new Error("No cell in this direction");
-      this.__cells.push(cell);
-      this.__cell = cell;
-      return this;
-    }
-
-    up() {
-      return this._add(this.__cell.u());
-    }
-
-    down() {
-      return this._add(this.__cell.d());
-    }
-
-    leftUp() {
-      return this._add(this.__cell.lu());
-    }
-
-    leftDown() {
-      return this._add(this.__cell.ld());
-    }
-
-    rightUp() {
-      return this._add(this.__cell.ru());
-    }
-
-    rightDown() {
-      return this._add(this.__cell.rd());
-    }
-
-    build() {
-      return this.__cells;
-    }
+  return {
+    find,
+    nearestCell
   }
+})();
 
+
+class PathBuilder {
   /**
    * 
    * @param {HexaCell} cell 
    */
-  function pathBuilder(cell) {
-    return new PathBuilder(cell);
+  constructor(cell) {
+    this.__cell = cell;
+    this.__cells = [cell];
   }
 
-  return {
-    find,
-    nearestCell,
-    pathBuilder
+  _add(cell) {
+    if (cell === null) throw new Error("No cell in this direction");
+    this.__cells.push(cell);
+    this.__cell = cell;
+    return this;
   }
-})();
+
+  u() {
+    return this._add(this.__cell.u());
+  }
+
+  d() {
+    return this._add(this.__cell.d());
+  }
+
+  lu() {
+    return this._add(this.__cell.lu());
+  }
+
+  ld() {
+    return this._add(this.__cell.ld());
+  }
+
+  ru() {
+    return this._add(this.__cell.ru());
+  }
+
+  rd() {
+    return this._add(this.__cell.rd());
+  }
+
+  build() {
+    return this.__cells;
+  }
+}
