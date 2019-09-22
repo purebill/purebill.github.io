@@ -22,7 +22,8 @@ const Assets = (function () {
     return asset;
   }
 
-  const assetNames = ["ground", "sink", "factory", "source", "router", "delay"];
+  const assetNames = ["ground", "sink", "factory", "source", "router", "delay", "cursor_pointer",
+    "cursor_pointer-02", "cursor_pointer-03", "cursor_source", "cursor_source-02"];
   function load() {
     return Promise.all(assetNames.map(name => loadAsset(name))).then(() => loaded = true);
   }

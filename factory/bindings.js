@@ -1,5 +1,7 @@
 let currentCell = null;
 Keys.mouseMove([], "Move mouse to select a cell", (e) => {
+  Loop.setCursorPosition(e.clientX, e.clientY);
+  
   let cell = state.board.fromCoords(e.clientX, e.clientY);
   if (cell === null) return;
 

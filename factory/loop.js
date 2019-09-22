@@ -3,6 +3,10 @@ var Loop = (function () {
   let paused = false;
   let speedCoef = 1.0;
 
+  let cursorX, cursorY;
+  /**@type {Cursor} */
+  let cursor;
+
   const canvas = document.createElement("canvas");
 
   function onResize() {
@@ -47,6 +51,12 @@ var Loop = (function () {
         ctx.restore();
       }
     }
+
+    renderCursor(ctx);
+  }
+
+  function renderCursor(ctx) {
+    cursor && cursor.draw(ctx, cursorX, cursorY);
   }
 
   function add(node) {
@@ -86,6 +96,15 @@ var Loop = (function () {
       paused = false;
     },
     getSpeedCoef: () => speedCoef,
-    setSpeedCoef: value => speedCoef = value
+    setSpeedCoef: value => speedCoef = value,
+    setCursorPosition: (x, y) => {
+      cursorX = x;
+      cursorY = y;
+    },
+    setCursor: (c) => {
+      cursor && cursor.stop();
+      cursor = c;
+      cursor.animate();
+    }
   }
 })();

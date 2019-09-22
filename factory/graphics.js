@@ -617,3 +617,36 @@ class DelayNode extends AbstractNode {
     ctx.stroke();
   }
 }
+
+class Cursor {
+  /**
+   * @param {string[]} imageNames 
+   * @param {number[]} times 
+   */
+  constructor(imageNames, times, hotspotX, hotspotY) {
+    this.imageNames = imageNames;
+    this.times = times;
+    this.hotspotX = hotspotX;
+    this.hotspotY = hotspotY;
+    this.imageIdx = 0;
+    this.stopped = false;
+  }
+
+  animate() {
+    if (this.imageNames.length <= 1) return;
+    this.stopped = false;
+
+    Timer.set(() => {
+      this.imageIdx = (this.imageIdx + 1) % this.imageNames.length;
+      if (!this.stopped) this.animate();
+    }, this.times[this.imageIdx]);
+  }
+
+  stop() {
+    this.stopped = true;
+  }
+
+  draw(ctx, x ,y) {
+    ctx.drawImage(Assets.get(this.imageNames[this.imageIdx]), x - this.hotspotX, y - this.hotspotY);
+  }
+}

@@ -18,6 +18,7 @@
 canvas {
     border: 1px solid gray;
     box-sizing: content-box;
+    cursor: none;
 }
 
 #message {

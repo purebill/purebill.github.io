@@ -36,6 +36,7 @@ let state = {
     Keys.resetToRoot();
     Loop.clear();
     Timer.clear();
+    Loop.setCursor(Cursors.pointer);
     state.board = null;
     state.powerSource = null;
     state.level = null;
@@ -45,6 +46,7 @@ let state = {
   setLevel(/**@type {Level}*/ level) {
     Loop.clear();
     Timer.clear();
+    Loop.setCursor(Cursors.pointer);
     state.board = null;
     state.powerSource = null;
     
@@ -55,6 +57,7 @@ let state = {
 
     buildPowerSource(0, 0, level.maxPower);
     level.createWorld();
+    state.powerSource.powerOn();
   }
 };
 

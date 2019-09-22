@@ -272,7 +272,7 @@ class ThingSource extends InputOutput {
     this.timeLock = new TimeLock();
     this.msPerThing = msPerThing;
 
-    this._prepare();
+    // this._prepare();
   }
 
   reset() {
@@ -280,6 +280,10 @@ class ThingSource extends InputOutput {
 
     this.timeLock.clear();
     this.suply = this.capacity;
+  }
+
+  emit() {
+    this._prepare();
   }
 
   destroy() {
@@ -294,7 +298,7 @@ class ThingSource extends InputOutput {
     if (powerOn) this.timeLock.resume();
     else this.timeLock.pause();
 
-    if (this.timeLock.size === 0) this._prepare();
+    // if (this.timeLock.size === 0) this._prepare();
   }
 
   removeOutput(o) {
@@ -305,12 +309,12 @@ class ThingSource extends InputOutput {
 
   addOutput(o) {
     super.addOutput(o);
-    this._prepare();
+    // this._prepare();
   }
 
   refill() {
     this.suply = this.capacity;
-    this._prepare();
+    // this._prepare();
   }
 
   _prepare() {
@@ -323,7 +327,7 @@ class ThingSource extends InputOutput {
       if (this.suply > 0) {
         this.suply--;
         this._sendToOutput(thing).then(() => {
-          this._prepare();
+          // this._prepare();
         });
       }
     }, this.msPerThing);

@@ -172,6 +172,28 @@ class MainBehaviour extends BaseBehaviour {
   }
 
   mouseMove(cell, e) {
+    for (let thing of cell.things) {
+      if (thing instanceof ThingSource && !thing._canAddOutput()) {
+        Loop.setCursor(Cursors.source);
+        return;
+      }
+
+      if ((thing instanceof ThingSource
+        || thing instanceof ConstructionFacility
+        || thing instanceof Delay)
+        && thing._canAddOutput())
+      {
+        Loop.setCursor(Cursors.animatedPointer);
+        return;
+      }
+
+      if (thing instanceof AbstractRouter && thing._canAddOutput()) {
+        Loop.setCursor(Cursors.animatedPointer);
+        return;
+      }
+    }
+    Loop.setCursor(Cursors.pointer);
+    
     /*const reactionDist = 50;
     const speed = 5;
 
@@ -196,6 +218,11 @@ class MainBehaviour extends BaseBehaviour {
     }
 
     for (let thing of cell.things) {
+      if (thing instanceof ThingSource && !thing._canAddOutput()) {
+        thing.emit();
+        break;
+      }
+
       if ((thing instanceof ThingSource
         || thing instanceof ConstructionFacility
         || thing instanceof Delay)
@@ -284,43 +311,14 @@ class ContextMenuBehaviour extends BaseBehaviour {
 
     let menu = new ContextMenu(() => this._pop());
 
-    const alphabet = "abcdefghijklmnopqrstuvwxyz";
-
     if (this.cell.things.length === 0) {
       state.level.factories.forEach(item => menu.add(item.name, item.callback));
-      // menu.add("a,a -> A", cell => {
-      //   const rules = alphabet.split("").map(it => it + "," + it + "->"  + it.toUpperCase()).join(" | ");
-      //   buildFacility(cell.x, cell.y, rules, 1, 10, "a,a -> A");
-      // });
-      // menu.add("A -> a,a", cell => {
-      //   const rules = alphabet.split("").map(it => it.toUpperCase() + " -> " + it + "," + it).join(" | ");
-      //   buildFacility(cell.x, cell.y, rules, 1, 10, "A -> a,a");
-      // });
-      // menu.add("a >> z", cell => {
-      //   const rules = 
-      //     alphabet.split("").map((it, i) => it + " -> " + alphabet[(i + 1) % alphabet.length])
-      //     .concat(alphabet.split("").map((it, i) => it.toUpperCase() + " -> " + alphabet[(i + 1) % alphabet.length].toUpperCase()))
-      //     .join(" | ");
-      //   buildFacility(cell.x, cell.y, rules, 1, 10, "a >> z");
-      // });
-      // menu.add("a << z", cell => {
-      //   let l = alphabet.length;
-      //   const rules = 
-      //     alphabet.split("").map((it, i) => it + " -> " + alphabet[(i + l - 1) % l])
-      //     .concat(alphabet.split("").map((it, i) => it.toUpperCase() + " -> " + alphabet[(i + l - 1) % l].toUpperCase()))
-      //     .join(" | ");
-      //   buildFacility(cell.x, cell.y, rules, 1, 10, "a << z");
-      // });
       menu.addSeparator();
 
       menu.add("Factory", cell => this.startBuildFactory(cell));
       menu.addSeparator();
 
       state.level.routers.forEach(item => menu.add(item.name, item.callback));
-      // menu.add("Separator", cell => this.startBuildSeparator(cell));
-      // menu.add("Round Robin", cell => buildRoundRobinRouter(cell.x, cell.y));
-      // menu.add("Counting Router", cell => this.startBuildCountingRouter(cell));
-      // menu.add("Delay", cell => this.startBuildDelay(cell));
     }
 
     if (this.cell.things.length > 0) {
@@ -408,26 +406,31 @@ class BuildTransporterBehaviour extends ThingBehaviour {
     this.lastCell = cell;
   }
 
+  __findToConnect(cell) {
+    for (let it of cell.things) {
+      if (it instanceof ConstructionFacility || it instanceof Sink || it instanceof AbstractRouter
+          || it instanceof Delay)
+      {
+        return it;
+      }
+    }
+    return null;
+  }
+
   mouseMove(cell, e) {
     PathFinder.find(this.lastCell, cell, this.cells)
       .forEach(it => this.state.board.select(it));
     this.cells
       .forEach(it => this.state.board.select(it));
-
-    super.mouseMove(cell, e);
+    
+    if (this.__findToConnect(cell) !== null) Loop.setCursor(Cursors.animatedPointer);
+    else Loop.setCursor(Cursors.pointer);
   }
 
   click(cell) {
     if (this.cells.indexOf(cell) !== -1) return;
 
-    let connectTo = null;
-    for (let it of cell.things) {
-      if (it instanceof ConstructionFacility || it instanceof Sink || it instanceof AbstractRouter
-          || it instanceof Delay)
-      {
-        connectTo = it;
-      }
-    }
+    let connectTo = this.__findToConnect(cell);
 
     if (connectTo !== null || cell.things.length == 0) {
       let path = PathFinder.find(this.lastCell, cell, this.cells);
