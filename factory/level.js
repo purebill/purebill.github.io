@@ -55,10 +55,10 @@ class Level1 extends Level {
     const routers = [];
   
     factories.push(new LevelItem(
-      "Factory 1",
+      "F1",
       cell => buildFacility(cell.x, cell.y,
         "stuff -> catalyst | *,catalyst -> gold",
-        10, "Factory 1")));
+        10, "F1")));
   
     routers.push(new LevelItem("Separator", cell => this.startBuildSeparator(cell)));
     routers.push(new LevelItem("Round Robin", cell => buildRoundRobinRouter(cell.x, cell.y)));

@@ -104,7 +104,7 @@ var Loop = (function () {
     setCursor: (c) => {
       cursor && cursor.stop();
       cursor = c;
-      cursor.animate();
+      cursor && cursor.animate();
     }
   }
 })();

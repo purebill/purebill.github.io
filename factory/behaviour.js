@@ -52,7 +52,7 @@ class MainBehaviour extends BaseBehaviour {
     Keys.key("NumpadSubtract", [], "Decrease speed", e => Loop.setSpeedCoef(Math.max(0, Loop.getSpeedCoef() - 1)));
     Keys.key("Digit0", [], "Reset speed to normal", e => Loop.setSpeedCoef(1.0));
 
-    Keys.key("KeyP", ["Ctrl"], "Pause ON/OFF", () => Loop.paused() ? Loop.resume() : Loop.pause());
+    Keys.key("Space", [], "Pause ON/OFF", () => Loop.paused() ? Loop.resume() : Loop.pause());
 
     Keys.key("KeyS", ["Ctrl"], "Save", () => window.localStorage.saved = JSON.stringify(Persister.persist(state)));
     Keys.key("KeyL", ["Ctrl"], "Load", () => window.localStorage.saved && Persister.restore(JSON.parse(window.localStorage.saved)));
@@ -62,11 +62,6 @@ class MainBehaviour extends BaseBehaviour {
     Keys.key("ArrowUp", [], "Move board up", () => this.__startScrolling(0, 10), () => this.__clearScroll());
     Keys.key("ArrowDown", [], "Move board down", () => this.__startScrolling(0, -10), () => this.__clearScroll());
 
-    Keys.key("Space", [], "Power ON/OFF", () => {
-      state.powerSource.isOn()
-        ? state.powerSource.powerOff()
-        : state.powerSource.powerOn();
-    });
     Keys.key("KeyR", [], "Reset", () => this.state.board.reset());
   }
 
@@ -193,7 +188,7 @@ class MainBehaviour extends BaseBehaviour {
       }
     }
     Loop.setCursor(Cursors.pointer);
-    
+
     /*const reactionDist = 50;
     const speed = 5;
 
@@ -208,6 +203,9 @@ class MainBehaviour extends BaseBehaviour {
   }
 
   mouseLeave() {
+    Loop.setCursor(null);
+    this.state.board.clearSelection();
+    
     // this.__clearScroll();
   }
 

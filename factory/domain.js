@@ -83,7 +83,7 @@ class PowerSource extends Thing {
 
     this.maxPower = maxPower;
     this.consumers = [];
-    this._on = false;
+    this._on = true;
   }
 
   get powerLeft() {

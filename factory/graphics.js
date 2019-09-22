@@ -3,14 +3,28 @@ class AbstractNode {
     this.thing = thing;
     thing.onDestroy(() => this.destroy());
     Loop.add(this);
+    this.__animations = [];
   }
 
   destroy() {
     Loop.remove(this);
+    this.__animations.forEach(a => a.destroy());
   }
 
   draw(ctx) {
     throw new Error("draw() not implemented");
+  }
+
+  _animateLinear(from, to, periodMs, loop) {
+    const a = new LinearAnimation(from, to, periodMs, loop);
+    this.__animations.push(a);
+    return a;
+  }
+
+  _animateSinus(amplitude, periodMs, loop) {
+    const a = new SinusAnimation(amplitude, periodMs, loop);
+    this.__animations.push(a);
+    return a;
   }
 
   __markOutput(ctx, idx) {
@@ -508,6 +522,7 @@ class SinkNode extends AbstractNode {
    */
   constructor(sink) {
     super(sink);
+    this.blurAnimation = this._animateSinus(5, 1000, true);
   }
 
   draw(ctx) {
@@ -526,8 +541,11 @@ class SinkNode extends AbstractNode {
       if (idx != -1) {
         chars.splice(idx, 1);
         ctx.fillStyle = Theme.fg3;
+        ctx.shadowBlur = 0;
       } else {
         ctx.fillStyle = Theme.fg;
+        ctx.shadowBlur = this.blurAnimation.getValue();
+        ctx.shadowColor = Theme.fg;
       }
       ctx.fillText(ch, x, yc + 10);
 
@@ -648,5 +666,63 @@ class Cursor {
 
   draw(ctx, x ,y) {
     ctx.drawImage(Assets.get(this.imageNames[this.imageIdx]), x - this.hotspotX, y - this.hotspotY);
+  }
+}
+
+class Animation {
+  constructor() {
+    this._timerId = null;
+  }
+
+  destroy() {
+    if (this._timerId) {
+      Timer.clear(this._timerId);
+      this._timerId = null;
+    }
+  }
+
+  getValue() {
+    throw new Error("Not implemented");
+  }
+}
+
+class LinearAnimation extends Animation {
+  constructor(from, to, periodMs, loop) {
+    super();
+    this.from = from;
+    this.to = to;
+    this.periodMs = periodMs;
+    this.loop = loop;
+    this.__initTimer();
+  }
+
+  __initTimer() {
+    this._timerId = Timer.set(() => {
+      if (!this.loop) return;
+      [this.from, this.to] = [this.to, this.from];
+      this.__initTimer();
+    }, this.periodMs);
+  }
+
+  getValue() {
+    return this.from + (this.to - this.from) * Timer.getProgress(this._timerId);
+  }
+}
+
+class SinusAnimation extends Animation {
+  constructor(amplitude, periodMs, loop) {
+    super();
+    this.amplitude = amplitude;
+    this.periodMs = periodMs;
+    this.loop = loop;
+    this.__initTimer();
+  }
+
+  __initTimer() {
+    this._timerId = Timer.set(() => this.loop && this.__initTimer(), this.periodMs);
+  }
+
+  getValue() {
+    return this.amplitude * (1 + Math.sin(Math.PI * 2 * Timer.getProgress(this._timerId))) / 2;
   }
 }
