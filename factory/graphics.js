@@ -723,6 +723,6 @@ class SinusAnimation extends Animation {
   }
 
   getValue() {
-    return this.amplitude * (1 + Math.sin(Math.PI * 2 * Timer.getProgress(this._timerId))) / 2;
+    return this.amplitude * (1 + Math.sin(Math.PI * (1.5 + 2*Timer.getProgress(this._timerId)))) / 2;
   }
 }

@@ -92,7 +92,7 @@ class PowerSource extends Thing {
 
   reset() {
     super.reset();
-    this._on = false;
+    this._on = true;
   }
 
   destroy() {
