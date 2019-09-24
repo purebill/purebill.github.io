@@ -27,7 +27,11 @@ Keys.mouse(0, [], "Click to build", (e) => {
 
 Keys.mouse(0, ["Win"], "Cell's content in the JS console", (e) => {
   const cell = state.board.fromCoords(e.clientX, e.clientY);
-  console.log(cell.things);
+  cell.things.forEach(it => console.log(it));
+});
+
+Keys.key("KeyD", ["Win"], "Turn on/off debug info", e => {
+  state.debug = !state.debug;
 });
 
 Keys.mouse(2, [], "Right click to show a context menu", (e) => {

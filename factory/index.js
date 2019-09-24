@@ -195,6 +195,16 @@ function buildRoundRobinRouter(x, y) {
   return __wireThing(x, y, new RoundRobinRouter(10), "router", RoundRobinRouterNode);
 }
 
+function buildTrap(cell) {
+  const path = new PathBuilder(cell).lu().lu().ru().ru().d().d().build();
+  
+  if (path.findIndex(cell => cell.things.length > 0) != -1) return;
+
+  const router = buildRoundRobinRouter(cell.x, cell.y);
+  connect(router, router, path);
+  return router;
+}
+
 function buildSeparator(x, y, thingId, powerNeeded) {
   return __wireThing(x, y, new SeparatorRouter(thingId, powerNeeded), "router", SeparatorRouterNode);
 }

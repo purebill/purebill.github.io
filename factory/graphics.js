@@ -110,8 +110,9 @@ class ThingSourceNode extends AbstractNode {
     const x = this.thing.hexaCell.xc;
     const y = this.thing.hexaCell.yc;
 
-    ctx.font = "16px serif";
-    ctx.fillText(this.thing.thingId + ": " + this.thing.suply, x + 17, y + 10);
+    if (this.thing.hexaCell.selected) {
+      TextUtils.fillText(ctx, this.thing.thingId + ": " + this.thing.suply, x, y + 30, Theme.fg2, Theme.bg2, "center");
+    }
 
     AbstractNode.drawWaitingThings(this.thing, ctx, x, y);
 
@@ -132,10 +133,10 @@ class FacilityNode extends AbstractNode {
     let y = yc - 10;
     ctx.font = "16px serif";
 
-    ctx.fillStyle = Theme.fg2;
-    ctx.textAlign = "center";
-    let name = this.thing.name || this.thing.constructionPlans.toString();
-    ctx.fillText(name, xc, yc + 23);
+    if (this.thing.hexaCell.selected) {
+      let name = !state.debug && this.thing.name || this.thing.constructionPlans.toString();
+      TextUtils.fillText(ctx, name, xc, yc + 30, Theme.fg2, Theme.bg2, "center");
+    }
 
     for (let thing of this.thing.thingsBoxed) {
       ctx.fillStyle = Theme.fg2;
@@ -318,17 +319,14 @@ class HexaCell {
       this._hex(ctx);
       ctx.fill();
     }
-    // else {
-    //   ctx.strokeStyle = "#cccccc";
-    //   this._hex(ctx);
-    //   ctx.stroke();
-    // }
 
-    // ctx.fillStyle = Theme.fg;
-    // ctx.font = "12px sefif";
-    // let text = this.x + ", " + this.y;
-    // let m = ctx.measureText(text);
-    // ctx.fillText(text, this.xc - m.width / 2, this.yc + 6);
+    if (state.debug) {
+      ctx.fillStyle = Theme.fg;
+      ctx.font = "12px sefif";
+      let text = this.x + ", " + this.y;
+      let m = ctx.measureText(text);
+      ctx.fillText(text, this.xc - m.width / 2, this.yc + 6);
+    }
   }
 
   /**
@@ -726,3 +724,21 @@ class SinusAnimation extends Animation {
     return this.amplitude * (1 + Math.sin(Math.PI * (1.5 + 2*Timer.getProgress(this._timerId)))) / 2;
   }
 }
+
+const TextUtils = {
+  fillText: (ctx, text, x, y, color, bgColor, align) => {
+    ctx.font = "16px serif";
+
+    const m = ctx.measureText(text);
+    
+    ctx.fillStyle = bgColor;
+    
+    const dx = 5;
+    const dy = 5;
+    ctx.fillRect(x - m.width / 2 - dx, y - 16, m.width + 2*dx, 20 + dy);
+
+    ctx.fillStyle = color;
+    ctx.textAlign = align;
+    ctx.fillText(text, x, y);
+  }
+};

@@ -60,6 +60,7 @@ class Level1 extends Level {
         "stuff -> catalyst | *,catalyst -> gold",
         10, "F1")));
   
+    routers.push(new LevelItem("Trap", cell => buildTrap(cell)));
     routers.push(new LevelItem("Separator", cell => this.startBuildSeparator(cell)));
     routers.push(new LevelItem("Round Robin", cell => buildRoundRobinRouter(cell.x, cell.y)));
     routers.push(new LevelItem("Counting Router", cell => this.startBuildCountingRouter(cell)));
