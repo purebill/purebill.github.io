@@ -6,31 +6,36 @@ const state = {
 intValue("nParties");
 intValue("nIsEnough");
 
-const el = document.getElementById("plaintext");
-el.addEventListener("input", () => {
-  let parties, enough;
-
+function encrypt() {
+  const el = document.getElementById("plaintext");
+  const bytes = new TextEncoder().encode(el.value).length;
+  if (bytes > 32) el.value = el.value.substr(0, 32);
   try {
     el.classList.remove("error");
-    const parties = ShamirSharing.encrypt(el.value, state.nParties, state.nIsEnough);
+    const parties = el.value.trim() ? ShamirSharing.encrypt(el.value.trim(), state.nParties, state.nIsEnough) : [];
 
     const div = document.getElementById("shares");
     div.innerHTML = "";
-    
+
     parties.forEach(it => {
       const e = document.createElement("div");
       e.innerText = it;
+      e.title = "Click to copy";
+      e.onclick = () => Clipboard.copy(it);
       div.appendChild(e);
     });
   } catch (e) {
     el.classList.add("error");
     console.log(e);
   }
-});
+}
+document.getElementById("plaintext").addEventListener("input", encrypt);
 
-document.getElementById("btnDecrypt").addEventListener("click", () => {
+document.getElementById("parties").addEventListener("input", () => {
   const parties = document.getElementById("parties").value.trim().split(/\s+/);
-  document.getElementById("decrypted").innerText = ShamirSharing.decrypt(parties);
+  document.getElementById("decrypted").innerText = "";
+  if (parties.length > 0)
+    document.getElementById("decrypted").innerText = ShamirSharing.decrypt(parties);
 });
 
 let first = true;
@@ -54,6 +59,7 @@ function intValue(id) {
     let value = parseInt(el.value);
     if (isNaN(value)) el.classList.add("error");
     state[id] = value;
+    encrypt();
   };
   el.addEventListener("input", f);
   f();

@@ -168,16 +168,16 @@ var ShamirSharing = (function () {
     const secret = create(nParties, nIsEnough, textN);
 
     return secret.parties.map(it => 
-        it.x.toString(36) + "|" + it.y.toString(36) + "|" + textBytes.length);
+        it.x.toString(36) + "-" + it.y.toString(36) + "-" + textBytes.length);
   }
 
   function decrypt(shares) {
     const key = restoreKey(shares.map(it => {
-      const a = it.split("|");
+      const a = it.split("-");
       return new XY(BigInt.parse(a[0], 36), BigInt.parse(a[1], 36));
     }));
     
-    const length = parseInt(shares[0].split("|")[2]);
+    const length = parseInt(shares[0].split("-")[2]);
     const textN = key;    
     const textBytes = bigIntToBytes(textN, length);
     return new TextDecoder("utf-8").decode(textBytes);
