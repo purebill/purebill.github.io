@@ -119,7 +119,7 @@ function calculate(numbers, EXPECTED, OPS, permutate) {
             value = left * right;
             break;
           case "/":
-            value = Math.floor(left / right);
+            value = left / right;
             break;
           case "^":
             value = Math.pow(left, right);
