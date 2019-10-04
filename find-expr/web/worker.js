@@ -92,7 +92,7 @@ function calculate(numbers, EXPECTED, OPS, permutate) {
   } 
 
   function isOp(op) {
-    return op == '-' || op == '+' || op == '*' || op == '/' || op == '^';
+    return op == '-' || op == '+' || op == '*' || op == '/' || op == '^' || op == 'log';
   }
 
   function orderInsensitive(op) {
@@ -124,6 +124,9 @@ function calculate(numbers, EXPECTED, OPS, permutate) {
           case "^":
             value = Math.pow(left, right);
             break;
+          case "log":
+              value = almostInteger(Math.log(right) / Math.log(left));
+              break;
           default:
             throw "bad";
         }
@@ -140,6 +143,11 @@ function calculate(numbers, EXPECTED, OPS, permutate) {
     return s;
   }
 
+  function almostInteger(v) {
+    if (Math.abs(v - Math.floor(v)) < 1e-6) return Math.floor(v);
+    else return v;
+  }
+
 
   function toInfix(expr, exprLength, normalize) {
     let stack = [];
@@ -154,7 +162,8 @@ function calculate(numbers, EXPECTED, OPS, permutate) {
           left = right;
           right = tmp;
         }
-        stack.push("(" + left + current + right + ")");
+        if (current == "log") stack.push("log" + left + "[" + right + "]");
+        else stack.push("(" + left + current + right + ")");
       } else {
         stack.push(current);
       }
