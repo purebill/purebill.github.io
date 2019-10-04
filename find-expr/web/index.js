@@ -106,6 +106,34 @@ function $(id) {
   return id;
 }
 
+function getState() {
+  let digits = $("digits").value.trim().split(/\s+/).map(it => parseInt(it));
+  let value = parseInt($("expected").value.trim());
+  let ops = $("ops").value.trim().split(/\s+/);
+  let group = $("group").checked;
+  let permutate = $("permutate").checked;
+
+  return {
+    digits,
+    value,
+    ops,
+    group,
+    permutate
+  };
+}
+
+function setState(newState) {
+  $("digits").value = newState.digits.join(" ");
+  $("expected").value = newState.value;
+  $("ops").value = newState.ops.join(" ");
+  $("group").checked = newState.group;
+  $("permutate").checked = newState.permutate;
+}
+
+if (!State.init(getState, setState)) {
+  State.setState(localStorage.getItem("find-expr-state"));
+}
+
 $("stop").disabled = true;
 $("run").onclick = () => {
   let digits = $("digits").value.trim().split(/\s+/).map(it => parseInt(it));
@@ -123,4 +151,10 @@ $("stop").onclick = () => {
   $("run").disabled = false;
   clearInterval(pollerId);
   document.body.classList.remove("running");
+};
+
+$("createLink").onclick = () => {
+  let l = window.location;
+  let url = l.protocol + "//" + l.host + l.pathname + "#" + State.getState();
+  Clipboard.copy(url);
 };
