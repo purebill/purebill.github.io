@@ -2,7 +2,28 @@ importScripts(
   "workerp.js"
 );
 
-function calculate(numbers, EXPECTED, OPS) {
+function * permutations(numbers, result, taken) {
+  result = result || [];
+  taken = taken || new Set();
+  
+  if (taken.size == numbers.length) {
+    yield result;
+    return;
+  }
+
+  for (let i in numbers) {
+    if (taken.has(i)) continue;
+
+    taken.add(i);
+    result.push(numbers[i]);
+    
+    yield * permutations(numbers, result, taken);
+    taken.delete(i);
+    result.pop();
+  }
+}
+
+function calculate(numbers, EXPECTED, OPS, permutate) {
   let opsMap = new Map();
   let opsCount = 0;
   let found = new Map();
@@ -14,8 +35,13 @@ function calculate(numbers, EXPECTED, OPS) {
   let stack = [];
   let stackIdx = 0;
 
-
-  tryOps(numbers, opsMap, 1, opsCount);
+  if (permutate) {
+    for (let permutation of permutations(numbers)) {
+      tryOps(permutation, opsMap, 1, opsCount);
+    }
+  } else {
+    tryOps(numbers, opsMap, 1, opsCount);
+  }
 
   return foundExprs;
 
@@ -170,6 +196,6 @@ function calculate(numbers, EXPECTED, OPS) {
   }
 }
 
-Workerp.message(function ({numbers, EXPECTED, OPS}) {
-  return Promise.resolve(calculate(numbers, EXPECTED, OPS));
+Workerp.message(function ({numbers, EXPECTED, OPS, permutate}) {
+  return Promise.resolve(calculate(numbers, EXPECTED, OPS, permutate));
 });

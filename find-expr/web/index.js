@@ -18,7 +18,7 @@ function print(s) {
 
 let pollerId;
 
-function findExpr2(digits, EXPECTED, OPS, group) {
+function findExpr2(digits, EXPECTED, OPS, group, permutate) {
   let found = new Map();
   let foundIdx = 1;
   let runningWorkers = 0;
@@ -26,7 +26,7 @@ function findExpr2(digits, EXPECTED, OPS, group) {
   results.innerHTML = "";
   document.body.classList.add("running");
 
-  trySpaces(digits, new Map(), group);
+  trySpaces(digits, new Map(), group, permutate);
   pollerId = setInterval(() => {
     if (runningWorkers == 0) {
       clearInterval(pollerId);
@@ -37,7 +37,7 @@ function findExpr2(digits, EXPECTED, OPS, group) {
     }
   }, 500);
 
-  function trySpaces(digits, spaces, group) {
+  function trySpaces(digits, spaces, group, permutate) {
     if (!group) {
       for (let i = 1; i < digits.length; i++) {
         if (!spaces.has(i)) {
@@ -51,7 +51,8 @@ function findExpr2(digits, EXPECTED, OPS, group) {
       .call({
         numbers: toNumbers(digits, spaces),
         EXPECTED,
-        OPS 
+        OPS,
+        permutate
       })
       .then(result => {
         runningWorkers--;
@@ -68,7 +69,7 @@ function findExpr2(digits, EXPECTED, OPS, group) {
       for (let i = 1; i < digits.length; i++) {
         if (!spaces.has(i)) {
           spaces.set(i, true);
-          trySpaces(digits, spaces, group);
+          trySpaces(digits, spaces, group, permutate);
           spaces.delete(i);
         }
       }
@@ -111,7 +112,8 @@ $("run").onclick = () => {
   let value = parseInt($("expected").value.trim());
   let ops = $("ops").value.trim().split(/\s+/);
   let group = $("group").checked;
-  findExpr2(digits, value, ops, group);
+  let permutate = $("permutate").checked;
+  findExpr2(digits, value, ops, group, permutate);
   $("stop").disabled = false;
   $("run").disabled = true;
 };
