@@ -17,26 +17,53 @@ function encrypt() {
     const div = document.getElementById("shares");
     div.innerHTML = "";
 
+    let i = 1;
     parties.forEach(it => {
       const e = document.createElement("div");
-      e.innerText = it;
+      e.innerText = "Share #" + i++;
       e.title = "Click to copy";
       e.onclick = () => Clipboard.copy(it);
       div.appendChild(e);
     });
+
+    if (parties.length > 0) 
+      document.getElementById("encryptSharesContainer").style.display = "block";
   } catch (e) {
     el.classList.add("error");
-    console.log(e);
+    console.error(e);
   }
 }
 document.getElementById("plaintext").addEventListener("input", encrypt);
 
-document.getElementById("parties").addEventListener("input", () => {
-  const parties = document.getElementById("parties").value.trim().split(/\s+/);
-  document.getElementById("decrypted").innerText = "";
-  if (parties.length > 0)
-    document.getElementById("decrypted").innerText = ShamirSharing.decrypt(parties);
-});
+function sharesUpdated() {
+  const parties = [];
+  for (let i of document.querySelectorAll("#sharesContainer > input")) {
+    const v = i.value.trim();
+    if (v.length > 0) parties.push(v);
+  }
+
+  const decrypted = document.getElementById("decrypted");
+  decrypted.style.display = "none";
+  decrypted.innerText = "";
+  if (parties.length > 0) {
+    decrypted.innerText = ShamirSharing.decrypt(parties);
+    decrypted.style.display = "block";
+  }
+}
+
+function addMore(e) {
+  if (e.target.dataset.duplicated) return;
+  e.target.dataset.duplicated = true;
+
+  const el = document.createElement("input");
+  el.placeholder = "Paste shares here, one per line";
+  el.addEventListener("input", addMore);
+  el.addEventListener("input", sharesUpdated);
+  document.getElementById("sharesContainer").appendChild(el);
+}
+
+document.getElementById("share1").addEventListener("input", addMore);
+document.getElementById("share1").addEventListener("input", sharesUpdated);
 
 let first = true;
 document.querySelectorAll(".tabNav > a").forEach(it => {
