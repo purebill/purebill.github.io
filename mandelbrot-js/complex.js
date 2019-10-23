@@ -3,6 +3,10 @@ function Complex(re, im) {
   this.im = im;
 }
 
+Complex.prototype.clone = function() {
+  return new Complex(this.re, this.im);
+}
+
 Complex.prototype.add = function(c2) {
   return new Complex(this.re + c2.re, this.im + c2.im);
 };

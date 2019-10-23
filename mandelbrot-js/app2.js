@@ -19,22 +19,24 @@
   var ctx;
   var width;
   var height;
+  var initialC1, initialC2;
   var c1;
   var c2;
   var c0;
   var mouseX = 0, mouseY = 0;
-  var stepsValues = [255, 500, 1000, 2000, 4000, 8000];
+  var stepsValues = [256, 1024, 2048, 2048*2, 2048*4, 2048*8, 2048*16];
   var stepsValuesIdx = 0;
   var steps = stepsValues[0];
   var running = false;
   var averageTileCalcTime = 0;
   var palete;
   var random = new Random();
-  var rebuildPalete = buildFractalPalete;
   var ctrlPressed = false;
   var resetMouseCoords = false;
   var prevHiehgt, prevWidth;
-  //var rebuildPalete = buildPalete;
+  var zoomLevel = 0;
+  var paleteIndex = 0;
+  var paleteBuilders = [buildPalete, buildFractalPalete];
 
   init(true);
 
@@ -83,7 +85,11 @@
     c1 = new Complex(re1, im1);
     c2 = new Complex(re2, im2);
 
-    palete = rebuildPalete(steps);
+    initialC1 = c1.clone();
+    initialC2 = c2.clone();
+    zoomLevel = 0;
+
+    palete = paleteBuilders[paleteIndex](steps);
 
     drawSet(c1, c2, ctx);
   }
@@ -155,27 +161,29 @@
     });
   }
 
-  /*function buildPalete(steps) {
-    var zoom = Math.round(Math.log2(1 / Math.abs(c1.re - c2.re)));
-    zoom = zoom < 1 ? 1 : zoom;
-    var k = 1 - Math.pow(2, -zoom);
+  function carrier(t, f) {
+    return Math.sin(f * 2*Math.PI * t - Math.PI/2) + 1;
+  }
+
+  function buildPalete(steps) {
     var colors = [];
-    for (var s = 0; s <= steps; s++) {
-      var d = 1 - s / steps;
-
-      //var color = Color.fromHsv(Math.floor(d/10)*10/255, 1-Math.floor(d/10)*10/255, 1);
-      //colors[s] = Color.fromHsv(1, d/255, 1 - d/255);
-
-      var vlog = Math.log2(d + 1);
-      var vexp = Math.pow(zoom * 5 + 1, d) / (zoom * 5 + 1);
-      var v = vlog * k + vexp * (1 - k);
-      //var v = 255 * d;
-      //colors[s] = {r: 255*v, g: 255*v, b: 255*v};
-
-      colors[s] = Color.fromHsv(d, v, v);
+    const gap = 0;
+    const f = Math.log2(steps)/8;
+    for (var step = 0; step <= steps; step++) {
+      const h = carrier(step/steps, f*4);
+      const s = (step > gap && step < steps - gap) ? 1 - carrier(step/steps, f) : 0;
+      const v = (step > gap && step < steps - gap) ? 1 : 0;
+      if (step <= 1) {
+        colors[step] = Color.fromHsv(0, 0, 0);
+      }
+      else if (step >= steps - 1) {
+        colors[step] = Color.fromHsv(0.7, 0, 1 - step/steps);
+      } else {
+        colors[step] = Color.fromHsv(h, s, v);
+      }
     }
     return colors;
-  }*/
+  }
 
   function buildFractalPalete(steps) {
     var colors = [];
@@ -230,15 +238,17 @@
       dist: c2.re - c1.re,
       stepsValuesIdx: stepsValuesIdx,
       c0: c0 && c0.serialize(),
-      seed: random.seed
+      seed: random.seed,
+      zoomLevel,
+      paleteIndex
     }));
 
-    if (document.location.hash != newState) {
-      document.location.hash = newState;
-    }
+    document.getElementById("permalink").href = "#" + newState;
   }
 
   function loadState() {
+    if (!document.location.hash.substr(1)) return;
+
     try {
       var state = JSON.parse(atob(document.location.hash.substr(1)));
       var center = state.center;
@@ -263,6 +273,9 @@
         c0 = Complex.fromSerialized(state.c0);
       }
 
+      if (state.paleteIndex !== undefined) paleteIndex = state.paleteIndex;
+      if (state.zoomLevel !== undefined) zoomLevel = state.zoomLevel;
+
       return true;
     } catch (e) {
       // just ignore if something went wrong while deserializing the state
@@ -275,7 +288,6 @@
     if (running) {
       workers.forEach(function (w) { w.reset(); });
       running = false;
-      return;
     }
   }
 
@@ -382,20 +394,24 @@
     var yc = center.im;
 
     var zoomIn = e.detail ? e.detail < 0 : e.deltaY < 0;
+
+    if (zoomLevel == 0 && !zoomIn) return;
+
     if (zoomIn) {
       // zoom in
       var c1New = new Complex((c1.re - xc) / 2 + xc, (c1.im - yc) / 2 + yc);
       var c2New = new Complex((c2.re - xc) / 2 + xc, (c2.im - yc) / 2 + yc);
+      zoomLevel++;
     } else {
       // zoom out
       c1New = new Complex((c1.re - xc) * 2 + xc, (c1.im - yc) * 2 + yc);
       c2New = new Complex((c2.re - xc) * 2 + xc, (c2.im - yc) * 2 + yc);
+      zoomLevel--;
     }
 
     c1 = c1New;
     c2 = c2New;
 
-    palete = rebuildPalete(steps);
     drawSet(c1, c2, ctx);
 
     return false;
@@ -412,12 +428,16 @@
   };
 
   function status() {
-    var zoom = Math.round(Math.log2(1 / Math.abs(c1.re - c2.re)));
+    const x = ((c1.re + c2.re) / 2 - initialC1.re) / (initialC2.re - initialC1.re);
+    const y = ((c1.im + c2.im) / 2 - initialC1.im) / (initialC2.im - initialC1.im);
+    const address = Tile.fromCoords(x, y, zoomLevel);
+
     document.getElementById("div").innerHTML =
       "<b>" + (c0 ? "Julia Set" : "Mandelbrot Set") + "</b>"
-      + "<br />Zoom: " + zoom
+      + "<br />Zoom: " + zoomLevel
       + "<br />Steps: " + steps
-      + "<br />TileRender: " + Math.round(averageTileCalcTime) + "ms";
+      + "<br />TileRender: " + Math.round(averageTileCalcTime) + "ms"
+      + "<br />Address: " + address;
   }
 
   setInterval(status, 1000);
@@ -455,13 +475,15 @@
       cycleDetails();
     } else if (ch == "p" && !e.altKey && !e.ctrlKey) {
       random.reset();
-      palete = rebuildPalete(steps);
+      paleteIndex = (paleteIndex + 1) % paleteBuilders.length;
+      palete = paleteBuilders[paleteIndex](steps);
       drawSet(c1, c2, ctx);
     }
   };
 
   function reset() {
     c0 = c1 = c2 = undefined;
+    steps = stepsValues[0];
     init();
   }
 
@@ -471,11 +493,6 @@
     palete = rebuildPalete(steps);
     drawSet(c1, c2, ctx);
   }
-
-  window.onpopstate = function () {
-    loadState();
-    drawSet(c1, c2, ctx);
-  };
 
   var hammertime = new Hammer(document.body, {});
   hammertime.get("pinch").set({ enable: true });
