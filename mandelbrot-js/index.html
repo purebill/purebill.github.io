@@ -26,6 +26,16 @@
       transition:opacity 0.5s linear;
     }
 
+    #help {
+      position: fixed;
+      margin: auto;
+      background-color: white;
+      display: none;
+      border: 1px solid black;
+      padding: 10px;
+      z-index: 10000;
+    }
+
     .noselection {
       -webkit-touch-callout: none;
       -webkit-user-select: none;
@@ -60,6 +70,7 @@
 </head>
 <body>
   <div class="progress noselection" id="progress">Working...</div>
+  <div id="help"></div>
   <div id="status" class="noselection">
     <div id="div" class="noselection"></div>
     <a id="permalink" href="#">Permalink</a>
@@ -75,6 +86,7 @@
   <script type="text/javascript" src="complex.js"></script>
   <script type="text/javascript" src="matrix.js"></script>
   <script type="text/javascript" src="tile.js"></script>
+  <script type="text/javascript" src="keys.js"></script>
   <script type="text/javascript" src="app2.js"></script>
   <!-- <script type="text/javascript" src="iter.js"></script> -->
 </body>

@@ -36,10 +36,12 @@ var Tile = (function () {
   }
 
   /**
-   * @param {String} address 
+   * @param {String|number} address 
    * @returns {number[][]} rectangle top-left (inclusive), bottom-right (exclusive)
    */
   function toRect(address) {
+    if (typeof address == "number") address = new Number(address).toString(4);
+
     if (address.length == 0) return [[0, 0], [1, 1]];
 
     const digits = address.split("").map(it => parseInt(it));

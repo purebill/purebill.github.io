@@ -24,7 +24,7 @@
   var c2;
   var c0;
   var mouseX = 0, mouseY = 0;
-  var stepsValues = [256, 1024, 2048, 2048*2, 2048*4, 2048*8, 2048*16];
+  var stepsValues = [256, 1024, 2048, 2048*2, 2048*4, 2048*8, 2048*16, 2048*32];
   var stepsValuesIdx = 0;
   var steps = stepsValues[0];
   var running = false;
@@ -36,12 +36,15 @@
   var prevHiehgt, prevWidth;
   var zoomLevel = 0;
   var paleteIndex = 0;
-  var paleteBuilders = [buildPalete, buildFractalPalete];
+  var paleteBuilders = [buildPalete, buildFractalPalete, buildBinaryPalete];
 
   init(true);
 
   function init(firstTime) {
     var c = document.getElementById("canvas");
+
+    if (firstTime) Keys.init(c);
+
     if (!firstTime) {
       prevWidth = c.width;
       prevHiehgt = c.height;
@@ -87,7 +90,6 @@
 
     initialC1 = c1.clone();
     initialC2 = c2.clone();
-    zoomLevel = 0;
 
     palete = paleteBuilders[paleteIndex](steps);
 
@@ -124,7 +126,7 @@
         var yb = (b[0][1] + b[1][1]) / 2;
         var distB = (mouseX - xb) * (mouseX - xb) + (mouseY - yb) * (mouseY - yb);
 
-        return distA < distB ? -1 : distA == distB ? 0 : 1;
+        return distA < distB ? -1 : (distA == distB ? 0 : 1);
       });
 
       var partsFinished = 0;
@@ -180,6 +182,19 @@
         colors[step] = Color.fromHsv(0.7, 0, 1 - step/steps);
       } else {
         colors[step] = Color.fromHsv(h, s, v);
+      }
+    }
+    return colors;
+  }
+
+  function buildBinaryPalete(steps) {
+    var colors = [];
+    const gap = 0;
+    for (var step = 0; step <= steps; step++) {
+      if (step == steps) {
+        colors[step] = Color.fromHsv(0, 0, 0);
+      } else {
+        colors[step] = Color.fromHsv(0, 0, 1);
       }
     }
     return colors;
@@ -276,6 +291,7 @@
       if (state.paleteIndex !== undefined) paleteIndex = state.paleteIndex;
       if (state.zoomLevel !== undefined) zoomLevel = state.zoomLevel;
 
+      document.location.hash = "";
       return true;
     } catch (e) {
       // just ignore if something went wrong while deserializing the state
@@ -294,21 +310,44 @@
   var moving = false;
   var juliaMoving = false;
   var x1, y1;
-  window.onmousedown = function (e) {
-    if (moving || juliaMoving) return;
-    x1 = e.offsetX;
-    y1 = e.offsetY;
-    if (e.shiftKey) {
+  Keys.mouse(0, ["Shift"],
+    "Click and drag for Julia set animation",
+    e => {
+      moving = false;
+      juliaMoving = false;
+    },
+    e => {
+      if (moving || juliaMoving) return;
+      x1 = e.offsetX;
+      y1 = e.offsetY;
       juliaMoving = true;
       moving = false;
-    } else {
+    }
+  );
+  Keys.mouse(0, [],
+    "Click and drag to pan",
+    e => {
+      moving = false;
+      juliaMoving = false;
+    },
+    e => {
+      if (moving || juliaMoving) return;
+      x1 = e.offsetX;
+      y1 = e.offsetY;
       juliaMoving = false;
       moving = true;
     }
-  };
+  );
+  Keys.mouse(2, [], "Log address", null, e => {
+    const c = Complex.fromImage(e.clientX, e.clientY, c1, c2, width, height);
+    const x = (c.re - initialC1.re) / (initialC2.re - initialC1.re);
+    const y = (c.im - initialC1.im) / (initialC2.im - initialC1.im);
+    const address = Tile.fromCoords(x, y, zoomLevel);
+    console.log(address);
+  });
 
-  var debouncedDrawSet = debounce(drawSet, 100);
-  window.onmousemove = function (e) {
+  var debouncedDrawSet = debounce(drawSet, 100, 1000);
+  Keys.mouseMove([], "Click and drag to pan", e => {
     mouseX = e.offsetX;
     mouseY = e.offsetY;
 
@@ -336,12 +375,28 @@
       y1 = y2;
 
       debouncedDrawSet(c1, c2, ctx);
-    } else if (juliaMoving) {
+    }
+  });
+  Keys.mouseMove(["Shift"], "Click and drag for Julia set animation", e => {
+    mouseX = e.offsetX;
+    mouseY = e.offsetY;
+
+    var x2 = e.offsetX;
+    var y2 = e.offsetY;
+
+    if (resetMouseCoords) {
+      x1 = x2;
+      y1 = y2;
+      resetMouseCoords = false;
+      return;
+    }
+
+    if (juliaMoving) {
       var xm, ym;
       var dx = x2 - x1;
       var dy = y2 - y1;
 
-      if (ctrlPressed) {
+      if (!ctrlPressed) {
         xm = x1 + dx / 4;
         ym = y1 + dy / 4;
       } else {
@@ -352,50 +407,40 @@
       c0 = Complex.fromImage(xm, ym, c1, c2, width, height);
       debouncedDrawSet(c1, c2, ctx);
     }
-  };
+  });
 
-  function debounce(func, swallowInterval) {
-    var swallowTimeout;
+  function debounce(func, swallowInterval, timeoutInterval) {
+    var swallowId = null;
+    var timeoutId = null;
 
     return function () {
       var context = this, args = arguments;
 
       var later = function () {
-        clearTimeout(swallowTimeout);
-        swallowTimeout = null;
+        if (swallowId) clearTimeout(swallowId);
+        swallowId = null;
+        if (timeoutId) clearTimeout(timeoutId);
+        timeoutId = null;
 
         func.apply(context, args);
       };
 
-      if (swallowTimeout) {
-        clearTimeout(swallowTimeout);
-      }
-      swallowTimeout = setTimeout(later, swallowInterval);
+      if (swallowId) clearTimeout(swallowId);
+      swallowId = setTimeout(later, swallowInterval);
+
+      if (timeoutId === null) timeoutId = setTimeout(later, timeoutInterval);
     };
   }
 
-  window.onmouseup = function () {
-    moving = false;
-    juliaMoving = false;
-  };
-
-  var mousewheelevt = (/Firefox/i.test(navigator.userAgent))
-    ? "DOMMouseScroll"
-    : "mousewheel";
-
-  if (window.attachEvent)
-    window.attachEvent("on" + mousewheelevt, onmousewheel);
-  else if (window.addEventListener)
-    window.addEventListener(mousewheelevt, onmousewheel, false);
-
-  function onmousewheel(e) {
+  Keys.mouseZoom([], "Scroll to zoom", e => {
     var center = Complex.fromImage(e.offsetX, e.offsetY, c1, c2, width, height);
     var xc = center.re;
     var yc = center.im;
 
-    var zoomIn = e.detail ? e.detail < 0 : e.deltaY < 0;
+    var zoomIn = e.deltaY < 0;
 
     if (zoomLevel == 0 && !zoomIn) return;
+    if (zoomLevel == 30 && zoomIn) return;
 
     if (zoomIn) {
       // zoom in
@@ -412,12 +457,12 @@
     c1 = c1New;
     c2 = c2New;
 
-    drawSet(c1, c2, ctx);
+    debouncedDrawSet(c1, c2, ctx);
 
     return false;
-  }
+  });
 
-  window.ondblclick = function (e) {
+  Keys.doubleclick([], "Change the set to Mandelbrot / Julia", e => {
     if (c0) {
       c0 = undefined;
     } else {
@@ -425,7 +470,7 @@
     }
 
     drawSet(c1, c2, ctx);
-  };
+  });
 
   function status() {
     const x = ((c1.re + c2.re) / 2 - initialC1.re) / (initialC2.re - initialC1.re);
@@ -449,81 +494,81 @@
     }
   }
 
-  window.onresize = function () {
-    init();
-  };
+  window.onresize = e => init();
 
-  window.onkeyup = function (e) {
-    if (e.keyCode == 27) {
-      reset();
-    } else if (e.keyCode == 17) {
-      ctrlPressed = false;
-      resetMouseCoords = true;
-    }
-  };
-
-  window.onkeydown = function (e) {
-    if (e.keyCode == 17) {
-      ctrlPressed = true;
-      resetMouseCoords = true;
-    }
-  };
-
-  window.onkeypress = function (e) {
-    var ch = String.fromCharCode(e.charCode);
-    if (ch == "d" && !e.altKey && !e.ctrlKey) {
-      cycleDetails();
-    } else if (ch == "p" && !e.altKey && !e.ctrlKey) {
-      random.reset();
-      paleteIndex = (paleteIndex + 1) % paleteBuilders.length;
-      palete = paleteBuilders[paleteIndex](steps);
-      drawSet(c1, c2, ctx);
-    }
-  };
-
-  function reset() {
+  Keys.key("Escape", [], "Escape to reset", null, e => {
     c0 = c1 = c2 = undefined;
     steps = stepsValues[0];
     init();
-  }
-
-  function cycleDetails() {
+  });
+  Keys.key("Space", [], "TBD",
+    e => {
+      ctrlPressed = true;
+      resetMouseCoords = true;
+    },
+    e => {
+      ctrlPressed = false;
+      resetMouseCoords = true;
+    }
+  );
+  Keys.key("KeyD", [], "Iterate details", e => {
     stepsValuesIdx++;
     steps = stepsValues[stepsValuesIdx % stepsValues.length];
-    palete = rebuildPalete(steps);
+    palete = paleteBuilders[paleteIndex](steps);
     drawSet(c1, c2, ctx);
-  }
+  });
+  Keys.key("KeyP", [], "Cycle through paletes", e => {
+    random.reset();
+    paleteIndex = (paleteIndex + 1) % paleteBuilders.length;
+    palete = paleteBuilders[paleteIndex](steps);
+    drawSet(c1, c2, ctx);
+  });
+  Keys.key("F1", [], "Show this help message (F1 again to hide)", () => {
+    let el = document.getElementById("help");
 
-  var hammertime = new Hammer(document.body, {});
-  hammertime.get("pinch").set({ enable: true });
-  hammertime.get("rotate").set({ enable: true });
+    if (el.style.display == "block") {
+      el.style.display = "none";
+      return;
+    }
 
-  hammertime.on("pinchend", function (e) {
-    onmousewheel({
-      offsetX: e.center.x,
-      offsetY: e.center.y,
-      detail: e.scale > 1 ? -1 : 1
-    });
+    let help = Keys.help();
+    el.innerHTML =
+      "<h2>Keyboard</h2>\n<pre>" + help.keys.join("\n</pre><pre>") + "</pre>" +
+      "<h2>Mouse</h2>\n<pre>" + help.mouse.join("\n</pre><pre>") + "</pre>";
+
+    el.style.display = "block";
   });
 
-  hammertime.on("panstart", function (e) {
-    window.onmousedown({
-      offsetX: e.center.x,
-      offsetY: e.center.y
-    });
-  });
+  // var hammertime = new Hammer(document.body, {});
+  // hammertime.get("pinch").set({ enable: true });
+  // hammertime.get("rotate").set({ enable: true });
 
-  hammertime.on("panmove", function (e) {
-    window.onmousemove({
-      offsetX: e.center.x,
-      offsetY: e.center.y
-    });
-  });
+  // hammertime.on("pinchend", function (e) {
+  //   onmousewheel({
+  //     offsetX: e.center.x,
+  //     offsetY: e.center.y,
+  //     detail: e.scale > 1 ? -1 : 1
+  //   });
+  // });
 
-  hammertime.on("panend", function (e) {
-    window.onmouseup({
-      offsetX: e.center.x,
-      offsetY: e.center.y
-    });
-  });
+  // hammertime.on("panstart", function (e) {
+  //   window.onmousedown({
+  //     offsetX: e.center.x,
+  //     offsetY: e.center.y
+  //   });
+  // });
+
+  // hammertime.on("panmove", function (e) {
+  //   window.onmousemove({
+  //     offsetX: e.center.x,
+  //     offsetY: e.center.y
+  //   });
+  // });
+
+  // hammertime.on("panend", function (e) {
+  //   window.onmouseup({
+  //     offsetX: e.center.x,
+  //     offsetY: e.center.y
+  //   });
+  // });
 })();
