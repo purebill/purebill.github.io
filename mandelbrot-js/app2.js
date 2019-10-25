@@ -92,6 +92,7 @@
     initialC2 = c2.clone();
 
     palete = paleteBuilders[paleteIndex](steps);
+    zoomLevel = 0;
 
     drawSet(c1, c2, ctx);
   }
@@ -138,12 +139,14 @@
       });
 
       function computePart(x1, y1, x2, y2) {
+        const c1Local = Complex.fromImage(x1, y2, c1, c2, width, height);
+        const c2Local = Complex.fromImage(x2, y1, c1, c2, width, height);
+        
         worker().call({
-          x1: x1, y1: y1,
-          x2: x2, y2: y2,
-          width: width, height: height,
-          c1: c1, c2: c2, c0: c0,
-          steps: steps
+          w: x2 - x1 + 1, h: y2 - y1 + 1,
+          width: x2 - x1 + 1, height: y2 - y1 + 1,
+          c1: c1Local, c2: c2Local, c0,
+          steps
         })
           .then(function (results) {
             var imd = results.imd;
@@ -346,7 +349,7 @@
     console.log(address);
   });
 
-  var debouncedDrawSet = debounce(drawSet, 100, 1000);
+  var debouncedDrawSet = debounce(drawSet, 100, 500);
   Keys.mouseMove([], "Click and drag to pan", e => {
     mouseX = e.offsetX;
     mouseY = e.offsetY;
@@ -440,7 +443,7 @@
     var zoomIn = e.deltaY < 0;
 
     if (zoomLevel == 0 && !zoomIn) return;
-    if (zoomLevel == 30 && zoomIn) return;
+    if (zoomLevel == 50 && zoomIn) return;
 
     if (zoomIn) {
       // zoom in

@@ -38,18 +38,10 @@ var width, height, c1, c2, c0, colors;
   return imd;
 }*/
 
-function computeImage2(x1, y1, x2, y2, steps) {
-  var w = x2 - x1 + 1;
-  var h = y2 - y1 + 1;
-
+function computeImage2(w, h, steps) {
   var imd = new ImageData(w, h);
 
-  fillArea(x1, y1, x2, y2, x1, y1, colors[steps >> 1], w, h, imd);
-
-  computeArea(x1, y1, x2, y2, steps, x1, y1, w, h, imd);
-  /*var midX = (x1 + x2) >> 1;
-  var midY = (y1 + y2) >> 1;
-  computeAreaIter(x1, y1, midX, midY, steps, x1, y1, w, h, imd);*/
+  computeArea(0, 0, w - 1, h - 1, steps, 0, 0, w, h, imd);
 
   return imd;
 }
@@ -112,7 +104,7 @@ function computeLine(x1, y, x2, steps, x10, y10, w, h, imd) {
     if (typeof result.iterations == "undefined") {
       result.iterations = iterations;
     }
-    result.same &= (iterations == result.iterations);
+    result.same = result.same && (iterations == result.iterations);
 
     color = colors[iterations];
 
@@ -216,7 +208,7 @@ Workerp.message(function (params) {
     var steps = params.steps || 255;
 
     var startTime = (new Date()).getTime();
-    var results = computeImage2(params.x1, params.y1, params.x2, params.y2, steps);
+    var results = computeImage2(params.w, params.h, steps);
     var endTime = (new Date()).getTime();
 
     return Promise.resolve({ imd: results, renderTime: endTime - startTime });
