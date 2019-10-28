@@ -98,6 +98,7 @@
   }
 
   function drawSet(c1, c2, ctx) {
+<<<<<<< Updated upstream
     return new Promise(resolve => {
       saveState();
       stopCalculations();
@@ -156,6 +157,53 @@
             c1: c1Local, c2: c2Local, c0,
             steps
           })
+=======
+    saveState();
+    stopCalculations();
+
+    Promise.all(workers.map(worker => worker.call({palete})
+    .then(function () {
+      var parts = [];
+
+      var tileSize = 128;
+      for (var x = 0; x < width; x += tileSize) {
+        for (var y = 0; y < height; y += tileSize) {
+          var x2 = Math.min(x + tileSize - 1, width - 1);
+          var y2 = Math.min(y + tileSize - 1, height - 1);
+          parts.push([[x, y], [x2, y2]]);
+        }
+      }
+
+      // reorder the parts by the distance from the current mouse pointer
+      parts.sort((a, b) => {
+        var xa = (a[0][0] + a[1][0]) / 2;
+        var ya = (a[0][1] + a[1][1]) / 2;
+        var distA = (mouseX - xa) * (mouseX - xa) + (mouseY - ya) * (mouseY - ya);
+
+        var xb = (b[0][0] + b[1][0]) / 2;
+        var yb = (b[0][1] + b[1][1]) / 2;
+        var distB = (mouseX - xb) * (mouseX - xb) + (mouseY - yb) * (mouseY - yb);
+
+        return distA < distB ? -1 : (distA == distB ? 0 : 1);
+      });
+
+      var partsFinished = 0;
+      averageTileCalcTime = 0;
+      running = true;
+      updateProgressIndicator();
+      parts.forEach(part => computePart(part[0][0], part[0][1], part[1][0], part[1][1]));
+
+      function computePart(x1, y1, x2, y2) {
+        const c1Local = Complex.fromImage(x1, y2, c1, c2, width, height);
+        const c2Local = Complex.fromImage(x2, y1, c1, c2, width, height);
+        
+        worker().call({
+          w: x2 - x1 + 1, h: y2 - y1 + 1,
+          width: x2 - x1 + 1, height: y2 - y1 + 1,
+          c1: c1Local, c2: c2Local, c0,
+          steps
+        })
+>>>>>>> Stashed changes
           .then(function (results) {
             var imd = results.imd;
             var renderTime = results.renderTime;
