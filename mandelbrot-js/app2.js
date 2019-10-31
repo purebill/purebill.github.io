@@ -29,6 +29,7 @@
   var steps = stepsValues[0];
   var running = false;
   var averageTileCalcTime = 0;
+  var totalCaltTime = 0;
   var palete;
   var random = new Random();
   var ctrlPressed = false;
@@ -97,7 +98,7 @@
     drawSet(c1, c2, ctx);
   }
 
-  function drawSet(c1, c2, ctx) {
+  function drawSet(c1, c2, ctx, stochastic) {
     return new Promise(resolve => {
       saveState();
       stopCalculations();
@@ -105,14 +106,11 @@
       const width = ctx.canvas.width;
       const height = ctx.canvas.height;
 
-      Promise.all(workers.map(function (worker) {
-        return worker.call({
-          palete: palete
-        });
-      })).then(function () {
+      Promise.all(workers.map(worker => worker.call({ palete: palete })))
+      .then(function () {
         var parts = [];
 
-        var tileSize = 128;
+        const tileSize = 128;
         for (var x = 0; x < width; x += tileSize) {
           for (var y = 0; y < height; y += tileSize) {
             var x2 = Math.min(x + tileSize - 1, width - 1);
@@ -136,6 +134,7 @@
 
         var partsFinished = 0;
         averageTileCalcTime = 0;
+        totalCaltTime = 0;
         running = true;
         updateProgressIndicator();
 
@@ -144,17 +143,22 @@
           computePart(part[0][0], part[0][1], part[1][0], part[1][1]);
         });
 
-        Promise.all(promises).then(_ => resolve());
+        Promise.all(promises).then(() => resolve());
 
         function computePart(x1, y1, x2, y2) {
           const c1Local = Complex.fromImage(x1, y2, c1, c2, width, height);
           const c2Local = Complex.fromImage(x2, y1, c1, c2, width, height);
           
           promises.push(worker().call({
-            w: x2 - x1 + 1, h: y2 - y1 + 1,
-            width: x2 - x1 + 1, height: y2 - y1 + 1,
-            c1: c1Local, c2: c2Local, c0,
-            steps
+            w: x2 - x1 + 1,
+            h: y2 - y1 + 1,
+            width: x2 - x1 + 1,
+            height: y2 - y1 + 1,
+            c1: c1Local,
+            c2: c2Local,
+            c0,
+            steps,
+            stochastic
           })
           .then(function (results) {
             var imd = results.imd;
@@ -165,17 +169,34 @@
             document.getElementById("progressPercents").innerText
                 = Math.round(partsFinished / parts.length * 100) + "%";
             if (!running) {
-              console.log("Done");
               document.getElementById("progressPercents").innerText = "";
             }
             updateProgressIndicator();
 
             ctx.putImageData(imd, x1, y1);
+
             averageTileCalcTime = (averageTileCalcTime + renderTime) / 2;
+            totalCaltTime += renderTime;
           }));
         }
       });
     });
+  }
+
+  function powMod(a, p, m) {
+    if (p == 0) return 1;
+
+    let pp = p;
+    let aa = a;
+    let result = 1;
+
+    do {
+      if ((pp & 1) == 1) result = (result * aa) % m;
+      aa = (aa * aa) % m;
+      pp = pp >> 1;
+    } while (pp > 0);
+
+    return result;
   }
 
   function carrier(t, f) {
@@ -362,6 +383,7 @@
   });
 
   var debouncedDrawSet = debounce(drawSet, 100, 500);
+    
   Keys.mouseMove([], "Click and drag to pan", e => {
     mouseX = e.offsetX;
     mouseY = e.offsetY;
@@ -498,7 +520,7 @@
       "<b>" + (c0 ? "Julia Set" : "Mandelbrot Set") + "</b>"
       + "<br />Zoom: " + zoomLevel
       + "<br />Steps: " + steps
-      + "<br />TileRender: " + Math.round(averageTileCalcTime) + "ms"
+      + "<br />TileRender, ms: " + totalCaltTime + " (" + Math.round(averageTileCalcTime) + ")"
       + "<br />Address: " + getCurrentAddress();
   }
 
@@ -568,9 +590,8 @@
     canvas.height = Math.round(ctx.canvas.height * f);
     console.log("size", canvas.width, canvas.height);
     
-    let p = drawSet(c1, c2, canvas.getContext("2d", { alpha: false }));
-    console.log(p);
-    p.then(_ => saveAsFile(canvas, 
+    drawSet(c1, c2, canvas.getContext("2d", { alpha: false }))
+    .then(() => saveAsFile(canvas, 
       (c0 ? "julia" : "mandelbrot")
       + "-" + getCurrentAddress()
       + "-" + steps));

@@ -9,7 +9,7 @@ importScripts(
 
 var width, height, c1, c2, c0, colors;
 
-/*function computeImage(x1, y1, x2, y2, steps) {
+function computeImage(x1, y1, x2, y2, steps) {
   var w = x2 - x1 + 1;
   var h = y2 - y1 + 1;
 
@@ -36,18 +36,21 @@ var width, height, c1, c2, c0, colors;
   }
 
   return imd;
-}*/
+}
 
-function computeImage2(w, h, steps) {
+function computeImage2(w, h, steps, stochastic) {
   var imd = new ImageData(w, h);
 
-  computeArea(0, 0, w - 1, h - 1, steps, 0, 0, w, h, imd);
+  if (stochastic)
+    computeAreaStochastic(0, 0, w - 1, h - 1, steps, 0, 0, w, h, imd);
+  else 
+    computeArea(0, 0, w - 1, h - 1, steps, 0, 0, w, h, imd);
 
   return imd;
 }
 
-var minDx = 64;
-var minDy = 64;
+var minDx = 8;
+var minDy = 8;
 
 function computeArea(x1, y1, x2, y2, steps, x10, y10, w, h, imd) {
   var dx = Math.abs(x2 - x1) + 1;
@@ -69,7 +72,7 @@ function computeArea(x1, y1, x2, y2, steps, x10, y10, w, h, imd) {
     if (same) {
       fillArea(x1, y1, x2, y2, x10, y10, colors[result1.iterations], w, h, imd);
     } else {
-      var midX = (x1 + x1) >> 1;
+      var midX = (x1 + x2) >> 1;
       var midY = (y1 + y2) >> 1;
 
       computeArea(x1, y1, midX, midY, steps, x10, y10, w, h, imd);
@@ -129,7 +132,7 @@ function computeRow(x, y1, y2, steps, x10, y10, w, h, imd) {
     if (typeof result.iterations == "undefined") {
       result.iterations = iterations;
     }
-    result.same &= (iterations == result.iterations);
+    result.same = result.same && (iterations == result.iterations);
 
     color = colors[iterations];
 
@@ -164,6 +167,29 @@ function computeAreaIter(x1, y1, x2, y2, steps, x10, y10, w, h, imd) {
       imd.data[(xi + yi * w) * 4 + 2] = color.b;
       imd.data[(xi + yi * w) * 4 + 3] = 255;
     }
+  }
+}
+
+function computeAreaStochastic(x1, y1, x2, y2, steps, x10, y10, w, h, imd) {
+  var color = { r: 0, g: 0, b: 0 };
+  var iterations;
+  var c;
+  var xi, yi;
+  for (let i = 0; i < 100; i++) {
+    let x = Math.round(Math.random() * (w - 1));
+    let y = Math.round(Math.random() * (h - 1));
+
+    c = Complex.fromImage(x, y, c1, c2, width, height);
+
+    iterations = mOptimized(c, steps);
+    color = colors[iterations];
+
+    xi = x - x10;
+    yi = y - y10;
+    imd.data[(xi + yi * w) * 4 + 0] = color.r;
+    imd.data[(xi + yi * w) * 4 + 1] = color.g;
+    imd.data[(xi + yi * w) * 4 + 2] = color.b;
+    imd.data[(xi + yi * w) * 4 + 3] = 255;
   }
 }
 
@@ -208,7 +234,8 @@ Workerp.message(function (params) {
     var steps = params.steps || 255;
 
     var startTime = (new Date()).getTime();
-    var results = computeImage2(params.w, params.h, steps);
+    var results = computeImage2(params.w, params.h, steps, params.stochastic);
+    // var results = computeImage(0, 0, params.w - 1, params.h - 1, steps);
     var endTime = (new Date()).getTime();
 
     return Promise.resolve({ imd: results, renderTime: endTime - startTime });
