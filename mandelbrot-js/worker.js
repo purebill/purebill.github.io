@@ -69,7 +69,7 @@ function computeArea(x1, y1, x2, y2, steps, x10, y10, w, h, imd) {
     x2--;
     y2--;
 
-    if (same) {
+    if (same && result1.iterations == steps) {
       fillArea(x1, y1, x2, y2, x10, y10, colors[result1.iterations], w, h, imd);
     } else {
       var midX = (x1 + x2) >> 1;
@@ -171,11 +171,13 @@ function computeAreaIter(x1, y1, x2, y2, steps, x10, y10, w, h, imd) {
 }
 
 function computeAreaStochastic(x1, y1, x2, y2, steps, x10, y10, w, h, imd) {
+  const N = 100;
+  
   var color = { r: 0, g: 0, b: 0 };
   var iterations;
   var c;
   var xi, yi;
-  for (let i = 0; i < 100; i++) {
+  for (let i = 0; i < N; i++) {
     let x = Math.round(Math.random() * (w - 1));
     let y = Math.round(Math.random() * (h - 1));
 
