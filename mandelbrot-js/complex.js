@@ -7,9 +7,17 @@ Complex.prototype.clone = function() {
   return new Complex(this.re, this.im);
 }
 
+Complex.prototype.neg = function() {
+  return new Complex(-this.re, -this.im);
+}
+
 Complex.prototype.add = function(c2) {
   return new Complex(this.re + c2.re, this.im + c2.im);
 };
+
+Complex.prototype.sub = function(c2) {
+  return new Complex(this.re - c2.re, this.im - c2.im);
+}
 
 Complex.prototype.mul = function(c2) {
   // (re1 + i*im1)(re2 + i*im2) = re1*re2 - im1*im2 + i*(im1*re2 + im2*re1)

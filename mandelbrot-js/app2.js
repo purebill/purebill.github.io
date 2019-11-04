@@ -509,10 +509,32 @@
     drawSet(c1, c2, ctx);
   });
 
+  const topLeft = new Complex(-2, 2);
+  const bottomRight = new Complex(2, -2);
+
   function getCurrentAddress() {
-    const x = ((c1.re + c2.re) / 2 - initialC1.re) / (initialC2.re - initialC1.re);
-    const y = ((c1.im + c2.im) / 2 - initialC1.im) / (initialC2.im - initialC1.im);
+    const x = ((c1.re + c2.re) / 2 - topLeft.re) / (bottomRight.re - topLeft.re);
+    const y = ((c1.im + c2.im) / 2 - bottomRight.im) / (topLeft.im - bottomRight.im);
     return Tile.fromCoords(x, y, zoomLevel);
+  }
+
+  function gotToAddress(address) {
+    const rect = Tile.toRect(address);
+
+    const middle = new Complex(
+      (rect[0][0] + rect[1][0]) / 2 * (bottomRight.re - topLeft.re) + topLeft.re,
+      (rect[0][1] + rect[1][1]) / 2 * (topLeft.im - bottomRight.im) + bottomRight.im
+    );
+
+    const s = Math.min(Math.abs(rect[0][0] - rect[1][0]), Math.abs(rect[0][1] - rect[1][1]));
+    const w = s * Math.abs(bottomRight.re - topLeft.re);
+    const h = Math.abs(initialC2.im - initialC1.im) / Math.abs(initialC2.re - initialC1.re) * w;
+
+    c1 = middle.sub(new Complex(w/2, h/2));
+    c2 = middle.add(new Complex(w/2, h/2));
+    zoomLevel = address.length;
+
+    drawSet(c1, c2, ctx);
   }
 
   function status() {
@@ -595,5 +617,9 @@
       (c0 ? "julia" : "mandelbrot")
       + "-" + getCurrentAddress()
       + "-" + steps));
+  });
+  Keys.key("Enter", ["Ctrl"], "Go to address", e => {
+    const address = prompt("Address");
+    if (address) gotToAddress(address);
   });
 })();
