@@ -171,15 +171,19 @@ function computeAreaIter(x1, y1, x2, y2, steps, x10, y10, w, h, imd) {
 }
 
 function computeAreaStochastic(x1, y1, x2, y2, steps, x10, y10, w, h, imd) {
-  const N = 100;
+  const N = Math.round(0.2 * w*h);
   
   var color = { r: 0, g: 0, b: 0 };
   var iterations;
   var c;
   var xi, yi;
+  var s = w*h;
   for (let i = 0; i < N; i++) {
-    let x = Math.round(Math.random() * (w - 1));
-    let y = Math.round(Math.random() * (h - 1));
+    const pos = Math.round(Math.random() * s);
+    let y = Math.floor(pos / w);
+    let x = pos - y*w;
+    // let x = Math.round(Math.random() * (w - 1));
+    // let y = Math.round(Math.random() * (h - 1));
 
     c = Complex.fromImage(x, y, c1, c2, width, height);
 

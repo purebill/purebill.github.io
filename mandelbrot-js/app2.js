@@ -16,6 +16,7 @@
     return workers[currentWorker++ % workers.length];
   }
 
+  var busy = false;
   var ctx;
   var width;
   var height;
@@ -38,6 +39,7 @@
   var zoomLevel = 0;
   var paleteIndex = 0;
   var paleteBuilders = [buildPalete, buildFractalPalete, buildBinaryPalete];
+  var randomRender = false;
 
   init(true);
 
@@ -94,11 +96,14 @@
 
     palete = paleteBuilders[paleteIndex](steps);
     zoomLevel = 0;
+    randomRender = false;
 
     drawSet(c1, c2, ctx);
   }
 
-  function drawSet(c1, c2, ctx, stochastic) {
+  function drawSet(c1, c2, ctx) {
+    busy = true;
+
     return new Promise(resolve => {
       saveState();
       stopCalculations();
@@ -143,7 +148,10 @@
           computePart(part[0][0], part[0][1], part[1][0], part[1][1]);
         });
 
-        Promise.all(promises).then(() => resolve());
+        Promise.all(promises).then(() => {
+          busy = false;
+          resolve();
+        });
 
         function computePart(x1, y1, x2, y2) {
           const c1Local = Complex.fromImage(x1, y2, c1, c2, width, height);
@@ -158,7 +166,7 @@
             c2: c2Local,
             c0,
             steps,
-            stochastic
+            stochastic: randomRender
           })
           .then(function (results) {
             var imd = results.imd;
@@ -382,7 +390,7 @@
     console.log(address);
   });
 
-  var debouncedDrawSet = debounce(drawSet, 100, 500);
+  var debouncedDrawSet = debounceIf(drawSet, 100, () => busy);
     
   Keys.mouseMove([], "Click and drag to pan", e => {
     mouseX = e.offsetX;
@@ -467,6 +475,25 @@
 
       if (timeoutId === null) timeoutId = setTimeout(later, timeoutInterval);
     };
+  }
+
+  function debounceIf(f, t, predicate) {
+    let id = null;
+  
+    return function () {
+      const context = this;
+      const a = arguments;
+  
+      if (id !== null) window.clearTimeout(id);
+      if (predicate()) {
+        id = window.setTimeout(() => {
+          id = null;
+          f.apply(context, a);
+        }, t);
+      } else {
+        f.apply(context, a);
+      }
+    }
   }
 
   Keys.mouseZoom([], "Scroll to zoom", e => {
@@ -621,5 +648,9 @@
   Keys.key("Enter", ["Ctrl"], "Go to address", e => {
     const address = prompt("Address");
     if (address) gotToAddress(address);
+  });
+  Keys.key("KeyR", [], "Random render ON/OFF", () => {
+    randomRender = !randomRender;
+    drawSet(c1, c2, ctx);
   });
 })();
