@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Inversion</title>
+  <style type="text/css">
+    body {
+      border: 0;
+      padding: 0;
+      margin: 0;
+    }
+
+    div {
+      margin-left: 10px;
+    }
+
+    #message {
+      display: none;
+    }
+
+    body,
+    input,
+    button {
+      font-size: 15pt;
+      box-sizing: border-box;
+    }
+  </style>
+</head>
+
+<body>
+  <div id="message"></div>
+
+  <div class="result" id="lensblur">
+    <p>Result</p>
+    <canvas id="result"></canvas>
+  </div>
+
+  <div class="result" id="original-div">
+    <p>Original</p>
+    <canvas id="original"></canvas>
+  </div>
+
+  <script src="message.js"></script>
+  <script src="files.js"></script>
+  <script src="invert.js"></script>
+  <script src="workerp.js"></script>
+  <script src="index.js"></script>
+  <!-- <script src="test-app.js"></script> -->
+</body>
+
+</html>
