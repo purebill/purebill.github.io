@@ -18,6 +18,8 @@
 
     #message {
       display: none;
+      position: absolute;
+      background-color: white;
     }
 
     body,
@@ -26,22 +28,31 @@
       font-size: 15pt;
       box-sizing: border-box;
     }
+
+    .result {
+      display: none;
+    }
   </style>
 </head>
 
 <body>
   <div id="message"></div>
 
-  <div class="result" id="lensblur">
+  <div class="intro">
+    <p>Drop an image here to start</p>
+  </div>
+
+  <div class="result">
     <p>Result</p>
     <canvas id="result"></canvas>
   </div>
 
-  <div class="result" id="original-div">
+  <div class="result">
     <p>Original</p>
     <canvas id="original"></canvas>
   </div>
 
+  <script src="keys.js"></script>
   <script src="message.js"></script>
   <script src="files.js"></script>
   <script src="invert.js"></script>

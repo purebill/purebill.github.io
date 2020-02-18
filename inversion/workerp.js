@@ -38,17 +38,16 @@ Workerp.prototype._init = function () {
  * Returns a promise that will be resolved while the job been done by the worker.
  */
 Workerp.prototype.call = function (params) {
-  var self = this;
-  return new Promise(function (resolve, reject) {
+  return new Promise((resolve, reject) => {
     var callId = Workerp.callId;
     Workerp.callId++;
 
-    self.promises[callId] = {
+    this.promises[callId] = {
       resolve: resolve,
       reject: reject
     };
 
-    self.worker.postMessage({
+    this.worker.postMessage({
       callId: callId,
       params: params
     });
@@ -56,7 +55,7 @@ Workerp.prototype.call = function (params) {
 };
 
 /**
- * Register a worker message handler callback on the worker side.
+ * Register a worker message handler calback on the worker side.
  * Like this:
  * 
  * Workerp.message(function (params) {
@@ -64,11 +63,7 @@ Workerp.prototype.call = function (params) {
  * });
  */
 Workerp.message = function (callback) {
-  var prev = onmessage;
-
   onmessage = function (e) {
-    if (prev) prev.call(this, e);
-
     if (!e.data.callId) {
       throw new Error("callId must be part of event.data");
     }
@@ -86,3 +81,24 @@ Workerp.prototype.reset = function () {
   this.worker.terminate();
   this._init();
 };
+
+class WorkerPool {
+  constructor(poolSize, scriptFile) {
+    this.pool = [];
+    this.idx = 0;
+
+    for (let i = 0; i < poolSize; i++) {
+      this.pool.push(new Workerp(scriptFile));
+    }
+  }
+
+  call(params) {
+    const result = this.pool[this.idx].call(params);
+    this.idx = (this.idx + 1) % this.pool.length;
+    return result;
+  }
+
+  reset() {
+    this.pool.forEach(thread => thread.reset());
+  }
+}

@@ -5,7 +5,7 @@ var Files = (function () {
 
   document.ondragover = function (ev) {
     ev.preventDefault();
-    Message.show("Отпусти чтобы загрузить изображения");
+    Message.show("Drop to use the image");
   };
 
   // see https://developer.mozilla.org/en-US/docs/Web/API/HTML_Drag_and_Drop_API/File_drag_and_drop#Process_the_drop
@@ -17,7 +17,7 @@ var Files = (function () {
       return;
     }
 
-    Message.show("Обрабатывается...");
+    Message.show("Processing...");
 
     var dataUris = [];
     for (var i = 0; i < ev.dataTransfer.items.length; i++) {

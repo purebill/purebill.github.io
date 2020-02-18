@@ -14,11 +14,15 @@ const state = {
   r: 50,
   tiles: null,
   busy: false,
-  frozen: false
+  frozen: false,
+  interpolate: false
 };
 
 Files.registerCallback(files => files.forEach(file => {
   if (!file) return;
+
+  [...document.querySelectorAll(".result")].forEach(it => it.style.display = "block");
+  [...document.querySelectorAll(".intro")].forEach(it => it.style.display = "none");
 
   loadImageData(file.uri).then(function (img) {
     var original = document.getElementById("original");
@@ -54,7 +58,7 @@ function invertLoadedImage(canvas) {
         let start = new Date().getTime();
         state.tiles.forEach(tile => {
           worker()
-            .call({tile, x: state.xc, y: state.yc, r: state.r})
+            .call({tile, x: state.xc, y: state.yc, r: state.r, interpolation: state.interpolate})
             .then(part => {
               if (!part) return;
               drawImage(canvas, part, tile);
@@ -116,7 +120,51 @@ const dy = 200;
 let ctx;
 
 const c = document.getElementById("result");
-c.onmousemove = e => {
+Keys.init(c);
+Keys.mouse(0, [], "Click to trigger motion tracking", null,
+  () => state.frozen = !state.frozen);
+Keys.mouseMove([], "Select the inversion center", e => {
+  if (state.frozen) return;
+
+  state.xc = e.offsetX;
+  state.yc = e.offsetY;
+  showState();
+  invertLoadedImage(c);
+});
+Keys.mouseZoom([], "Select the circle radius", e => {
+  if (state.frozen) return;
+
+  e.preventDefault();
+  state.r = Math.max(5, state.r + 10 * e.deltaY / Math.abs(e.deltaY));
+  showState();
+  invertLoadedImage(c);
+});
+Keys.key("KeyI", [], "Trigger interpolation",
+  () => {
+    state.interpolate = !state.interpolate;
+    
+    Message.show(state.interpolate ? "Interpolation ON" : "Interpolation OFF");
+    window.setTimeout(() => Message.hide(), 2000);
+
+    invertLoadedImage(c);
+  }
+);
+Keys.key("F1", [], "Show this help message (F1 again to hide)", () => {
+  let el = document.getElementById("message");
+
+  if (el.style.display == "block") {
+    el.style.display = "none";
+    return;
+  }
+
+  let help = Keys.help();
+  el.innerHTML =
+    "<h2>Keyboard</h2>\n<pre>" + help.keys.join("\n</pre><pre>") + "</pre>" +
+    "<h2>Mouse</h2>\n<pre>" + help.mouse.join("\n</pre><pre>") + "</pre>";
+
+  el.style.display = "block";
+});
+/*c.onmousemove = e => {
   if (state.frozen) return;
 
   state.xc = e.offsetX;
@@ -132,7 +180,7 @@ c.onmousewheel = e => {
   showState();
   invertLoadedImage(document.getElementById("result"));
 }
-c.onclick = () => state.frozen = !state.frozen;
+c.onclick = () => state.frozen = !state.frozen;*/
 
 function showState() {
   circle(c.getContext("2d"), state.xc, state.yc, state.r);
