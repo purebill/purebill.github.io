@@ -24,7 +24,7 @@ Files.registerCallback(files => files.forEach(file => {
   [...document.querySelectorAll(".result")].forEach(it => it.style.display = "block");
   [...document.querySelectorAll(".intro")].forEach(it => it.style.display = "none");
 
-  loadImageData(file.uri).then(function (img) {
+  loadImageData(file.uri, 1024, 1024).then(function (img) {
     var original = document.getElementById("original");
     original.width = img.width;
     original.height = img.height;
@@ -36,7 +36,7 @@ Files.registerCallback(files => files.forEach(file => {
 
     state.xc = img.width / 2;
     state.yc = img.height / 2;
-    state.r = 50;
+    state.r = Math.min(img.width, img.height) / 6;
     state.tiles = split(img, 128);
     state.img = img;
 
@@ -73,16 +73,29 @@ function invertLoadedImage(canvas) {
 
 invertLoadedImage = bounceIf(invertLoadedImage, 300, () => state.busy);
 
-function loadImageData(imageUrl) {
+function loadImageData(imageUrl, maxWidth, maxHeight) {
   return new Promise(function (resolve) {
     var canvas = document.createElement('canvas');
     var context = canvas.getContext('2d');
     var img = document.createElement("img");
     img.onload = function () {
-      canvas.width = img.width;
-      canvas.height = img.height;
-      context.drawImage(img, 0, 0);
-      resolve(context.getImageData(0, 0, img.width, img.height));
+      let w = img.width;
+      let h = img.height;
+      if (w > maxWidth) {
+        h = maxWidth/w * h;
+        w = maxWidth;
+      }
+      if (h > maxHeight) {
+        w = maxHeight/h * w;
+        h = maxHeight;
+      }
+      w = Math.round(w);
+      h = Math.round(h);
+  
+      canvas.width = w;
+      canvas.height = h;
+      context.drawImage(img, 0, 0, w, h);
+      resolve(context.getImageData(0, 0, w, h));
     };
     img.src = imageUrl;
   });
