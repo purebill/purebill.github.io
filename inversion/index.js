@@ -19,13 +19,47 @@ let state = {
   imgOriginal: null
 };
 
+document.onpaste = function (event) {
+  var clipboardData, found;
+  found = false;
+  clipboardData = event.clipboardData;
+  return clipboardData.types.forEach(function (type, i) {
+    var file, reader;
+    if (found) {
+      return;
+    }
+    if (clipboardData.items[i].type.match(/^image\/png$/)) {
+      file = clipboardData.items[i].getAsFile();
+      const type2 = clipboardData.items[i].type;
+      reader = new FileReader();
+      reader.onload = function (evt) {
+        // console.log({
+        //   type,
+        //   type2,
+        //   dataURL: evt.target.result,
+        //   event: evt,
+        //   file: file,
+        //   name: file.name
+        // });
+        loadDataUri(evt.target.result);
+      };
+      reader.readAsDataURL(file);
+      return (found = true);
+    }
+  });
+}
+
 Files.registerCallback(files => files.forEach(file => {
   if (!file) return;
 
+  loadDataUri(file.uri);
+}));
+
+function loadDataUri(uri) {
   [...document.querySelectorAll(".result")].forEach(it => it.style.display = "block");
   [...document.querySelectorAll(".intro")].forEach(it => it.style.display = "none");
 
-  loadImageData(file.uri, 1024, 1024)
+  loadImageData(uri, 1024, 1024)
   .then(function ([img, imgOriginal]) {
     var original = document.getElementById("original");
     original.width = img.width;
@@ -44,7 +78,7 @@ Files.registerCallback(files => files.forEach(file => {
   })
   .then(() => drawInvertedImage())
   .then(() => state.frozen = false);
-}));
+}
 
 function invertImage(img, canvas) {
   const tiles = split(img, 128);
@@ -90,7 +124,7 @@ drawInvertedImage = bounceIf(drawInvertedImage, 300, () => state.busy);
 function loadImageData(imageUrl, maxWidth, maxHeight) {
   return new Promise(function (resolve) {
     var canvas = document.createElement('canvas');
-    var context = canvas.getContext('2d', { alpha: false });
+    var context = canvas.getContext('2d');
     var img = document.createElement("img");
     img.onload = function () {
       let w = img.width;
@@ -123,7 +157,7 @@ function loadImageData(imageUrl, maxWidth, maxHeight) {
 }
 
 function drawImage(canvas, img, tile) {
-  var ctx = canvas.getContext("2d", { alpha: false });
+  var ctx = canvas.getContext("2d");
   ctx.putImageData(img, tile.left, tile.top);
 }
 
@@ -224,7 +258,7 @@ Keys.key("F1", [], "Show this help message (F1 again to hide)", () => {
 });
 
 function showState() {
-  circle(c.getContext("2d", { alpha: false }), state.xc, state.yc, state.r);
+  circle(c.getContext("2d"), state.xc, state.yc, state.r);
 }
 
 function circle(ctx, x, y, r) {
