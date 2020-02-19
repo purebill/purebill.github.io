@@ -8,14 +8,15 @@ function worker() {
   return workers[currentWorker++ % workers.length];
 }
 
-const state = {
+let state = {
   xc: 0,
   yc: 0,
   r: 50,
-  tiles: null,
   busy: false,
   frozen: false,
-  interpolate: false
+  interpolate: true,
+  img: null,
+  imgOriginal: null
 };
 
 Files.registerCallback(files => files.forEach(file => {
@@ -24,7 +25,8 @@ Files.registerCallback(files => files.forEach(file => {
   [...document.querySelectorAll(".result")].forEach(it => it.style.display = "block");
   [...document.querySelectorAll(".intro")].forEach(it => it.style.display = "none");
 
-  loadImageData(file.uri, 1024, 1024).then(function (img) {
+  loadImageData(file.uri, 1024, 1024)
+  .then(function ([img, imgOriginal]) {
     var original = document.getElementById("original");
     original.width = img.width;
     original.height = img.height;
@@ -37,46 +39,58 @@ Files.registerCallback(files => files.forEach(file => {
     state.xc = img.width / 2;
     state.yc = img.height / 2;
     state.r = Math.min(img.width, img.height) / 6;
-    state.tiles = split(img, 128);
     state.img = img;
-
-    return result;
-  }).then(result => invertLoadedImage(result))
+    state.imgOriginal = imgOriginal;
+  })
+  .then(() => drawInvertedImage())
   .then(() => state.frozen = false);
 }));
 
-function invertLoadedImage(canvas) {
-  if (!state.tiles) return;
+function invertImage(img, canvas) {
+  const tiles = split(img, 128);
 
   state.busy = true;
 
-  // workers.forEach(w => w.reset());
+  return Promise.all(workers.map(it => it.call({img})))
+    .then(() => new Promise(resolve => {
+      let c = 0;
+      let start = new Date().getTime();
 
-  return Promise.all(workers.map(it => it.call({img: state.img})))
-      .then(() => {
-        let c = 0;
-        let start = new Date().getTime();
-        state.tiles.forEach(tile => {
-          worker()
-            .call({tile, x: state.xc, y: state.yc, r: state.r, interpolation: state.interpolate})
-            .then(part => {
-              if (!part) return;
-              drawImage(canvas, part, tile);
-              if (++c == state.tiles.length) {
-                // console.debug("finished in " + (new Date().getTime() - start) / 1000.0 + " seconds");
-                state.busy = false;
-              }
-            });
-        });
+      const timerId = window.setInterval(() => {
+        const percent = Math.round(c/tiles.length*100);
+        const div = document.getElementById("progress");
+        div.style.display = "block";
+        div.innerText = percent + "%";
+      }, 500);
+
+      tiles.forEach(tile => {
+        worker()
+          .call({tile, x: state.xc, y: state.yc, r: state.r, interpolation: state.interpolate})
+          .then(part => {
+            if (!part) return;
+            drawImage(canvas, part, tile);
+            if (++c == tiles.length) {
+              // console.debug("finished in " + (new Date().getTime() - start) / 1000.0 + " seconds");
+              state.busy = false;
+              window.clearInterval(timerId);
+              document.getElementById("progress").style.display = "none";
+              resolve();
+            }
+          });
       });
+    }));
 }
 
-invertLoadedImage = bounceIf(invertLoadedImage, 300, () => state.busy);
+function drawInvertedImage() {
+  invertImage(state.img, c);
+}
+
+drawInvertedImage = bounceIf(drawInvertedImage, 300, () => state.busy);
 
 function loadImageData(imageUrl, maxWidth, maxHeight) {
   return new Promise(function (resolve) {
     var canvas = document.createElement('canvas');
-    var context = canvas.getContext('2d');
+    var context = canvas.getContext('2d', { alpha: false });
     var img = document.createElement("img");
     img.onload = function () {
       let w = img.width;
@@ -95,14 +109,21 @@ function loadImageData(imageUrl, maxWidth, maxHeight) {
       canvas.width = w;
       canvas.height = h;
       context.drawImage(img, 0, 0, w, h);
-      resolve(context.getImageData(0, 0, w, h));
+      const imgSmall = context.getImageData(0, 0, w, h);
+
+      canvas.width = img.width;
+      canvas.height = img.height;
+      context.drawImage(img, 0, 0);
+      const imgOriginal = context.getImageData(0, 0, img.width, img.height);
+
+      resolve([imgSmall, imgOriginal]);
     };
     img.src = imageUrl;
   });
 }
 
 function drawImage(canvas, img, tile) {
-  var ctx = canvas.getContext("2d");
+  var ctx = canvas.getContext("2d", { alpha: false });
   ctx.putImageData(img, tile.left, tile.top);
 }
 
@@ -141,16 +162,19 @@ Keys.mouseMove([], "Select the inversion center", e => {
 
   state.xc = e.offsetX;
   state.yc = e.offsetY;
+
   showState();
-  invertLoadedImage(c);
+  drawInvertedImage();
 });
 Keys.mouseZoom([], "Select the circle radius", e => {
   if (state.frozen) return;
 
   e.preventDefault();
+
   state.r = Math.max(5, state.r + 10 * e.deltaY / Math.abs(e.deltaY));
+  
   showState();
-  invertLoadedImage(c);
+  drawInvertedImage();
 });
 Keys.key("KeyI", [], "Trigger interpolation",
   () => {
@@ -159,9 +183,30 @@ Keys.key("KeyI", [], "Trigger interpolation",
     Message.show(state.interpolate ? "Interpolation ON" : "Interpolation OFF");
     window.setTimeout(() => Message.hide(), 2000);
 
-    invertLoadedImage(c);
+    drawInvertedImage();
   }
 );
+Keys.key("KeyS", ["Ctrl"], "Save inverted original image", () => {
+  const oldState = Object.assign({}, state);
+
+  const zoomFactor = state.imgOriginal.width / state.img.width;
+  state.r  *= zoomFactor;
+  state.xc *= zoomFactor;
+  state.yc *= zoomFactor;
+
+  const canvas = document.createElement("canvas");
+  canvas.width = state.imgOriginal.width;
+  canvas.height = state.imgOriginal.height;
+
+  invertImage(state.imgOriginal, canvas)
+  .then(() => new Promise(resolve => {
+    canvas.toBlob(blob => {
+      const saver = saveAs(blob, "inversion-" + (new Date().getTime()) + ".jpg");
+      saver.onwriteend = resolve;
+    }, "image/jpeg", 0.9);
+  }))
+  .then(() => state = oldState);
+});
 Keys.key("F1", [], "Show this help message (F1 again to hide)", () => {
   let el = document.getElementById("message");
 
@@ -177,26 +222,9 @@ Keys.key("F1", [], "Show this help message (F1 again to hide)", () => {
 
   el.style.display = "block";
 });
-/*c.onmousemove = e => {
-  if (state.frozen) return;
-
-  state.xc = e.offsetX;
-  state.yc = e.offsetY;
-  showState();
-  invertLoadedImage(document.getElementById("result"));
-};
-c.onmousewheel = e => {
-  if (state.frozen) return;
-
-  e.preventDefault();
-  state.r = Math.max(5, state.r + 10 * e.deltaY / Math.abs(e.deltaY));
-  showState();
-  invertLoadedImage(document.getElementById("result"));
-}
-c.onclick = () => state.frozen = !state.frozen;*/
 
 function showState() {
-  circle(c.getContext("2d"), state.xc, state.yc, state.r);
+  circle(c.getContext("2d", { alpha: false }), state.xc, state.yc, state.r);
 }
 
 function circle(ctx, x, y, r) {
@@ -210,21 +238,6 @@ function line(ctx, x1, y1, x2, y2) {
   ctx.moveTo(x1, y1);
   ctx.lineTo(x2, y2);
   ctx.stroke();
-}
-
-function init(w, h) {
-  c.width = w;
-  c.height = h;
-  ctx = c.getContext("2d");
-  ctx.translate(dx, dy);
-  ctx.fillStyle = "#ffffff";
-  ctx.strokeStyle = "#000000";
-  clear();
-}
-
-function clear() {
-  ctx.clearRect(-dx, -dy, c.width, c.height);
-  circle(0, 0, r);
 }
 
 function bounceIf(f, t, predicate) {

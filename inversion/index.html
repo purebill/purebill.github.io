@@ -32,11 +32,18 @@
     .result {
       display: none;
     }
+
+    #progress {
+      display: none;
+      position: fixed;
+      background-color: white;
+    }
   </style>
 </head>
 
 <body>
   <div id="message"></div>
+  <div id="progress"></div>
 
   <div class="intro">
     <p>Drop an image here to start</p>
@@ -53,6 +60,7 @@
   </div>
 
   <script src="keys.js"></script>
+  <script src="file-saver.js"></script>
   <script src="message.js"></script>
   <script src="files.js"></script>
   <script src="invert.js"></script>

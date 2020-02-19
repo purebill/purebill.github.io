@@ -28,7 +28,7 @@ function invertImg(img, tile, x, y, r) {
       result.data[rIndex]     = img.data[imgIndex];
       result.data[rIndex + 1] = img.data[imgIndex + 1];
       result.data[rIndex + 2] = img.data[imgIndex + 2];
-      result.data[rIndex + 3] = img.data[imgIndex + 3];
+      // result.data[rIndex + 3] = img.data[imgIndex + 3];
     }
   }
 
@@ -87,7 +87,7 @@ function invertImgLinear(img, tile, x, y, R) {
       result.data[rIndex]     = r;
       result.data[rIndex + 1] = g;
       result.data[rIndex + 2] = b;
-      result.data[rIndex + 3] = a;
+      // result.data[rIndex + 3] = a1;
     }
   }
 
