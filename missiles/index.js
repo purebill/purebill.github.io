@@ -176,14 +176,16 @@ function draw(ctx) {
     ctx.restore();
   });
 
+  const fontSize = 12;
+  const lineHeight = fontSize * 1.1;
   ctx.fillStyle = "black";
-  ctx.font = "20px sefif";
+  ctx.font = fontSize + "px sefif";
   let line = 1;
-  ctx.fillText("FPS: " + Math.round(fps), 0, line++ * 25);
-  ctx.fillText("Time: " + (Math.round(globalTime / 1000)), 0, line++ * 25);
-  ctx.fillText("Score: " + score, 0, line++ * 25);
+  ctx.fillText("FPS: " + Math.round(fps), 0, line++ * lineHeight);
+  ctx.fillText("Time: " + (Math.round(globalTime / 1000)), 0, line++ * lineHeight);
+  ctx.fillText("Score: " + score, 0, line++ * lineHeight);
   if (booster > 0) {
-    ctx.fillText("Booster: " + Math.round(booster / 1000) + " sec", 0, line++ * 25);
+    ctx.fillText("Booster: " + Math.round(booster / 1000) + " sec", 0, line++ * lineHeight);
   }
 
   ctx.restore();

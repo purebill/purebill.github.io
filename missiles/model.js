@@ -25,7 +25,6 @@ class Fly {
    * @param {CanvasRenderingContext2D} ctx
    */
   draw(ctx) {
-    throw new Error("Not implemented");
   }
 
   colideWith(other) {
@@ -33,7 +32,43 @@ class Fly {
   }
 }
 
-class Plane extends Fly {
+class Trail extends Fly {
+  constructor(xy, m, v, size) {
+    super(xy, m, v, size);
+
+    this.tail = [];
+    this.lastXy = null;
+  }
+
+  progress(dt) {
+    super.progress(dt);
+
+    if (this.lastXy === null) this.lastXy = this.xy;
+
+    if (V.length(V.subtract(this.xy, this.lastXy)) > 10) {
+      this.tail.push(this.xy);
+      this.lastXy = this.xy;
+      if (this.tail.length > 20) {
+        this.tail.splice(0, this.tail.length - 20);
+        console.log(this.tail);
+      }
+    }
+  }
+
+  draw(ctx) {
+    super.draw(ctx);
+
+    if (this.tail.length === 0) return;
+
+    ctx.strokeStyle = "#cccccc";
+    ctx.beginPath();
+    ctx.moveTo(this.tail[0][0], this.tail[0][1]);
+    this.tail.forEach(p => ctx.lineTo(p[0], p[1]));
+    ctx.stroke();
+  }
+}
+
+class Plane extends Trail {
   constructor(xy) {
     const maxVelocity = 100/1000;
     super(xy, 1, [0, -maxVelocity], 7);
@@ -49,6 +84,8 @@ class Plane extends Fly {
    * @param {CanvasRenderingContext2D} ctx
    */
   draw(ctx) {
+    super.draw(ctx);
+
     const nv = V.normalize(this.v);
     const tail = V.subtract(this.xy, V.mulByScalar(nv, this.size/7*5));
     const head = V.add(this.xy, V.mulByScalar(nv, this.size/7*10));
@@ -121,7 +158,7 @@ class Plane extends Fly {
   }
 }
 
-class Missile extends Fly {
+class Missile extends Trail {
   constructor(xy, target) {
     super(xy, 0.1, [0, 130/1000], 3);
     this.target = target;
@@ -140,6 +177,8 @@ class Missile extends Fly {
    * @param {CanvasRenderingContext2D} ctx
    */
   draw(ctx) {
+    super.draw(ctx);
+
     const nv = V.normalize(this.v);
     const head = V.add(this.xy, V.mulByScalar(nv, this.size*5/3));
     const left = V.subtract(this.xy, V.mulByScalar(V.normal(nv), this.size*2/3));
