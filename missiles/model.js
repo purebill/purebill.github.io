@@ -1,10 +1,44 @@
-class Fly {
-  constructor(xy, m, v, size) {
+class Entity {
+  constructor(xy) {
     this.xy = xy;
+    this.dead = false;
+  }
+
+  /**
+   * @returns {Region}
+   */
+  getColideRegion() {
+    return Region.EMPTY;
+  }
+
+  progress(dt) {
+  }
+
+  /**
+   * @param {CanvasRenderingContext2D} ctx
+   */
+  draw(ctx) {
+  }
+
+  colideWith(other) {
+    return Region.intersects(this.getColideRegion(), other.getColideRegion());
+  }
+}
+
+class Fly extends Entity {
+  constructor(xy, m, v, size) {
+    super(xy);
     this.m = m;
     this.v = v;
     this.size = size;
     this.dead = false;
+  }
+
+  /**
+   * @returns {Region}
+   */
+  getColideRegion() {
+    return new CircleRegion(this.xy, this.size);
   }
 
   progress(dt) {
@@ -19,16 +53,6 @@ class Fly {
 
   applyRotation(omega, dt) {
     this.v = V.rotate(this.v, omega * dt);
-  }
-
-  /**
-   * @param {CanvasRenderingContext2D} ctx
-   */
-  draw(ctx) {
-  }
-
-  colideWith(other) {
-    return V.length(V.subtract(this.xy, other.xy)) < this.size + other.size;
   }
 }
 
@@ -50,7 +74,6 @@ class Trail extends Fly {
       this.lastXy = this.xy;
       if (this.tail.length > 20) {
         this.tail.splice(0, this.tail.length - 20);
-        console.log(this.tail);
       }
     }
   }
@@ -60,15 +83,26 @@ class Trail extends Fly {
 
     if (this.tail.length === 0) return;
 
-    ctx.strokeStyle = "#cccccc";
+    const anim = animate([255], [200], 1, this.tail.length, 0.8);
+    for (let i = 1; i < this.tail.length; i++) {
+      const c = anim(i);
+      ctx.strokeStyle = "rgb(" + c + "," + c + "," + c + ")";
+      ctx.beginPath();
+      ctx.moveTo(this.tail[i-1][0], this.tail[i-1][1]);
+      ctx.lineTo(this.tail[i][0], this.tail[i][1]);
+      ctx.stroke();
+    }
+
+    const c = anim(this.tail.length);
+    ctx.strokeStyle = "rgb(" + c + "," + c + "," + c + ")";
     ctx.beginPath();
-    ctx.moveTo(this.tail[0][0], this.tail[0][1]);
-    this.tail.forEach(p => ctx.lineTo(p[0], p[1]));
+    ctx.moveTo(this.xy[0], this.xy[1]);
+    ctx.lineTo(this.tail[this.tail.length - 1][0], this.tail[this.tail.length - 1][1]);
     ctx.stroke();
   }
 }
 
-class Plane extends Trail {
+class Plane extends Fly {
   constructor(xy) {
     const maxVelocity = 100/1000;
     super(xy, 1, [0, -maxVelocity], 7);
@@ -160,12 +194,22 @@ class Plane extends Trail {
 
 class Missile extends Trail {
   constructor(xy, target) {
-    super(xy, 0.1, [0, 130/1000], 3);
+    const minSpeed = 130/1000;
+    const maxSpeed = 150/1000;
+    super(xy, 0.1, [0, minSpeed + Math.random()*(maxSpeed - minSpeed)], 3);
     this.target = target;
     this.maxOmega = 0.002;
+    this.lifeTime = 10000 + 10000 - Math.random()*5000;
   }
 
   progress(dt) {
+    this.lifeTime -= dt;
+    if (this.lifeTime <= 0) this.dead = true;
+
+    if (!this.animation && this.lifeTime < 2000) {
+      this.animation = animateOnTimer([0], [255], 100, 2000, null, null);
+    }
+
     const targetV = V.subtract(this.target.xy, this.xy);
     const aligned = V.alignUp(targetV, this.v);
     this.applyRotation(this.maxOmega * (aligned[0] > 0 ? 1 : -1), dt);
@@ -184,7 +228,12 @@ class Missile extends Trail {
     const left = V.subtract(this.xy, V.mulByScalar(V.normal(nv), this.size*2/3));
     const right = V.add(this.xy, V.mulByScalar(V.normal(nv), this.size*2/3));
 
-    ctx.strokeStyle = "black";
+    let color = "black";
+    if (this.animation) {
+      const c = this.animation();
+      color = "rgb(" + c + "," + c + "," + c + ")";
+    }
+    ctx.strokeStyle = color;
     ctx.beginPath();
     ctx.moveTo(left[0], left[1]);
     ctx.lineTo(head[0], head[1]);
@@ -194,9 +243,28 @@ class Missile extends Trail {
   }
 }
 
-class Star extends Fly {
+class Perk extends Entity {
   constructor(xy) {
-    super(xy, 1, [0, 0], 3);
+    super(xy);
+    this.xy = xy;
+    this.size = 3;
+  }
+
+  /**
+   * @returns {Region}
+   */
+  getColideRegion() {
+    return new CircleRegion(this.xy, this.size);
+  }
+
+  collected(game) {
+    this.dead = true;
+  }
+}
+
+class Star extends Perk {
+  constructor(xy) {
+    super(xy);
   }
 
   draw(ctx) {
@@ -204,6 +272,14 @@ class Star extends Fly {
     ctx.beginPath();
     ctx.arc(this.xy[0], this.xy[1], this.size, 0, 2*Math.PI);
     ctx.stroke();
+  }
+
+  /**
+   * @param {Game} game 
+   */
+  collected(game) {
+    super.collected(game);
+    game.score += 1;
   }
 }
 
@@ -213,8 +289,8 @@ class Explosion extends Fly {
     this.timeLeft = 500;
   }
 
-  colideWith() {
-    return false;
+  getColideRegion() {
+    return Region.EMPTY;
   }
 
   progress(dt) {
@@ -230,5 +306,26 @@ class Explosion extends Fly {
     ctx.beginPath();
     ctx.arc(this.xy[0], this.xy[1], this.size*10*(1 - this.timeLeft/500), 0, 2*Math.PI);
     ctx.stroke();
+  }
+}
+
+class Obstacle extends Entity {
+  /**
+   * @param {Region} region 
+   */
+  constructor(region) {
+    const xy = region.toPolygonRegion().vertices.reduce(
+      (acc, value, _, a) => [acc[0] + value[0]/a.length, acc[1] + value[1]/a.length],
+      [0, 0]);
+    super(xy);
+    this.region = region;
+  }
+
+  getColideRegion() {
+    return this.region;
+  }
+
+  draw(ctx) {
+    this.region.draw(ctx);
   }
 }
