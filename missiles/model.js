@@ -262,16 +262,20 @@ class Perk extends Entity {
   }
 }
 
-class Star extends Perk {
+class Life extends Perk {
   constructor(xy) {
     super(xy);
   }
 
   draw(ctx) {
-    ctx.strokeStyle = "green";
+    ctx.strokeStyle = "pink";
+    ctx.fillStyle = "pink";
     ctx.beginPath();
     ctx.arc(this.xy[0], this.xy[1], this.size, 0, 2*Math.PI);
     ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(this.xy[0], this.xy[1], this.size, 0, 2*Math.PI);
+    ctx.fill();
   }
 
   /**
@@ -279,7 +283,32 @@ class Star extends Perk {
    */
   collected(game) {
     super.collected(game);
-    game.score += 1;
+    game.incrementLifes(1);
+  }
+}
+
+class Star extends Perk {
+  constructor(xy) {
+    super(xy);
+  }
+
+  draw(ctx) {
+    ctx.strokeStyle = "green";
+    ctx.fillStyle = "green";
+    ctx.beginPath();
+    ctx.arc(this.xy[0], this.xy[1], this.size, 0, 2*Math.PI);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(this.xy[0], this.xy[1], this.size, 0, 2*Math.PI);
+    ctx.fill();
+  }
+
+  /**
+   * @param {Game} game 
+   */
+  collected(game) {
+    super.collected(game);
+    game.incrementScore(1);
   }
 }
 
@@ -287,15 +316,11 @@ class Explosion extends Fly {
   constructor(xy) {
     super(xy, 1, [0, 0], 1);
     this.timeLeft = 500;
+    this.r = animateOnTimer([0], [this.size*20], 10, 500, null, () => this.dead = true);
   }
 
   getColideRegion() {
     return Region.EMPTY;
-  }
-
-  progress(dt) {
-    this.timeLeft -= dt;
-    if (this.timeLeft <= 0) this.dead = true;
   }
 
   /**
@@ -304,7 +329,7 @@ class Explosion extends Fly {
   draw(ctx) {
     ctx.strokeStyle = "red";
     ctx.beginPath();
-    ctx.arc(this.xy[0], this.xy[1], this.size*10*(1 - this.timeLeft/500), 0, 2*Math.PI);
+    ctx.arc(this.xy[0], this.xy[1], this.r()[0], 0, 2*Math.PI);
     ctx.stroke();
   }
 }
@@ -319,13 +344,19 @@ class Obstacle extends Entity {
       [0, 0]);
     super(xy);
     this.region = region;
+    this.region.void = true;
+    this.opacityAnim = animateOnTimer([0.0], [1.0], 100, 4000, null, () => this.region.void = false);
   }
 
   getColideRegion() {
     return this.region;
   }
 
+  /**
+   * @param {CanvasRenderingContext2D} ctx 
+   */
   draw(ctx) {
+    ctx.globalAlpha = this.opacityAnim()[0];
     this.region.draw(ctx);
   }
 }

@@ -1,5 +1,6 @@
 class Region {
   constructor() {
+    this.void = false;
     this.poly = null;
   }
 
@@ -15,17 +16,18 @@ class Region {
    * @returns {ConvexPolygonRegion}
    */
   __toPolygonRegion() {
-    throw new Error("Can't convert " + this + " to polygon");
+    return ConvexPolygonRegion.EMPTY;
   }
 
   /**
    * @param {CanvasRenderingContext2D} ctx
    */
   draw(ctx) {
-    ctx.strokeStyle = "#999999";
     ctx.fillStyle = "#cccccc";
+    ctx.strokeStyle = this.void ? ctx.fillStyle : "#333333";
 
     const poly = this.toPolygonRegion();
+    if (poly.vertices.length == 0) return;
 
     ctx.beginPath();
     ctx.moveTo(poly.vertices[0][0], poly.vertices[0][1]);
@@ -125,6 +127,7 @@ class ConvexPolygonRegion extends Region {
   }
 }
 
+ConvexPolygonRegion.EMPTY = new ConvexPolygonRegion([]);
 Region.EMPTY = new Region();
 
 /**
@@ -134,6 +137,7 @@ Region.EMPTY = new Region();
  */
 Region.intersects = function (left, right) {
   if (left === Region.EMPTY || right == Region.EMPTY) return false;
+  if (left.void || right.void) return false;
 
   if (left instanceof CircleRegion && right instanceof CircleRegion) {
     return V.length(V.subtract(left.xy, right.xy)) < left.r + right.r;
