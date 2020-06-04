@@ -5,6 +5,8 @@ var Timer = (function () {
   let allPaused = false;
   let currentTime = 0;
 
+  let inbetwean = false;
+
   function set(f, ms) {
     let _id = arguments[2];
 
@@ -67,6 +69,12 @@ var Timer = (function () {
     }
   }
 
+  function clearAll() {
+    timers.clear();
+    inOrder.splice(0, inOrder.length);
+    allPaused = false;
+  }
+
   function pause(timerId) {
     let timer = timers.get(timerId);
     if (timer === undefined) return;
@@ -123,17 +131,33 @@ var Timer = (function () {
 
     if (allPaused) return;
 
-    runIfAny();
+    inbetwean = true;
+    try {
+      runIfAny();
+    } finally {
+      inbetwean = false;
+    }
+  }
+
+  function wrap(f) {
+    return function () {
+      if (inbetwean) {
+        setTimeout(() => f.apply(null, arguments), 0);
+        return;
+      }
+      return f.apply(null, arguments);
+    }
   }
 
   return {
     set,
     periodic,
-    clear,
-    pause,
-    pauseAll,
-    resume,
-    resumeAll,
+    clear: wrap(clear),
+    clearAll: wrap(clearAll),
+    pause: wrap(pause),
+    pauseAll: wrap(pauseAll),
+    resume: wrap(resume),
+    resumeAll: wrap(resumeAll),
     allPaused: () => allPaused,
     getProgress,
     progress,
