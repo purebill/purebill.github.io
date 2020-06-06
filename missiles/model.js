@@ -63,10 +63,19 @@ class Trail extends Fly {
 
     this.tail = [];
     this.lastXy = null;
+    this.trailOn = true;
+    this.fadingAlpha = null;
+  }
+
+  _stopTrailing(periodToFade) {
+    this.trailOn = false;
+    animateOnTimer([1], [0], periodToFade/10, periodToFade, v => this.fadingAlpha = v, null);
   }
 
   progress(dt) {
     super.progress(dt);
+
+    if (!this.trailOn) return;
 
     if (this.lastXy === null) this.lastXy = this.xy;
 
@@ -82,6 +91,8 @@ class Trail extends Fly {
   draw(ctx) {
     super.draw(ctx);
 
+    if (this.fadingAlpha !== null) ctx.globalAlpha = this.fadingAlpha;
+
     if (this.tail.length === 0) return;
 
     const anim = animate2([255], [200], 1, this.tail.length, TimingFunction.linear(0.8));
@@ -94,12 +105,14 @@ class Trail extends Fly {
       ctx.stroke();
     }
 
-    const c = anim(this.tail.length);
-    ctx.strokeStyle = "rgb(" + c + "," + c + "," + c + ")";
-    ctx.beginPath();
-    ctx.moveTo(this.xy[0], this.xy[1]);
-    ctx.lineTo(this.tail[this.tail.length - 1][0], this.tail[this.tail.length - 1][1]);
-    ctx.stroke();
+    if (this.trailOn) {
+      const c = anim(this.tail.length);
+      ctx.strokeStyle = "rgb(" + c + "," + c + "," + c + ")";
+      ctx.beginPath();
+      ctx.moveTo(this.xy[0], this.xy[1]);
+      ctx.lineTo(this.tail[this.tail.length - 1][0], this.tail[this.tail.length - 1][1]);
+      ctx.stroke();
+    }
   }
 }
 
@@ -254,7 +267,7 @@ class Missile extends Trail {
     this.oldTargets = [];
     this.target = target;
     this.maxOmega = 0.002;
-    this.lifeTime = 10000 + 10000 - Math.random()*5000;
+    this.lifeTime = 10000 + Math.random()*30000;
   }
 
   getColideRegion() {
@@ -267,6 +280,7 @@ class Missile extends Trail {
     if (this.lifeTime <= 0) this.dead = true;
 
     if (!this.animation && this.lifeTime < 2000) {
+      this._stopTrailing(1500);
       this.animation = animateOnTimer([0], [255], 100, 2000, null, null);
     }
 

@@ -146,6 +146,86 @@ class Level {
     ctx.font = this.fontSize + "px sefif";
     ctx.fillText("Lifes: " + this.game.lifes, 0, y);
     y += lineHeight;
+
+    ctx.save();
+    this._drawRadar(ctx);
+    ctx.restore();
+  }
+
+  /**
+   * @param {CanvasRenderingContext2D} targetCtx
+   */
+  _drawRadar(targetCtx) {
+    const radarR = 100;
+    const z = 20;
+
+    if (!this.radarCtx) {
+      const radarCanvas = document.createElement("canvas");
+      radarCanvas.width = 2*radarR + 5;
+      radarCanvas.height = 2*radarR + 5;
+      this.radarCtx = radarCanvas.getContext("2d");
+    }
+
+    const ctx = this.radarCtx;
+    const w = ctx.canvas.width;
+    const h = ctx.canvas.height;
+
+    ctx.save();
+
+    ctx.clearRect(0, 0, w, h);
+
+    const aspect = targetCtx.canvas.height/targetCtx.canvas.width;
+    ctx.scale(1, aspect);
+
+    const rx = w/2;
+    const ry = h/2;
+
+    ctx.fillStyle = "white";
+    ctx.strokeStyle = "black";
+    ctx.beginPath();
+    ctx.arc(rx, ry, radarR, 0, 2*Math.PI);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(rx, ry, radarR, 0, 2*Math.PI);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(rx, ry, radarR, 0, 2*Math.PI);
+    ctx.clip();
+
+    ctx.strokeStyle = "#999999";
+    ctx.beginPath();
+    ctx.arc(rx, ry, targetCtx.canvas.height/2/z, 0, 2*Math.PI);
+    ctx.stroke();
+
+    ctx.scale(1/z, 1/z);
+    ctx.translate(-this.game.plane.xy[0], -this.game.plane.xy[1]);
+    ctx.translate(w/2*z, h/2*z);
+    
+    ctx.strokeStyle = "black";
+    ctx.lineWidth = z;
+    ctx.beginPath();
+    ctx.moveTo(this.game.plane.xy[0], this.game.plane.xy[1] - 5*z/aspect);
+    ctx.lineTo(this.game.plane.xy[0], this.game.plane.xy[1] + 5*z/aspect);
+    ctx.moveTo(this.game.plane.xy[0] - 5*z, this.game.plane.xy[1]);
+    ctx.lineTo(this.game.plane.xy[0] + 5*z, this.game.plane.xy[1]);
+    ctx.stroke();
+    for (let fly of this.game.flies) {
+      if (fly instanceof Missile || fly instanceof Perk) {
+        ctx.save();
+        ctx.fillStyle = fly instanceof Missile ? "#ff0000" : "#000000";
+        ctx.beginPath();
+        ctx.arc(fly.xy[0], fly.xy[1], 4*z, 0, 2*Math.PI);
+        ctx.fill();
+        ctx.restore();
+      } else {
+        // fly.draw(ctx);
+      }
+    }
+
+    ctx.restore();
+
+    targetCtx.globalAlpha = 0.9;
+    targetCtx.drawImage(ctx.canvas, targetCtx.canvas.width - 2*radarR - 10, 10);
   }
 
   _tryToCreate(clazz, probability, maxCount, creator, period, notFirst) {

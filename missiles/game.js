@@ -6,6 +6,7 @@ class Game {
     this.ctx = ctx;
     this.centered = true;
     this.startFromTheBeginning();
+    this.frameCallback = null;
   }
 
   startFromTheBeginning() {
@@ -174,7 +175,10 @@ class Game {
         this.boosterIsUsed = !this.boosterIsUsed;
       });
     Keys.key("Escape", [], "Start from the beginning", () => this.startFromTheBeginning());
-    Keys.key("KeyP", [], "Pause/Resume", () => this.paused ? this.resume() : this.pause());
+    Keys.key("KeyP", [], "Pause", () => {
+      this.pause();
+      message("Paused", () => this.resume());
+    });
     Keys.key("Space", [], "Launch fake targets", () => this.launchFakeTarget());
     Keys.key("KeyC", [], "Center/Uncenter", () => this.centered = !this.centered);
     // Keys.mouse(0, [], "Missile", e => {
@@ -211,6 +215,8 @@ class Game {
       this.addNewFlies();
       this.triggers.forEach(trigger => trigger());
       this.draw();
+
+      if (this.frameCallback) this.frameCallback();
 
       requestAnimationFrame(t => this.frame(t));
     } finally {
@@ -326,11 +332,11 @@ class Game {
   }
 
   draw() {
+    this.ctx.clearRect(0, 0, this.ctx.canvas.width, this.ctx.canvas.height);
+
     this.ctx.save();
     this.level.drawPre(this.ctx);
     this.ctx.restore();
-
-    this.ctx.clearRect(0, 0, this.ctx.canvas.width, this.ctx.canvas.height);
 
     this.ctx.save();
     if (this.centered) {
