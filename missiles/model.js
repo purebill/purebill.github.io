@@ -1,7 +1,8 @@
 class Entity {
   constructor(xy) {
-    this.xy = xy;
+    this.xy = V.clone(xy);
     this.dead = false;
+    this.layer = 0;
   }
 
   /**
@@ -29,7 +30,7 @@ class Fly extends Entity {
   constructor(xy, m, v, size) {
     super(xy);
     this.m = m;
-    this.v = v;
+    this.v = V.clone(v);
     this.size = size;
     this.dead = false;
   }
@@ -83,7 +84,7 @@ class Trail extends Fly {
 
     if (this.tail.length === 0) return;
 
-    const anim = animate([255], [200], 1, this.tail.length, 0.8);
+    const anim = animate2([255], [200], 1, this.tail.length, TimingFunction.linear(0.8));
     for (let i = 1; i < this.tail.length; i++) {
       const c = anim(i);
       ctx.strokeStyle = "rgb(" + c + "," + c + "," + c + ")";
@@ -107,6 +108,7 @@ class Plane extends Fly {
     const maxVelocity = 100/1000;
     super(xy, 1, [0, -maxVelocity], 7);
 
+    this.layer = 100;
     this.omega = null;
     this.hangForce = null;
     this.boostForce = null;
@@ -135,6 +137,17 @@ class Plane extends Fly {
     ctx.moveTo(this.xy[0], this.xy[1]);
     ctx.lineTo(right[0], right[1]);
     ctx.stroke();
+
+    if (this.boostForce !== null) {
+      ctx.fillStyle = "#ff3333";
+      ctx.globalAlpha = 0.5;
+      for (let i = 0; i < 3; i++) {
+        ctx.beginPath();
+        const p = V.add(V.subtract(this.xy, V.mulByScalar(nv, 5 + this.size/7*5*i/2)), V.random(1));
+        ctx.arc(p[0], p[1], 2/(1+i/2), 0, 2*Math.PI);
+        ctx.fill();
+      }
+    }
   }
 
   progress(dt) {
@@ -192,14 +205,61 @@ class Plane extends Fly {
   }
 }
 
+class FakeTarget extends Fly {
+  constructor(plane) {
+    const negV = V.negate(V.normalize(plane.v));
+    const dAngle = Math.random()*2*Math.PI/10;
+    const angle = dAngle - 2*dAngle;
+    const v = V.rotate(V.mulByScalar(negV, 100/1000 + Math.random()*50/1000), angle);
+    const pos = V.add(plane.xy, V.mulByScalar(negV, plane.size * 2));
+    super(pos, 0.1, v, 3);
+    this.layer = 100;
+    this.plane = plane;
+    this.omega = .002 - Math.random()*2*.002;
+
+    this.color = 0;
+    animateOnTimer([0], [200], 100, 5000, v => this.color = v, null);
+    animateOnTimer([V.length(v)], [0], 100, 5000, v => this.v = V.mulByScalar(V.normalize(this.v), v), () => this.dead = true);
+  }
+
+  progress(dt) {
+    super.progress(dt);
+    this.applyRotation(this.omega, dt);
+  }
+
+  draw(ctx) {
+    super.draw(ctx);
+
+    ctx.strokeStyle = "rgb(255, " + this.color + "," + this.color + ")";
+    ctx.beginPath();
+    for (let i = 0; i < 3; i++) {
+      const ray = V.random(this.size);
+      ctx.moveTo(this.xy[0], this.xy[1]);
+      ctx.lineTo(this.xy[0] + ray[0], this.xy[1] + ray[1]);
+      ctx.moveTo(this.xy[0], this.xy[1]);
+      ctx.lineTo(this.xy[0] - ray[0], this.xy[1] - ray[1]);
+    }
+    ctx.stroke();
+  }
+}
+
 class Missile extends Trail {
   constructor(xy, target) {
     const minSpeed = 130/1000;
     const maxSpeed = 150/1000;
     super(xy, 0.1, [0, minSpeed + Math.random()*(maxSpeed - minSpeed)], 3);
+    this.layer = 100;
+    this.maxSpeed = maxSpeed;
+    this.minSpeed = minSpeed;
+    this.oldTargets = [];
     this.target = target;
     this.maxOmega = 0.002;
     this.lifeTime = 10000 + 10000 - Math.random()*5000;
+  }
+
+  getColideRegion() {
+    if (this.animation) return Region.EMPTY;
+    return super.getColideRegion();
   }
 
   progress(dt) {
@@ -210,11 +270,24 @@ class Missile extends Trail {
       this.animation = animateOnTimer([0], [255], 100, 2000, null, null);
     }
 
-    const targetV = V.subtract(this.target.xy, this.xy);
-    const aligned = V.alignUp(targetV, this.v);
-    this.applyRotation(this.maxOmega * (aligned[0] > 0 ? 1 : -1), dt);
+    if (this.target !== undefined) {
+      if (this.target.dead) {
+        this.target = this.oldTargets.pop();
+      }
+
+      if (this.target !== undefined) {
+        const targetV = V.subtract(this.target.xy, this.xy);
+        const aligned = V.alignUp(targetV, this.v);
+        this.applyRotation(this.maxOmega * (aligned[0] > 0 ? 1 : -1), dt);
+      }
+    }
 
     super.progress(dt);
+  }
+
+  retarget(newTarget) {
+    this.oldTargets.push(this.target);
+    this.target = newTarget;
   }
 
   /**
@@ -240,13 +313,29 @@ class Missile extends Trail {
     ctx.moveTo(right[0], right[1]);
     ctx.lineTo(head[0], head[1]);
     ctx.stroke();
+
+    if (!this.animation) {
+      const a = 1/(this.maxSpeed - this.minSpeed);
+      const b = -this.minSpeed*a;
+      const p = V.length(this.v)*a + b;
+      // console.log(this.minSpeed, V.length(this.v), this.maxSpeed, p);
+      ctx.fillStyle = "rgb(" + (255 * (1 - p)) + ", 0, " + (255 * p) + ")";
+      ctx.globalAlpha = 0.5;
+      for (let i = 0; i < 3; i++) {
+        ctx.beginPath();
+        const p = V.add(V.subtract(this.xy, V.mulByScalar(nv, this.size*5/3*i/2)), V.random(1));
+        ctx.arc(p[0], p[1], 2/(1+i/2), 0, 2*Math.PI);
+        ctx.fill();
+      }
+    }
   }
 }
 
 class Perk extends Entity {
   constructor(xy) {
     super(xy);
-    this.xy = xy;
+    this.layer = 100;
+    this.xy = V.clone(xy);
     this.size = 3;
   }
 
@@ -315,6 +404,7 @@ class Star extends Perk {
 class Explosion extends Fly {
   constructor(xy) {
     super(xy, 1, [0, 0], 1);
+    this.layer = 100;
     this.timeLeft = 500;
     this.r = animateOnTimer([0], [this.size*20], 10, 500, null, () => this.dead = true);
   }
@@ -343,6 +433,7 @@ class Obstacle extends Entity {
       (acc, value, _, a) => [acc[0] + value[0]/a.length, acc[1] + value[1]/a.length],
       [0, 0]);
     super(xy);
+    this.layer = 100;
     this.region = region;
     this.region.void = true;
     this.opacityAnim = animateOnTimer([0.0], [1.0], 100, 4000, null, () => this.region.void = false);
@@ -358,5 +449,55 @@ class Obstacle extends Entity {
   draw(ctx) {
     ctx.globalAlpha = this.opacityAnim()[0];
     this.region.draw(ctx);
+  }
+}
+
+class Cloud extends Entity {
+  constructor(xy) {
+    super(xy);
+    this.layer = 200;
+    this.size = 50;
+    this.color = "#00ffff";
+    this.alpha = 0.1 + Math.random()*0.4;
+    this.circles = [];
+    const N = 4 + Math.round(Math.random()*6);
+    for (let i = 0; i < N; i++) {
+      const v = V.add(xy, V.random(Math.random()*this.size));
+      this.circles.push([v[0], v[1], Math.random()*this.size]);
+    }
+  }
+
+  getColideRegion() {
+    return Region.EMPTY;
+  }
+
+  draw(ctx) {
+    ctx.fillStyle = this.color;
+    ctx.globalAlpha = this.alpha;
+    this.circles.forEach(it => {
+      ctx.beginPath();
+      ctx.arc(it[0], it[1], it[2], 0, 2*Math.PI);
+      ctx.fill();
+    });
+  }
+}
+
+class Achivement extends Entity {
+  constructor(xy, message) {
+    super(xy);
+    this.layer = 300;
+    this.message = message;
+    this.fontSize = animateOnTimer([10], [20], 100, 1000, null, () => this.dead = true);
+  }
+
+  getColideRegion() {
+    return Region.EMPTY;
+  }
+
+  draw(ctx) {
+    ctx.globalAlpha = 0.5;
+    ctx.fillStyle = "#000000";
+    ctx.font = this.fontSize()[0] + "px serif";
+    ctx.fillText(this.message, this.xy[0], this.xy[1]);
   }
 }

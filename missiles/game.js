@@ -4,6 +4,7 @@ class Game {
    */
   constructor(ctx) {
     this.ctx = ctx;
+    this.centered = true;
     this.startFromTheBeginning();
   }
 
@@ -22,40 +23,66 @@ class Game {
     this.score = 0;
     this.lifes = 1;
     this.booster = 10000;
+    this.fakeTargets = 2;
     this.boosterIsUsed = false;
     this.globalTime = 0;
     this.rotationDirection = null;
     this.fps = 0;
 
     this.plane = new Plane([this.ctx.canvas.width / 2, this.ctx.canvas.height / 2]);
-    this.addEntity(this.plane);
-
     this.level = new Level();
+
+    this.addEntity(this.plane);
     this.level.init(this);
+
+    this.resume();
+  }
+
+  incrementFakeTargets(inc) {
+    this.fakeTargets += inc;
+    this.level.changed(this);
+    this.achivement("Fake Targets +1");
+  }
+
+  decrementFakeTargets(dec) {
+    this.fakeTargets -= dec;
+    this.level.changed(this);
   }
 
   incrementLifes(inc) {
     this.lifes += inc;
+    this.level.changed(this);
+    this.achivement("Lifes +1");
   }
 
   decrementLifes(dec) {
     this.lifes -= dec;
+    this.level.changed(this);
   }
 
   incrementScore(inc) {
     this.score += inc;
+    this.level.changed(this);
   }
 
   decrementScore(dec) {
     this.score -= dec;
+    this.level.changed(this);
   }
 
   incrementBooster(inc) {
     this.booster += inc;
+    this.level.changed(this);
+    this.achivement("Booster +" + inc);
   }
 
   decrementBooster(dec) {
     this.booster -= dec;
+    this.level.changed(this);
+  }
+
+  achivement(message) {
+    this.addEntity(new Achivement(this.plane.xy, message));
   }
 
   /**
@@ -63,7 +90,24 @@ class Game {
    */
   addEntity(entity) {
     if (this.inbetween) this.fliesToAddAfterTick.push(entity);
-    else this.flies.push(entity);
+    else {
+      this.flies.push(entity);
+      this._sort();
+      this.level.changed(this);
+    }
+  }
+
+  addNewFlies() {
+    if (this.fliesToAddAfterTick.length > 0) {
+      this.fliesToAddAfterTick.forEach(o => this.flies.push(o));
+      this._sort();
+      this.fliesToAddAfterTick = [];
+      this.level.changed(this);
+    }
+  }
+
+  _sort() {
+    this.flies.sort((a, b) => a.layer > b.layer ? 1 : (a.layer == b.layer ? 0 : -1));
   }
 
   addTrigger(trigger) {
@@ -73,28 +117,66 @@ class Game {
   init() {
     Keys.resetToRoot();
     Keys.push();
+
+    Keys.key("F1", [], "Show this help message (F1 again to hide)", () => {
+      let el = document.getElementById("help");
+
+      let snapshot;
+      const hide = () => {
+        Keys.restoreFromSnapshot(snapshot);
+        this.resume();
+        el.style.display = "none";
+      }
+
+      if (el.style.display == "block") {
+        hide();
+        return;
+      }
+
+      let help = Keys.help();
+      snapshot = Keys.snapshot();
+      Keys.resetToRoot();
+      Keys.key("Escape", [], "Hide help message", () => hide());
+      Keys.key("F1", [], "Hide help message", () => hide());
+
+      this.pause();
+
+      el.innerHTML =
+        "<h2>Keyboard</h2>\n<pre>" + help.keys.join("\n</pre><pre>") + "</pre>"
+        // + "<h2>Mouse</h2>\n<pre>" + help.mouse.join("\n</pre><pre>") + "</pre>"
+        ;
+
+      el.style.display = "block";
+    });
     Keys.key("ArrowRight", [], "Turn right",
       () => { this.rotationDirection = "right"; this.plane.right(); },
       () => { if (this.rotationDirection == "right") this.plane.noRotate(); });
     Keys.key("ArrowLeft", [], "Turn left",
       () => { this.rotationDirection = "left"; this.plane.left() },
       () => { if (this.rotationDirection == "left") this.plane.noRotate(); });
-    Keys.key("ArrowDown", [], "Unboost",
+    Keys.key("ArrowDown", [], "Slowmo/Unslowmo",
       () => {
-        this.boosterIsUsed = false;
-        this.plane.maxVelocity = 100/1000;
-        this.plane.stopBoost();
+        if (this.timeScale > 1) {
+          this.timeScale = 1;
+        } else {
+          this.timeScale = Math.min(this.timeScale * 2.5, 10);
+        }
       });
-    Keys.key("ArrowUp", [], "Boost",
+    Keys.key("ArrowUp", [], "Boost/Unboost",
       () => {
-        this.boosterIsUsed = true;
-        this.plane.maxVelocity = (this.booster > 0 ? 150/1000 : 100/1000);
-        this.plane.startBoost();
+        if (this.boosterIsUsed) {
+          this.plane.maxVelocity = 100/1000;
+          this.plane.stopBoost();
+        } else {
+          this.plane.maxVelocity = (this.booster > 0 ? 150/1000 : 100/1000);
+          this.plane.startBoost();
+        }
+        this.boosterIsUsed = !this.boosterIsUsed;
       });
     Keys.key("Escape", [], "Start from the beginning", () => this.startFromTheBeginning());
-    Keys.key("Space", [], "Pause/Resume", () => this.paused ? this.resume() : this.pause());
-    Keys.key("NumpadAdd", [], "Slower", () => this.timeScale = Math.min(this.timeScale * 2, 10));
-    Keys.key("NumpadSubtract", [], "Faster", () => this.timeScale = Math.max(this.timeScale / 2, 1));
+    Keys.key("KeyP", [], "Pause/Resume", () => this.paused ? this.resume() : this.pause());
+    Keys.key("Space", [], "Launch fake targets", () => this.launchFakeTarget());
+    Keys.key("KeyC", [], "Center/Uncenter", () => this.centered = !this.centered);
     // Keys.mouse(0, [], "Missile", e => {
     //   if (this.paused) {
     //     this.addEntity(new Obstacle(new CircleRegion([e.offsetX, e.offsetY], 10)));
@@ -148,6 +230,8 @@ class Game {
   }
 
   wrapAround(xy) {
+    if (this.centered) return xy;
+
     let x = xy[0];
     if (x < 0) x += this.ctx.canvas.width;
     if (x >= this.ctx.canvas.width) x -= this.ctx.canvas.width;
@@ -222,20 +306,23 @@ class Game {
         if (o === this.plane) gameOver = true;
         this.flies.splice(this.flies.indexOf(o), 1);
       });
-      if (gameOver) setTimeout(() => this.startFromTheBeginning(), 3000);
+      if (gameOver) this.gameOver();
     }
+  }
+
+  gameOver() {
+    const id = setTimeout(() => {
+      this.pause();
+      message("Game Over", () => {
+        clearTimeout(id);
+        this.startFromTheBeginning();
+      });
+    }, 2000);
   }
   
   explosionFor(o) {
     o.dead = true;
     this.addEntity(new Explosion(o.xy));
-  }
-
-  addNewFlies() {
-    if (this.fliesToAddAfterTick.length > 0) {
-      this.fliesToAddAfterTick.forEach(o => this.flies.push(o));
-      this.fliesToAddAfterTick = [];
-    }
   }
 
   draw() {
@@ -244,11 +331,17 @@ class Game {
     this.ctx.restore();
 
     this.ctx.clearRect(0, 0, this.ctx.canvas.width, this.ctx.canvas.height);
+
+    this.ctx.save();
+    if (this.centered) {
+      this.ctx.translate(-this.plane.xy[0] + this.ctx.canvas.width/2, -this.plane.xy[1] + this.ctx.canvas.height/2);
+    }
     this.flies.forEach(fly => {
       this.ctx.save();
       fly.draw(this.ctx);
       this.ctx.restore();
     });
+    this.ctx.restore();
 
     this.ctx.save();
     this.level.drawPost(this.ctx);
@@ -267,6 +360,19 @@ class Game {
     this.lastT = null;
     this.paused = false;
     requestAnimationFrame(t => this.frame(t));
+  }
+
+  launchFakeTarget() {
+    if (this.fakeTargets <= 0) return;
+    this.decrementFakeTargets(1);
+
+    const radius = 200;
+    const fakeTarget = new FakeTarget(this.plane);
+    this.addEntity(fakeTarget);
+    this.flies
+      .filter(it => it instanceof Missile)
+      .filter(it => V.length(V.subtract(it.xy, this.plane.xy)) <= radius)
+      .forEach(it => it.retarget(fakeTarget));
   }
 }
 

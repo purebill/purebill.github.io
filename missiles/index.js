@@ -10,4 +10,4 @@ window.onresize();
 
 const game = new Game(ctx);
 game.init();
-game.resume();
+game.startFromTheBeginning();

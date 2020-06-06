@@ -6,13 +6,15 @@ class Level {
     this.missileProbability = 0.5;
     this.missilePeriod = 1000;
 
-    this.starProbability = 0.8;
+    this.starProbability = 0.5;
     this.starPeriod = 1000;
     this.starMaxCount = 1;
 
     this.lifePeriod = 5000;
-    this.lifeProbability = 0.5;
+    this.lifeProbability = 0.2;
     this.lifeMaxCount = 1;
+
+    this.fontSize = 12;
   }
 
   /**
@@ -33,9 +35,10 @@ class Level {
           x = Math.random() > 0.5 ? 0 : game.ctx.canvas.width;
           y = Math.random() * game.ctx.canvas.height;
         }
-        return new Missile([x, y], game.plane);
+        return new Missile(V.add(game.plane.xy, V.random(game.ctx.canvas.width)), game.plane);
       },
       () => this.missilePeriod);
+    
     this._tryToCreate(Star,
       () => this.starProbability,
       () => this.lifeMaxCount,
@@ -46,16 +49,37 @@ class Level {
         return new Star(starV);
       },
       () => this.starPeriod);
+    
     this._tryToCreate(Life,
       () => this.lifeProbability,
       () => this.lifeMaxCount,
       () => new Life([Math.random()*this.game.ctx.canvas.width, Math.random()*this.game.ctx.canvas.height]),
       () => this.lifePeriod);
 
-    this.game.addTrigger(scoreTrigger(this.game, 5, () => this.game.incrementLifes(1)));
-    this.game.addTrigger(scoreTrigger(this.game, 1, () => this.game.incrementBooster(2000)));
+    this.game.addTrigger(scoreTrigger(this.game, 10, () => this.game.incrementLifes(1)));
+    this.game.addTrigger(scoreTrigger(this.game, 5, () => this.game.incrementFakeTargets(1)));
+    this.game.addTrigger(scoreTrigger(this.game, 2, () => this.game.incrementBooster(2000)));
 
     this._randomObstacles();
+    this._randomClouds();
+  }
+
+  changed(game) {
+    // if (this.prevState) {
+    //   if (this.prevState.lifes < game.lifes
+    //     || this.prevState.booster < game.booster
+    //     || this.prevState.fakeTargets < game.fakeTargets) {
+    //     this.fontSize = 20;
+    //     Timer.set(() => this.fontSize = 12, 2000);
+    //   }
+    // }
+    
+    this.prevState = {
+      lifes: game.lifes,
+      score: game.score,
+      booster: game.booster,
+      fakeTargets: game.fakeTargets
+    };
   }
 
   progress(dt) {
@@ -86,18 +110,42 @@ class Level {
   }
 
   drawPost(ctx) {
-    const fontSize = 12;
-    const lineHeight = fontSize * 1.1;
+    const lineHeight = this.fontSize * 1.1;
+    let y = lineHeight;
+    
     ctx.fillStyle = "black";
-    ctx.font = fontSize + "px sefif";
-    let line = 1;
-    ctx.fillText("FPS: " + Math.round(this.game.fps), 0, line++ * lineHeight);
-    ctx.fillText("Time: " + (Math.round(this.game.globalTime / 1000)), 0, line++ * lineHeight);
-    ctx.fillText("Score: " + this.game.score, 0, line++ * lineHeight);
-    if (this.game.booster > 0) {
-      ctx.fillText("Booster: " + Math.round(this.game.booster / 1000) + " sec", 0, line++ * lineHeight);
+    ctx.font = this.fontSize + "px sefif";
+    ctx.fillText("FPS: " + Math.round(this.game.fps), 0, y);
+    y += lineHeight;
+
+    ctx.fillStyle = "black";
+    ctx.font = this.fontSize + "px sefif";
+    ctx.fillText("Time: " + (Math.round(this.game.globalTime / 1000)), 0, y);
+    y += lineHeight;
+
+    ctx.fillStyle = "black";
+    ctx.font = this.fontSize + "px sefif";
+    ctx.fillText("Score: " + this.game.score, 0, y);
+    y += lineHeight;
+
+    if (this.game.fakeTargets > 0) {
+      ctx.fillStyle = "black";
+      ctx.font = this.fontSize + "px sefif";
+      ctx.fillText("Fake targets: " + this.game.fakeTargets, 0, y);
+      y += lineHeight;
     }
-    ctx.fillText("Lifes: " + this.game.lifes, 0, line++ * lineHeight);
+
+    if (this.game.booster > 0) {
+      ctx.fillStyle = "black";
+      ctx.font = this.fontSize + "px sefif";
+      ctx.fillText("Booster: " + Math.round(this.game.booster / 1000) + " sec", 0, y);
+      y += lineHeight;
+    }
+
+    ctx.fillStyle = "black";
+    ctx.font = this.fontSize + "px sefif";
+    ctx.fillText("Lifes: " + this.game.lifes, 0, y);
+    y += lineHeight;
   }
 
   _tryToCreate(clazz, probability, maxCount, creator, period, notFirst) {
@@ -121,12 +169,30 @@ class Level {
     Timer.set(() => this._tryToCreate(clazz, probability, maxCount, creator, period, true), period());
   }
 
+  _randomClouds() {
+    if (!this.game.plane) return;
+
+    for (let i = 0; i < 20; i++) {
+      const w = this.game.ctx.canvas.width;
+      const h = this.game.ctx.canvas.height;
+      let xc = this.game.plane.xy[0] + w - 2 * Math.random() * w;
+      let yc = this.game.plane.xy[1] + h - 2 * Math.random() * h;
+      this.game.addEntity(new Cloud([xc, yc]));
+    }
+
+    // Timer.set(() => this._randomClouds(), 1000 + Math.random() * 4000);
+  }
+
   _randomObstacles() {
+    if (!this.game.plane) return;
+
     let collided = false;
     let obstacle;
     do {
-      let xc = Math.random() * this.game.ctx.canvas.width;
-      let yc = Math.random() * this.game.ctx.canvas.height;
+      const w = this.game.ctx.canvas.width;
+      const h = this.game.ctx.canvas.height;
+      let xc = this.game.plane.xy[0] + w - 2 * Math.random() * w;
+      let yc = this.game.plane.xy[1] + h - 2 * Math.random() * h;
       let r = 20 + Math.random() * 30;
       const N = Math.round(3 + Math.random()*10);
       const vertices = [];
@@ -143,6 +209,6 @@ class Level {
     } while (collided);
     this.game.addEntity(obstacle);
 
-    Timer.set(() => this._randomObstacles(), 3000/*10000 + Math.random() * 50000*/);
+    Timer.set(() => this._randomObstacles(), 1000 + Math.random() * 4000);
   }
 }

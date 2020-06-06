@@ -4,8 +4,54 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Missiles</title>
+  <style>
+    body {
+      border: 0;
+      padding: 0;
+      margin: 0;
+    }
+    #help {
+      position: fixed;
+      margin: auto;
+      background-color: white;
+      display: none;
+      border: 1px solid black;
+      padding: 10px;
+      z-index: 10000;
+    }
+    #message {
+      position: absolute;
+      left: 0;
+      top: 50%;
+      width: 100%;
+      display: none;
+      font-size: 30px;
+      text-align: center;
+      vertical-align: center;
+      z-index: 100;
+    }
+
+    #message div {
+      display: inline-block;
+      background-color: black;
+      color: white;
+      border-radius: 10px;
+      padding: 10px 15px;
+      cursor: pointer;
+    }
+    canvas {
+      border: 1px solid gray;
+      box-sizing: border-box;
+    }
+  </style>
 </head>
 <body>
+  <div id="help"></div>
+  
+  <div id="messageContainer">
+    <div id="message"></div>
+  </div>
+
   <canvas id="canvas"></canvas>
 
   <script src="keys.js"></script>
@@ -16,6 +62,7 @@
   <script src="model.js"></script>
   <script src="level.js"></script>
   <script src="game.js"></script>
+  <script src="message.js"></script>
   <script src="index.js"></script>
 </body>
 </html>
