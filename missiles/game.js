@@ -231,6 +231,7 @@ class Game {
         this.booster = 0;
         this.boosterIsUsed = false;
         this.plane.maxVelocity = 100/1000;
+        this.plane.stopBoost();
       }
     }
   }

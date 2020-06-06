@@ -69,7 +69,7 @@ class Trail extends Fly {
 
   _stopTrailing(periodToFade) {
     this.trailOn = false;
-    animateOnTimer([1], [0], periodToFade/10, periodToFade, v => this.fadingAlpha = v, null);
+    animateOnTimer([1], [0], periodToFade/10, periodToFade, TimingFunction.linear(0), v => this.fadingAlpha = v, null);
   }
 
   progress(dt) {
@@ -231,8 +231,8 @@ class FakeTarget extends Fly {
     this.omega = .002 - Math.random()*2*.002;
 
     this.color = 0;
-    animateOnTimer([0], [200], 100, 5000, v => this.color = v, null);
-    animateOnTimer([V.length(v)], [0], 100, 5000, v => this.v = V.mulByScalar(V.normalize(this.v), v), () => this.dead = true);
+    animateOnTimer([0], [200], 100, 5000, TimingFunction.ease(), v => this.color = v, null);
+    animateOnTimer([V.length(v)], [0], 100, 5000, TimingFunction.ease(), v => this.v = V.mulByScalar(V.normalize(this.v), v), () => this.dead = true);
   }
 
   progress(dt) {
@@ -271,7 +271,7 @@ class Missile extends Trail {
   }
 
   getColideRegion() {
-    if (this.animation) return Region.EMPTY;
+    if (this.dieAnimation) return Region.EMPTY;
     return super.getColideRegion();
   }
 
@@ -279,9 +279,9 @@ class Missile extends Trail {
     this.lifeTime -= dt;
     if (this.lifeTime <= 0) this.dead = true;
 
-    if (!this.animation && this.lifeTime < 2000) {
+    if (!this.dieAnimation && this.lifeTime < 2000) {
       this._stopTrailing(1500);
-      this.animation = animateOnTimer([0], [255], 100, 2000, null, null);
+      this.dieAnimation = animateOnTimer([0], [255], 100, 2000, TimingFunction.linear(0), null, null);
     }
 
     if (this.target !== undefined) {
@@ -316,8 +316,8 @@ class Missile extends Trail {
     const right = V.add(this.xy, V.mulByScalar(V.normal(nv), this.size*2/3));
 
     let color = "black";
-    if (this.animation) {
-      const c = this.animation();
+    if (this.dieAnimation) {
+      const c = this.dieAnimation();
       color = "rgb(" + c + "," + c + "," + c + ")";
     }
     ctx.strokeStyle = color;
@@ -328,7 +328,7 @@ class Missile extends Trail {
     ctx.lineTo(head[0], head[1]);
     ctx.stroke();
 
-    if (!this.animation) {
+    if (!this.dieAnimation) {
       const a = 1/(this.maxSpeed - this.minSpeed);
       const b = -this.minSpeed*a;
       const p = V.length(this.v)*a + b;
@@ -351,6 +351,7 @@ class Perk extends Entity {
     this.layer = 100;
     this.xy = V.clone(xy);
     this.size = 3;
+    Timer.set(() => this.dead = true, 20000 + Math.random()*40000);
   }
 
   /**
@@ -420,7 +421,7 @@ class Explosion extends Fly {
     super(xy, 1, [0, 0], 1);
     this.layer = 100;
     this.timeLeft = 500;
-    this.r = animateOnTimer([0], [this.size*20], 10, 500, null, () => this.dead = true);
+    this.r = animateOnTimer([0], [this.size*20], 10, 500, TimingFunction.ease(), null, () => this.dead = true);
   }
 
   getColideRegion() {
@@ -450,7 +451,7 @@ class Obstacle extends Entity {
     this.layer = 100;
     this.region = region;
     this.region.void = true;
-    this.opacityAnim = animateOnTimer([0.0], [1.0], 100, 4000, null, () => this.region.void = false);
+    this.alphaAnim = animateOnTimer([0.0], [1.0], 100, 4000, TimingFunction.linear(0), null, () => this.region.void = false);
   }
 
   getColideRegion() {
@@ -461,7 +462,7 @@ class Obstacle extends Entity {
    * @param {CanvasRenderingContext2D} ctx 
    */
   draw(ctx) {
-    ctx.globalAlpha = this.opacityAnim()[0];
+    ctx.globalAlpha = this.alphaAnim()[0];
     this.region.draw(ctx);
   }
 }
@@ -472,13 +473,13 @@ class Cloud extends Entity {
     this.layer = 200;
     this.size = 50;
     this.color = "#00ffff";
-    this.alpha = 0.1 + Math.random()*0.4;
     this.circles = [];
     const N = 4 + Math.round(Math.random()*6);
     for (let i = 0; i < N; i++) {
       const v = V.add(xy, V.random(Math.random()*this.size));
       this.circles.push([v[0], v[1], Math.random()*this.size]);
     }
+    this.alphaAnim = animateOnTimer([0.0], [0.1 + Math.random()*0.4], 100, 1000, TimingFunction.linear(0), null, null);
   }
 
   getColideRegion() {
@@ -487,7 +488,7 @@ class Cloud extends Entity {
 
   draw(ctx) {
     ctx.fillStyle = this.color;
-    ctx.globalAlpha = this.alpha;
+    ctx.globalAlpha = this.alphaAnim()[0];
     this.circles.forEach(it => {
       ctx.beginPath();
       ctx.arc(it[0], it[1], it[2], 0, 2*Math.PI);
@@ -501,7 +502,7 @@ class Achivement extends Entity {
     super(xy);
     this.layer = 300;
     this.message = message;
-    this.fontSize = animateOnTimer([10], [20], 100, 1000, null, () => this.dead = true);
+    this.fontSize = animateOnTimer([10], [20], 100, 1000, TimingFunction.ease(), null, () => this.dead = true);
   }
 
   getColideRegion() {

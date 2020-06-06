@@ -3,27 +3,11 @@
  * @param {number[]} v2 end vector
  * @param {number} t1 start time
  * @param {number} t2 end time
- * @param {number} shift +/-[0, 1] if positive then shifts from the start, if negative -- from the end
+ * @param {() => TimingFunction} timingeFunctionFactory
  * @returns {(currentTime: number) => number[]} getter for the vector being animated
  */
-function animate(v1, v2, t1, t2, shift) {
-  return animate2(v1, v2, t1, t2, () => new EaseTimingFunction());
-  v1 = V.clone(v1);
-  v2 = V.clone(v2);
-  
-  let t1s = t1;
-  let t2s = t2;
-
-  if (shift < 0) t1s = t1 + (t2 - t1)*-shift;
-  if (shift > 0) t2s = t1 + (t2 - t1)*(1-shift);
-
-  const step = v2.map((c, idx) => (c - v1[idx]) / (t2s - t1s));
-
-  return t => {
-    if (t <= t1s) return v1;
-    if (t >= t2s) return v2;
-    return v1.map((c, idx) => c + step[idx] * (t-t1s));
-  };
+function animate(v1, v2, t1, t2, timingeFunctionFactory) {
+  return animate2(v1, v2, t1, t2, timingeFunctionFactory);
 }
 
 /**
@@ -31,12 +15,13 @@ function animate(v1, v2, t1, t2, shift) {
  * @param {number[]} v2 end vector
  * @param {number} progressMs interval to change the animated vector
  * @param {number} intervalMs animation interval
+ * @param {() => TimingFunction} timingFunctionFactory
  * @param {(value: number[]) => any} progressCallback called when animation progresses
  * @param {(value: number[]) => any} finishCallback called when animation is done
  * @returns {() => number[]} getter for the vector being animated
  */
-function animateOnTimer(v1, v2, progressMs, intervalMs, progressCallback, finishCallback) {
-  let a = animate(v1, v2, 0, intervalMs, 0);
+function animateOnTimer(v1, v2, progressMs, intervalMs, timingFunctionFactory, progressCallback, finishCallback) {
+  let a = animate(v1, v2, 0, intervalMs, timingFunctionFactory);
   let t = Timer.now();
   let value = v1;
   let intervalId = null;

@@ -2,6 +2,7 @@ class Region {
   constructor() {
     this.void = false;
     this.poly = null;
+    this.boundingBox = null;
   }
 
   /**
@@ -10,6 +11,22 @@ class Region {
   toPolygonRegion() {
     if (this.poly === null) this.poly = this.__toPolygonRegion();
     return this.poly;
+  }
+
+  getBoundingBox() {
+    if (this.boundingBox === null) {
+      const poly = this.toPolygonRegion();
+      let xmin = 1e20, xmax = -1e20, ymin = 1e20, ymax = -1e20;
+      for (let v of poly.vertices) {
+        if (v[0] < xmin) xmin = v[0];
+        if (v[0] > xmax) xmax = v[0];
+        if (v[1] < ymin) ymin = v[1];
+        if (v[1] > ymax) ymax = v[1];
+      }
+      this.boundingBox = [xmin, ymin, xmax, ymax];
+    }
+
+    return this.boundingBox;
   }
 
   /**
@@ -143,6 +160,14 @@ Region.intersects = function (left, right) {
     return V.length(V.subtract(left.xy, right.xy)) < left.r + right.r;
   }
 
+  const lb = left.getBoundingBox();
+  const rb = right.getBoundingBox();
+  if (lb[0] > rb[2] || rb[0] > rb[2]) return false;
+  if (lb[1] > rb[3] || rb[1] > rb[3]) return false;
+
+  // this is not a full intersection algorithm as it only conciders vertices inside the other polygon
+  // TODO change to the parity edge intersection count
+  
   const p1 = left.toPolygonRegion();
   const p2 = right.toPolygonRegion();
 

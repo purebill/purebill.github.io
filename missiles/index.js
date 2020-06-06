@@ -8,8 +8,12 @@ const frameCanvas = document.createElement("canvas");
 const frameCtx = frameCanvas.getContext("2d");
 
 window.onresize = () => {
-  canvas.width = window.innerWidth - 20;
-  canvas.height = window.innerHeight - 20;
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+  canvas.style.position = "fixed";
+  canvas.style.left = '0';
+  canvas.style.top = '0';
+  
   frameCanvas.width = canvas.width;
   frameCanvas.height = canvas.height;
 };
