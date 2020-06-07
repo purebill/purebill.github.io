@@ -1,13 +1,17 @@
+
 /**
  * @param {number[]} v1 start vector
  * @param {number[]} v2 end vector
  * @param {number} t1 start time
  * @param {number} t2 end time
- * @param {() => TimingFunction} timingeFunctionFactory
- * @returns {(currentTime: number) => number[]} getter for the vector being animated
+ * @param {() => TimingFunction} timingFunctionFactory
+ * @returns {(t: number) => number[]} getter for the vector being animated
  */
-function animate(v1, v2, t1, t2, timingeFunctionFactory) {
-  return animate2(v1, v2, t1, t2, timingeFunctionFactory);
+function animate(v1, v2, t1, t2, timingFunctionFactory) {
+  const tfs = v1.map((c, idx) => timingFunctionFactory().init(c, v2[idx]));
+  return t => {
+    return tfs.map(tf => tf.progress((t - t1)/(t2 - t1)));
+  };
 }
 
 /**
@@ -118,18 +122,3 @@ class EaseTimingFunction extends TimingFunction {
 
 TimingFunction.ease = () => () => new EaseTimingFunction();
 TimingFunction.linear = (shift) => () => new LinearTimingFunction(shift);
-
-/**
- * @param {number[]} v1 start vector
- * @param {number[]} v2 end vector
- * @param {number} t1 start time
- * @param {number} t2 end time
- * @param {() => TimingFunction} timingFunctionFactory
- * @returns {(t: number) => number[]} getter for the vector being animated
- */
-function animate2(v1, v2, t1, t2, timingFunctionFactory) {
-  const tfs = v1.map((c, idx) => timingFunctionFactory().init(c, v2[idx]));
-  return t => {
-    return tfs.map(tf => tf.progress((t - t1)/(t2 - t1)));
-  };
-}

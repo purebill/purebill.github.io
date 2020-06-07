@@ -18,6 +18,7 @@ class Game {
     this.fliesToAddAfterTick = [];
     this.triggers = [];
     this.paused = true;
+    this.gameIsOver = false;
     this.inbetween = false;
     this.lastT = null;
     this.timeScale = 1;
@@ -28,6 +29,7 @@ class Game {
     this.boosterIsUsed = false;
     this.globalTime = 0;
     this.rotationDirection = null;
+    this.fakeTargetTimerId = null;
     this.fps = 0;
 
     this.plane = new Plane([this.ctx.canvas.width / 2, this.ctx.canvas.height / 2]);
@@ -42,7 +44,7 @@ class Game {
   incrementFakeTargets(inc) {
     this.fakeTargets += inc;
     this.level.changed(this);
-    this.achivement("Fake Targets +1");
+    this.achivement(T.fakeTarget + " +" + inc, T.fakeTargetColor);
   }
 
   decrementFakeTargets(dec) {
@@ -53,7 +55,7 @@ class Game {
   incrementLifes(inc) {
     this.lifes += inc;
     this.level.changed(this);
-    this.achivement("Lifes +1");
+    this.achivement(T.life + " +" + inc, T.lifeColor);
   }
 
   decrementLifes(dec) {
@@ -64,6 +66,7 @@ class Game {
   incrementScore(inc) {
     this.score += inc;
     this.level.changed(this);
+    this.achivement("+" + inc, T.scoreColor);
   }
 
   decrementScore(dec) {
@@ -74,7 +77,7 @@ class Game {
   incrementBooster(inc) {
     this.booster += inc;
     this.level.changed(this);
-    this.achivement("Booster +" + inc);
+    this.achivement(T.booster + " +" + Math.round(inc/1000), T.boosterColor);
   }
 
   decrementBooster(dec) {
@@ -82,8 +85,8 @@ class Game {
     this.level.changed(this);
   }
 
-  achivement(message) {
-    this.addEntity(new Achivement(this.plane.xy, message));
+  achivement(message, color) {
+    this.addEntity(new Achivement(this.plane.xy, message, color));
   }
 
   /**
@@ -176,18 +179,12 @@ class Game {
       });
     Keys.key("Escape", [], "Start from the beginning", () => this.startFromTheBeginning());
     Keys.key("KeyP", [], "Pause", () => {
+      if (this.gameIsOver) return;
       this.pause();
       message("Paused", () => this.resume());
     });
     Keys.key("Space", [], "Launch fake targets", () => this.launchFakeTarget());
     Keys.key("KeyC", [], "Center/Uncenter", () => this.centered = !this.centered);
-    // Keys.mouse(0, [], "Missile", e => {
-    //   if (this.paused) {
-    //     this.addEntity(new Obstacle(new CircleRegion([e.offsetX, e.offsetY], 10)));
-    //     this.addNewFlies();
-    //     this.draw();
-    //   }
-    // });
   }
 
   frame(t) {
@@ -318,6 +315,7 @@ class Game {
   }
 
   gameOver() {
+    this.gameIsOver = true;
     const id = setTimeout(() => {
       this.pause();
       message("Game Over", () => {
@@ -333,7 +331,9 @@ class Game {
   }
 
   draw() {
-    this.ctx.clearRect(0, 0, this.ctx.canvas.width, this.ctx.canvas.height);
+    // this.ctx.clearRect(0, 0, this.ctx.canvas.width, this.ctx.canvas.height);
+    this.ctx.fillStyle = T.skyColor;
+    this.ctx.fillRect(0, 0, this.ctx.canvas.width, this.ctx.canvas.height);
 
     this.ctx.save();
     this.level.drawPre(this.ctx);
@@ -351,8 +351,151 @@ class Game {
     this.ctx.restore();
 
     this.ctx.save();
+    this._drawScore(this.ctx);
+    this.ctx.restore();
+
+    this.ctx.save();
+    this._drawRadar(this.ctx);
+    this.ctx.restore();
+
+    this.ctx.save();
     this.level.drawPost(this.ctx);
     this.ctx.restore();
+  }
+
+  _drawScore(ctx) {
+    const fontSize = 14;
+
+    const lineHeight = fontSize * 1.1;
+    let y = lineHeight;
+    
+    ctx.font = fontSize + "px serif";
+
+    ctx.fillStyle = "black";
+    ctx.fillText("FPS: " + Math.round(this.fps), 0, y);
+    y += lineHeight;
+
+    ctx.fillStyle = T.timeColor;
+    ctx.fillText(T.time + " " + (Math.round(this.globalTime / 1000)), 0, y);
+    y += lineHeight;
+
+    ctx.fillStyle = T.scoreColor;
+    ctx.fillText(T.score + " " + this.score, 0, y);
+    y += lineHeight;
+
+    if (this.fakeTargets > 0) {
+      ctx.fillStyle = T.fakeTargetColor;
+      ctx.fillText(T.fakeTarget + " " + this.fakeTargets, 0, y);
+      y += lineHeight;
+    }
+
+    if (this.booster > 0) {
+      ctx.fillStyle = T.boosterColor;
+      ctx.fillText(T.booster + " " + Math.round(this.booster / 1000) + " sec", 0, y);
+      y += lineHeight;
+    }
+
+    ctx.fillStyle = T.lifeColor;
+    ctx.fillText(T.life + " " + this.lifes, 0, y);
+    y += lineHeight;
+
+    ctx.save();
+    this._drawRadar(ctx);
+    ctx.restore();
+  }
+
+    /**
+   * @param {CanvasRenderingContext2D} targetCtx
+   */
+  _drawRadar(targetCtx) {
+    const radarR = T.radarSize;
+    const z = T.radarScale;
+
+    if (!this.radarCtx) {
+      const radarCanvas = document.createElement("canvas");
+      radarCanvas.width = 2*radarR + 5;
+      radarCanvas.height = 2*radarR + 5;
+      this.radarCtx = radarCanvas.getContext("2d");
+    }
+
+    const ctx = this.radarCtx;
+    const w = ctx.canvas.width;
+    const h = ctx.canvas.height;
+
+    ctx.save();
+
+    ctx.clearRect(0, 0, w, h);
+
+    const aspect = targetCtx.canvas.height/targetCtx.canvas.width;
+    ctx.scale(1, aspect);
+
+    const rx = w/2;
+    const ry = h/2;
+
+    ctx.fillStyle = T.radarFillColor;
+    ctx.strokeStyle = T.radarStrokeColor;
+    // radar border
+    ctx.beginPath();
+    ctx.arc(rx, ry, radarR, 0, 2*Math.PI);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(rx, ry, radarR, 0, 2*Math.PI);
+    ctx.stroke();
+    // radar sectors
+    ctx.strokeStyle = T.radarSectorColor;
+    const N = 6;
+    for (let i = 0; i < N; i++) {
+      ctx.beginPath();
+      ctx.moveTo(rx, ry);
+      const angle = 2*Math.PI/N*i;
+      ctx.lineTo(rx + Math.cos(angle)*radarR, ry + Math.sin(angle)*radarR);
+      ctx.stroke();
+    }
+    // clip out everything outside radar area
+    ctx.beginPath();
+    ctx.arc(rx, ry, radarR, 0, 2*Math.PI);
+    ctx.clip();
+
+    // plane visibiity region
+    ctx.strokeStyle = T.radarVisibilityAreaColor;
+    ctx.beginPath();
+    ctx.arc(rx, ry, targetCtx.canvas.height/2/z, 0, 2*Math.PI);
+    ctx.stroke();
+
+    // scale and translate everything to radar center
+    ctx.scale(1/z, 1/z);
+    ctx.translate(-this.plane.xy[0], -this.plane.xy[1]);
+    ctx.translate(w/2*z, h/2*z);
+    
+    // plane
+    ctx.strokeStyle = T.radarPlaneColor;
+    ctx.lineWidth = z;
+    ctx.beginPath();
+    ctx.moveTo(this.plane.xy[0], this.plane.xy[1] - 3*z/aspect);
+    ctx.lineTo(this.plane.xy[0], this.plane.xy[1] + 3*z/aspect);
+    ctx.moveTo(this.plane.xy[0] - 3*z, this.plane.xy[1]);
+    ctx.lineTo(this.plane.xy[0] + 3*z, this.plane.xy[1]);
+    ctx.stroke();
+
+    // draw missiles and perks
+    for (let fly of this.flies) {
+      if (fly instanceof Missile || fly instanceof Perk) {
+        ctx.save();
+        ctx.fillStyle = fly instanceof Missile ? T.radarMissileColor : T.radarPerkColor;
+        ctx.beginPath();
+        ctx.ellipse(fly.xy[0], fly.xy[1], 2*z, 2*z/aspect, 0, 0, 2*Math.PI);
+        ctx.fill();
+        ctx.restore();
+      } else {
+        // fly.draw(ctx);
+      }
+    }
+
+    ctx.restore();
+
+    // draw radar at the main canvas
+    targetCtx.globalAlpha = T.radarAlpha;
+    targetCtx.drawImage(ctx.canvas, targetCtx.canvas.width - 2*radarR - 10, 10);
   }
 
   pause() {

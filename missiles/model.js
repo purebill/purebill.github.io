@@ -63,19 +63,19 @@ class Trail extends Fly {
 
     this.tail = [];
     this.lastXy = null;
-    this.trailOn = true;
+    this.progressTrail = true;
     this.fadingAlpha = null;
   }
 
   _stopTrailing(periodToFade) {
-    this.trailOn = false;
+    this.progressTrail = false;
     animateOnTimer([1], [0], periodToFade/10, periodToFade, TimingFunction.linear(0), v => this.fadingAlpha = v, null);
   }
 
   progress(dt) {
     super.progress(dt);
 
-    if (!this.trailOn) return;
+    if (!this.progressTrail) return;
 
     if (this.lastXy === null) this.lastXy = this.xy;
 
@@ -95,19 +95,19 @@ class Trail extends Fly {
 
     if (this.tail.length === 0) return;
 
-    const anim = animate2([255], [200], 1, this.tail.length, TimingFunction.linear(0.8));
+    const color = animate(T.trailStartColor, T.trailEndColor, 1, this.tail.length, TimingFunction.linear(0));
     for (let i = 1; i < this.tail.length; i++) {
-      const c = anim(i);
-      ctx.strokeStyle = "rgb(" + c + "," + c + "," + c + ")";
+      const c = color(i);
+      ctx.strokeStyle = rgb(c);
       ctx.beginPath();
       ctx.moveTo(this.tail[i-1][0], this.tail[i-1][1]);
       ctx.lineTo(this.tail[i][0], this.tail[i][1]);
       ctx.stroke();
     }
 
-    if (this.trailOn) {
-      const c = anim(this.tail.length);
-      ctx.strokeStyle = "rgb(" + c + "," + c + "," + c + ")";
+    if (this.progressTrail) {
+      const c = color(this.tail.length);
+      ctx.strokeStyle = rgb(c);
       ctx.beginPath();
       ctx.moveTo(this.xy[0], this.xy[1]);
       ctx.lineTo(this.tail[this.tail.length - 1][0], this.tail[this.tail.length - 1][1]);
@@ -141,7 +141,7 @@ class Plane extends Fly {
     const left = V.subtract(this.xy, V.mulByScalar(V.normal(nv), this.size));
     const right = V.add(this.xy, V.mulByScalar(V.normal(nv), this.size));
 
-    ctx.strokeStyle = "black";
+    ctx.strokeStyle = T.planeColor;
     ctx.beginPath();
     ctx.moveTo(tail[0], tail[1]);
     ctx.lineTo(head[0], head[1]);
@@ -152,8 +152,8 @@ class Plane extends Fly {
     ctx.stroke();
 
     if (this.boostForce !== null) {
-      ctx.fillStyle = "#ff3333";
-      ctx.globalAlpha = 0.5;
+      ctx.fillStyle = T.planeBoosterColor;
+      ctx.globalAlpha = T.planeBoosterAlpha;
       for (let i = 0; i < 3; i++) {
         ctx.beginPath();
         const p = V.add(V.subtract(this.xy, V.mulByScalar(nv, 5 + this.size/7*5*i/2)), V.random(1));
@@ -164,7 +164,7 @@ class Plane extends Fly {
 
     if (this.fakeTargetRadius) {
       ctx.globalAlpha = 0.2;
-      ctx.fillStyle = "#cccccc";
+      ctx.fillStyle = T.planeFakeTargetRadiusColor;
       ctx.beginPath();
       ctx.arc(this.xy[0], this.xy[1], this.fakeTargetRadius, 0, 2*Math.PI);
       ctx.fill();
@@ -246,8 +246,8 @@ class FakeTarget extends Fly {
     this.plane = plane;
     this.omega = .002 - Math.random()*2*.002;
 
-    this.color = 0;
-    animateOnTimer([0], [200], 100, 5000, TimingFunction.ease(), v => this.color = v, null);
+    this.color = T.fakeTargetStartColor;
+    animateOnTimer(T.fakeTargetStartColor, T.fakeTargetEndColor, 100, 5000, TimingFunction.ease(), v => this.color = v, null);
     animateOnTimer([V.length(v)], [0], 100, 5000, TimingFunction.ease(), v => this.v = V.mulByScalar(V.normalize(this.v), v), () => this.dead = true);
   }
 
@@ -259,7 +259,7 @@ class FakeTarget extends Fly {
   draw(ctx) {
     super.draw(ctx);
 
-    ctx.strokeStyle = "rgb(255, " + this.color + "," + this.color + ")";
+    ctx.strokeStyle = rgb(this.color);
     ctx.beginPath();
     for (let i = 0; i < 3; i++) {
       const ray = V.random(this.size);
@@ -297,7 +297,7 @@ class Missile extends Trail {
 
     if (!this.dieAnimation && this.lifeTime < 2000) {
       this._stopTrailing(1500);
-      this.dieAnimation = animateOnTimer([0], [255], 100, 2000, TimingFunction.linear(0), null, null);
+      this.dieAnimation = animateOnTimer(T.missileDieStartColor, T.missileDieEndColor, 100, 2000, TimingFunction.linear(0), null, null);
     }
 
     if (this.target !== undefined) {
@@ -333,8 +333,7 @@ class Missile extends Trail {
 
     let color = "black";
     if (this.dieAnimation) {
-      const c = this.dieAnimation();
-      color = "rgb(" + c + "," + c + "," + c + ")";
+      color = rgb(this.dieAnimation());
     }
     ctx.strokeStyle = color;
     ctx.beginPath();
@@ -348,7 +347,8 @@ class Missile extends Trail {
       const a = 1/(this.maxSpeed - this.minSpeed);
       const b = -this.minSpeed*a;
       const p = V.length(this.v)*a + b;
-      ctx.fillStyle = "rgb(" + (255 * (1 - p)) + ", 0, " + (255 * p) + ")";
+      // color of the jet depends on the missiles velocity (from red to blue)
+      ctx.fillStyle = rgb(255 * (1 - p), 0, 255 * p);
       ctx.globalAlpha = 0.5;
       for (let i = 0; i < 3; i++) {
         ctx.beginPath();
@@ -387,8 +387,8 @@ class Life extends Perk {
   }
 
   draw(ctx) {
-    ctx.strokeStyle = "pink";
-    ctx.fillStyle = "pink";
+    ctx.strokeStyle = T.lifeColor;
+    ctx.fillStyle = T.lifeColor;
     ctx.beginPath();
     ctx.arc(this.xy[0], this.xy[1], this.size, 0, 2*Math.PI);
     ctx.stroke();
@@ -412,8 +412,8 @@ class Star extends Perk {
   }
 
   draw(ctx) {
-    ctx.strokeStyle = "green";
-    ctx.fillStyle = "green";
+    ctx.strokeStyle = T.scoreColor;
+    ctx.fillStyle = T.scoreColor;
     ctx.beginPath();
     ctx.arc(this.xy[0], this.xy[1], this.size, 0, 2*Math.PI);
     ctx.stroke();
@@ -455,7 +455,7 @@ class Explosion extends Fly {
       }, t += Math.random()*100);
       this.circles.push(c);
     }
-    this.color = animateOnTimer([255, 0, 0], [255, 200, 200], 100, t + 1000, TimingFunction.linear(0), null, null);
+    this.color = animateOnTimer(T.explosionStartColor, T.explosionEndColor, 100, t + 1000, TimingFunction.linear(0), null, null);
 
     this.particles = [];
     const maxSpeed = 130/1000;
@@ -477,9 +477,8 @@ class Explosion extends Fly {
    * @param {CanvasRenderingContext2D} ctx
    */
   draw(ctx) {
-    ctx.globalAlpha = 0.5;
-    const c = this.color();
-    ctx.fillStyle = `rgb(${c[0]}, ${c[1]}, ${c[2]})`;
+    ctx.globalAlpha = T.explosionAlpha;
+    ctx.fillStyle = rgb(this.color());
     this.circles.forEach(c => {
       ctx.beginPath();
       ctx.arc(c[0][0], c[0][1], c[1], 0, 2*Math.PI);
@@ -517,7 +516,7 @@ class Obstacle extends Entity {
    */
   draw(ctx) {
     ctx.globalAlpha = this.alphaAnim()[0];
-    this.region.draw(ctx);
+    this.region.draw(ctx, T.obstacleFillColor, T.obstacleStrokeColor);
   }
 }
 
@@ -526,7 +525,7 @@ class Cloud extends Entity {
     super(xy);
     this.layer = 200;
     this.size = 50;
-    this.color = "#00ffff";
+    this.color = T.cloudColor;
     this.circles = [];
     const N = 4 + Math.round(Math.random()*6);
     for (let i = 0; i < N; i++) {
@@ -552,10 +551,11 @@ class Cloud extends Entity {
 }
 
 class Achivement extends Entity {
-  constructor(xy, message) {
+  constructor(xy, message, color) {
     super(xy);
     this.layer = 300;
     this.message = message;
+    this.color = color;
     this.fontSize = animateOnTimer([10], [20], 100, 1000, TimingFunction.ease(), null, () => this.dead = true);
   }
 
@@ -565,7 +565,7 @@ class Achivement extends Entity {
 
   draw(ctx) {
     ctx.globalAlpha = 0.5;
-    ctx.fillStyle = "#000000";
+    ctx.fillStyle = this.color;
     ctx.font = this.fontSize()[0] + "px serif";
     ctx.fillText(this.message, this.xy[0], this.xy[1]);
   }

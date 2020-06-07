@@ -39,9 +39,9 @@ class Region {
   /**
    * @param {CanvasRenderingContext2D} ctx
    */
-  draw(ctx) {
-    ctx.fillStyle = "#cccccc";
-    ctx.strokeStyle = this.void ? ctx.fillStyle : "#333333";
+  draw(ctx, fillColor, strokeColor) {
+    ctx.fillStyle = fillColor;
+    ctx.strokeStyle = this.void ? ctx.fillStyle : strokeColor;
 
     const poly = this.toPolygonRegion();
     if (poly.vertices.length == 0) return;
