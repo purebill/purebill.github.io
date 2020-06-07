@@ -161,6 +161,14 @@ class Plane extends Fly {
         ctx.fill();
       }
     }
+
+    if (this.fakeTargetRadius) {
+      ctx.globalAlpha = 0.2;
+      ctx.fillStyle = "#cccccc";
+      ctx.beginPath();
+      ctx.arc(this.xy[0], this.xy[1], this.fakeTargetRadius, 0, 2*Math.PI);
+      ctx.fill();
+    }
   }
 
   progress(dt) {
@@ -215,6 +223,14 @@ class Plane extends Fly {
 
   stopBoost() {
     this.boostForce = null;
+  }
+
+  showFakeTargetRadius(r) {
+    this.fakeTargetRadius = r;
+  }
+
+  hideFakeTargetRadius() {
+    this.fakeTargetRadius = null;
   }
 }
 

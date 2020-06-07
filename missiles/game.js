@@ -371,9 +371,19 @@ class Game {
 
   launchFakeTarget() {
     if (this.fakeTargets <= 0) return;
+    const radius = 200;
+
+    if (!this.fakeTargetTimerId) {
+      this.fakeTargetTimerId = Timer.set(() => {
+        this.plane.hideFakeTargetRadius();
+        this.fakeTargetTimerId = null;
+      }, 2000);
+      this.plane.showFakeTargetRadius(radius);
+      return;
+    }
+
     this.decrementFakeTargets(1);
 
-    const radius = 200;
     const fakeTarget = new FakeTarget(this.plane);
     this.addEntity(fakeTarget);
     this.flies
