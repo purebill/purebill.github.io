@@ -38,7 +38,7 @@ class Level {
       () => this.lifeMaxCount,
       () => {
         const screenSize = Math.max(game.ctx.canvas.width/2, game.ctx.canvas.height/2);
-        const sxy = V.random(screenSize/3 + Math.random()*2*screenSize);
+        const sxy = V.random(screenSize/3 + Math.random()*screenSize);
         return new Star(this.game.wrapAround(sxy));
       },
       () => this.starPeriod);
@@ -48,7 +48,7 @@ class Level {
       () => this.lifeMaxCount,
       () => {
         const screenSize = Math.max(game.ctx.canvas.width/2, game.ctx.canvas.height/2);
-        const lxy = V.random(screenSize/3 + Math.random()*2*screenSize);
+        const lxy = V.random(screenSize/3 + Math.random()*screenSize);
         return new Life(lxy);
       },
       () => this.lifePeriod);
@@ -168,14 +168,23 @@ class Level {
     const rx = w/2;
     const ry = h/2;
 
-    ctx.fillStyle = "white";
-    ctx.strokeStyle = "black";
+    ctx.fillStyle = "#fff2e6";
+    ctx.strokeStyle = "#663300";
     ctx.beginPath();
     ctx.arc(rx, ry, radarR, 0, 2*Math.PI);
     ctx.fill();
     ctx.beginPath();
     ctx.arc(rx, ry, radarR, 0, 2*Math.PI);
     ctx.stroke();
+    ctx.strokeStyle = "#ffcc99";
+    const N = 6;
+    for (let i = 0; i < N; i++) {
+      ctx.beginPath();
+      ctx.moveTo(rx, ry);
+      const angle = 2*Math.PI/N*i;
+      ctx.lineTo(rx + Math.cos(angle)*radarR, ry + Math.sin(angle)*radarR);
+      ctx.stroke();
+    }
     ctx.beginPath();
     ctx.arc(rx, ry, radarR, 0, 2*Math.PI);
     ctx.clip();
@@ -202,11 +211,11 @@ class Level {
         ctx.save();
         ctx.fillStyle = fly instanceof Missile ? "#ff0000" : "#000000";
         ctx.beginPath();
-        ctx.arc(fly.xy[0], fly.xy[1], 4*z, 0, 2*Math.PI);
+        ctx.ellipse(fly.xy[0], fly.xy[1], 2*z, 2*z/aspect, 0, 0, 2*Math.PI);
         ctx.fill();
         ctx.restore();
       } else {
-        fly.draw(ctx);
+        // fly.draw(ctx);
       }
     }
 
@@ -283,4 +292,20 @@ class Level {
 
     // Timer.set(() => this._randomObstacles(false), 1000 + Math.random() * 4000);
   }
+}
+
+/**
+ * 
+ * @param {Game} game 
+ * @param {number} incrementScore 
+ * @param {() => any} callback 
+ */
+function scoreTrigger(game, incrementScore, callback) {
+  let lastScore = game.score;
+  return () => {
+    if (game.score - lastScore >= incrementScore) {
+      lastScore = game.score;
+      callback();
+    }
+  };
 }

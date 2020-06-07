@@ -332,7 +332,6 @@ class Missile extends Trail {
       const a = 1/(this.maxSpeed - this.minSpeed);
       const b = -this.minSpeed*a;
       const p = V.length(this.v)*a + b;
-      // console.log(this.minSpeed, V.length(this.v), this.maxSpeed, p);
       ctx.fillStyle = "rgb(" + (255 * (1 - p)) + ", 0, " + (255 * p) + ")";
       ctx.globalAlpha = 0.5;
       for (let i = 0; i < 3; i++) {
@@ -417,11 +416,41 @@ class Star extends Perk {
 }
 
 class Explosion extends Fly {
-  constructor(xy) {
+  constructor(xy, N) {
     super(xy, 1, [0, 0], 1);
     this.layer = 100;
     this.timeLeft = 500;
-    this.r = animateOnTimer([0], [this.size*20], 10, 500, TimingFunction.ease(), null, () => this.dead = true);
+
+    this.deadCount = N;
+    this.circles = [];
+    let t = 0;
+    for (let i = 0; i < N; i++) {
+      const dx = 10*this.size - 2*Math.random()*10*this.size;
+      const dy = 10*this.size - 2*Math.random()*10*this.size;
+      const c = [V.add(xy, [dx, dy]), 0];
+      Timer.set(() => {
+        animateOnTimer([0], [this.size*20], 10, 1000, TimingFunction.ease(),
+          v => {
+            c[1] = v;
+            this.deadCount--;
+          },
+          () => this.dead = this.deadCount <= 0
+        );
+      }, t += Math.random()*100);
+      this.circles.push(c);
+    }
+    this.color = animateOnTimer([255, 0, 0], [255, 200, 200], 100, t + 1000, TimingFunction.linear(0), null, null);
+
+    this.particles = [];
+    const maxSpeed = 130/1000;
+    for (let i = 0; i < N*10; i++) {
+      const v = V.random(maxSpeed + 2*Math.random()*maxSpeed/3);
+      this.particles.push([xy, v]);
+    }
+  }
+
+  progress(dt) {
+    this.particles.forEach(p => p[0] = V.add(p[0], V.mulByScalar(p[1], dt)));
   }
 
   getColideRegion() {
@@ -432,10 +461,19 @@ class Explosion extends Fly {
    * @param {CanvasRenderingContext2D} ctx
    */
   draw(ctx) {
-    ctx.strokeStyle = "red";
-    ctx.beginPath();
-    ctx.arc(this.xy[0], this.xy[1], this.r()[0], 0, 2*Math.PI);
-    ctx.stroke();
+    ctx.globalAlpha = 0.5;
+    const c = this.color();
+    ctx.fillStyle = `rgb(${c[0]}, ${c[1]}, ${c[2]})`;
+    this.circles.forEach(c => {
+      ctx.beginPath();
+      ctx.arc(c[0][0], c[0][1], c[1], 0, 2*Math.PI);
+      ctx.fill();
+    });
+    this.particles.forEach(p => {
+      ctx.beginPath();
+      ctx.arc(p[0][0], p[0][1], 2, 0, 2*Math.PI);
+      ctx.fill();
+    });
   }
 }
 

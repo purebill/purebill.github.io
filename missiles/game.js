@@ -329,7 +329,7 @@ class Game {
   
   explosionFor(o) {
     o.dead = true;
-    this.addEntity(new Explosion(o.xy));
+    this.addEntity(new Explosion(o.xy, o instanceof Plane ? 5 : 1));
   }
 
   draw() {
@@ -381,20 +381,4 @@ class Game {
       .filter(it => V.length(V.subtract(it.xy, this.plane.xy)) <= radius)
       .forEach(it => it.retarget(fakeTarget));
   }
-}
-
-/**
- * 
- * @param {Game} game 
- * @param {number} incrementScore 
- * @param {() => any} callback 
- */
-function scoreTrigger(game, incrementScore, callback) {
-  let lastScore = game.score;
-  return () => {
-    if (game.score - lastScore >= incrementScore) {
-      lastScore = game.score;
-      callback();
-    }
-  };
 }
