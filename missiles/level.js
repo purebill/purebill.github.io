@@ -1,5 +1,15 @@
-class Level {
+class Overlay {
+  drawPre(ctx) {
+  }
+
+  drawPost(ctx) {
+  }
+}
+
+class Level extends Overlay {
   constructor() {
+    super();
+    
     this.level = 1;
 
     this.missileMaxCount = 1;
@@ -59,7 +69,7 @@ class Level {
     this._randomClouds(true);
   }
 
-  changed(game) { 
+  changed(game) {
     this.prevState = {
       lifes: game.lifes,
       score: game.score,
@@ -69,6 +79,14 @@ class Level {
   }
 
   progress(dt) {
+    return;
+    if (V.length(this.game.plane.xy) > Math.max(this.game.ctx.canvas.width, this.game.ctx.canvas.height)*3) {
+      this.game.outOfRange = true;
+      this.level = Infinity;
+      this.missileMaxCount = 100;
+      this.missileProbability = 1;
+    }
+
     switch (this.level) {
       case 1:
         if (this.game.score > 4 || this.game.globalTime > 30000) {
@@ -89,13 +107,6 @@ class Level {
 
   onDeadMissile() {
     this.game.incrementScore(1);
-  }
-
-  drawPre(ctx) {
-
-  }
-
-  drawPost(ctx) {
   }
 
   _tryToCreate(clazz, probability, maxCount, creator, period, notFirst) {
@@ -135,6 +146,7 @@ class Level {
   }
 
   _randomObstacles(initial) {
+    return;
     if (!this.game.plane) return;
 
     const N = initial ? 20 : 1;

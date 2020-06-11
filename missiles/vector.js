@@ -44,3 +44,26 @@ V.alignUp = (vToUp, v) => {
   
   return [x, y];
 };
+
+V.angle = (v1, v2) => {
+  const cos = V.dotProduct(v1, v2)/V.length(v1)/V.length(v2);
+  return Math.acos(cos)*180/Math.PI;
+};
+
+V.behind = (v1, point1, point2) => {
+  const n = V.normal(v1);
+  // x = n1.x*t+x1
+  // y = n1.y*t+y1
+  // t = (x-x1)/n1.x
+  // y = n1.y*(x-x1)/n1.x+y1;
+  
+  if (Math.abs(n[0]) < 1e-6) return point2[1] < Math.sign(n[1])*point1[1];
+
+  const x2 = point2[0];
+  const y2 = n[1] * (x2 - point1[0]) / n[0] + point1[1];
+
+  const x1 = v1[0] + point1[0];
+  const y1 = n[1] * (x1 - point1[0]) / n[0] + point1[1];
+
+  return Math.sign(y2-point2[1]) != Math.sign(y1-point1[1]);
+};

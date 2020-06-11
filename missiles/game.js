@@ -16,6 +16,8 @@ class Game {
     this.flies = [];
     /** @type {Entity[]} */
     this.fliesToAddAfterTick = [];
+    /** @type {Overlay[]} */
+    this.overlays = [];
     this.triggers = [];
     this.paused = true;
     this.gameIsOver = false;
@@ -30,13 +32,16 @@ class Game {
     this.globalTime = 0;
     this.rotationDirection = null;
     this.fakeTargetTimerId = null;
+    this.outOfRange = false;
     this.fps = 0;
 
     this.plane = new Plane([this.ctx.canvas.width / 2, this.ctx.canvas.height / 2]);
     this.level = new Level();
-
+    this.addOverlay(this.level);
     this.addEntity(this.plane);
     this.level.init(this);
+
+    GamePlugins.init(this);
 
     this.resume();
   }
@@ -114,8 +119,18 @@ class Game {
     this.flies.sort((a, b) => a.layer > b.layer ? 1 : (a.layer == b.layer ? 0 : -1));
   }
 
+  /**
+   * @param {(dt: number) => void} trigger
+   */
   addTrigger(trigger) {
     this.triggers.push(trigger);
+  }
+
+  /**
+   * @param {Overlay} overlay
+   */
+  addOverlay(overlay) {
+    this.overlays.push(overlay);
   }
 
   init() {
@@ -158,7 +173,15 @@ class Game {
     Keys.key("ArrowLeft", [], "Turn left",
       () => { this.rotationDirection = "left"; this.plane.left() },
       () => { if (this.rotationDirection == "left") this.plane.noRotate(); });
-    Keys.key("ArrowDown", [], "Slowmo/Unslowmo",
+    Keys.key("KeyF", [], "Fast/Unfast",
+      () => {
+        if (this.timeScale < 1) {
+          this.timeScale = 1;
+        } else {
+          this.timeScale = Math.max(this.timeScale / 1.8, .01);
+        }
+      });
+    Keys.key("KeyS", [], "Slowmo/Unslowmo",
       () => {
         if (this.timeScale > 1) {
           this.timeScale = 1;
@@ -177,6 +200,14 @@ class Game {
         }
         this.boosterIsUsed = !this.boosterIsUsed;
       });
+    Keys.key("ArrowDown", [], "Unboost",
+    () => {
+      if (this.boosterIsUsed) {
+        this.plane.maxVelocity = 100/1000;
+        this.plane.stopBoost();
+        this.boosterIsUsed = false;
+      }
+    });
     Keys.key("Escape", [], "Start from the beginning", () => this.startFromTheBeginning());
     Keys.key("KeyP", [], "Pause", () => {
       if (this.gameIsOver) return;
@@ -210,7 +241,7 @@ class Game {
       this.detectCollision();
       this.removeDead();
       this.addNewFlies();
-      this.triggers.forEach(trigger => trigger());
+      this.triggers.forEach(trigger => trigger(dt));
       this.draw();
 
       if (this.frameCallback) this.frameCallback();
@@ -331,12 +362,11 @@ class Game {
   }
 
   draw() {
-    // this.ctx.clearRect(0, 0, this.ctx.canvas.width, this.ctx.canvas.height);
-    this.ctx.fillStyle = T.skyColor;
+    this.ctx.fillStyle = this.outOfRange ? T.skyOutOfRangeColor : T.skyColor;
     this.ctx.fillRect(0, 0, this.ctx.canvas.width, this.ctx.canvas.height);
 
     this.ctx.save();
-    this.level.drawPre(this.ctx);
+    this.overlays.forEach(it => it.drawPre(this.ctx));
     this.ctx.restore();
 
     this.ctx.save();
@@ -359,7 +389,7 @@ class Game {
     this.ctx.restore();
 
     this.ctx.save();
-    this.level.drawPost(this.ctx);
+    this.overlays.forEach(it => it.drawPost(this.ctx));
     this.ctx.restore();
   }
 
@@ -391,7 +421,7 @@ class Game {
 
     if (this.booster > 0) {
       ctx.fillStyle = T.boosterColor;
-      ctx.fillText(T.booster + " " + Math.round(this.booster / 1000) + " sec", 0, y);
+      ctx.fillText(T.booster + " " + Math.round(this.booster / 1000), 0, y);
       y += lineHeight;
     }
 

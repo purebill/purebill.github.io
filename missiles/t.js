@@ -25,6 +25,7 @@ const T = {
   obstacleFillColor: "#cccccc",
   obstacleStrokeColor: "#333333",
   skyColor: "#f0ffff",
+  skyOutOfRangeColor: "#fff0f0",
   cloudColor: "#eeeeee",
   radarFillColor: "#fff2e6",
   radarStrokeColor: "#663300",
