@@ -286,6 +286,10 @@ class Missile extends Trail {
     this.lifeTime = 10000 + Math.random()*30000;
   }
 
+  isDying() {
+    return this.dead || this.dieAnimation;
+  }
+
   getColideRegion() {
     if (this.dieAnimation) return Region.EMPTY;
     return super.getColideRegion();
@@ -427,7 +431,7 @@ class Star extends Perk {
    */
   collected(game) {
     super.collected(game);
-    game.incrementScore(1);
+    game.incrementScore(1, this);
   }
 }
 
@@ -551,12 +555,12 @@ class Cloud extends Entity {
 }
 
 class Achivement extends Entity {
-  constructor(xy, message, color) {
+  constructor(xy, message, color, time) {
     super(xy);
     this.layer = 300;
     this.message = message;
     this.color = color;
-    this.fontSize = animateOnTimer([10], [20], 100, 1000, TimingFunction.ease(), null, () => this.dead = true);
+    this.fontSize = animateOnTimer([10], [20], 100, time || 1000, TimingFunction.ease(), null, () => this.dead = true);
   }
 
   getColideRegion() {

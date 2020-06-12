@@ -79,7 +79,6 @@ class Level extends Overlay {
   }
 
   progress(dt) {
-    return;
     if (V.length(this.game.plane.xy) > Math.max(this.game.ctx.canvas.width, this.game.ctx.canvas.height)*3) {
       this.game.outOfRange = true;
       this.level = Infinity;
@@ -105,8 +104,11 @@ class Level extends Overlay {
     }
   }
 
-  onDeadMissile() {
-    this.game.incrementScore(1);
+  /**
+   * @param {Missile} missile 
+   */
+  onDeadMissile(missile) {
+    this.game.incrementScore(1, missile);
   }
 
   _tryToCreate(clazz, probability, maxCount, creator, period, notFirst) {
@@ -146,7 +148,6 @@ class Level extends Overlay {
   }
 
   _randomObstacles(initial) {
-    return;
     if (!this.game.plane) return;
 
     const N = initial ? 20 : 1;

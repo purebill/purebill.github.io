@@ -36,7 +36,13 @@ const T = {
   radarPerkColor: "#000000",
   radarAlpha: 0.9,
   radarSize: 100,
-  radarScale: 20
+  radarScale: 20,
+  infoBgColor: "#ffff88",
+  infoColor: "#000000",
+  infoAlpha: 0.8,
+  telemetrySamplesPerSecond: 5,
+  telemetryWindowSeconds: 10,
+  detectorIntervalMs: 300
 };
 
 function rgb(r, g, b) {

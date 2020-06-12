@@ -5,7 +5,6 @@ class Game {
   constructor(ctx) {
     this.ctx = ctx;
     this.centered = true;
-    this.startFromTheBeginning();
     this.frameCallback = null;
   }
 
@@ -34,12 +33,20 @@ class Game {
     this.fakeTargetTimerId = null;
     this.outOfRange = false;
     this.fps = 0;
+    /**@type {Map<string, {textSupplier, timerId, color}>} */
+    this.infoItems = new Map();
 
     this.plane = new Plane([this.ctx.canvas.width / 2, this.ctx.canvas.height / 2]);
     this.level = new Level();
     this.addOverlay(this.level);
     this.addEntity(this.plane);
     this.level.init(this);
+
+    let samplesCount = T.telemetryWindowSeconds*T.telemetrySamplesPerSecond;
+    this.telemetry = new TelemetryCollector(1000/T.telemetrySamplesPerSecond, this, samplesCount);
+    this.addTrigger(this.telemetry.toTrigger());
+    this.detector = new Detector(samplesCount);
+    Timer.periodic(() => this.detector.detect(game.telemetry), T.detectorIntervalMs);
 
     GamePlugins.init(this);
 
@@ -49,7 +56,8 @@ class Game {
   incrementFakeTargets(inc) {
     this.fakeTargets += inc;
     this.level.changed(this);
-    this.achivement(T.fakeTarget + " +" + inc, T.fakeTargetColor);
+    // this.achivement(T.fakeTarget + " +" + inc, T.fakeTargetColor);
+    this.addInfo("fake targerts", () => T.fakeTarget + " +" + inc, 2000, T.fakeTargetColor)
   }
 
   decrementFakeTargets(dec) {
@@ -60,7 +68,8 @@ class Game {
   incrementLifes(inc) {
     this.lifes += inc;
     this.level.changed(this);
-    this.achivement(T.life + " +" + inc, T.lifeColor);
+    // this.achivement(T.life + " +" + inc, T.lifeColor);
+    this.addInfo("life", () => T.life + " +" + inc, 2000, T.lifeColor);
   }
 
   decrementLifes(dec) {
@@ -68,10 +77,15 @@ class Game {
     this.level.changed(this);
   }
 
-  incrementScore(inc) {
+  /**
+   * 
+   * @param {number} inc 
+   * @param {Entity=} source 
+   */
+  incrementScore(inc, source) {
     this.score += inc;
     this.level.changed(this);
-    this.achivement("+" + inc, T.scoreColor);
+    this.achivement("+" + inc, T.scoreColor, 2000, source);
   }
 
   decrementScore(dec) {
@@ -82,7 +96,8 @@ class Game {
   incrementBooster(inc) {
     this.booster += inc;
     this.level.changed(this);
-    this.achivement(T.booster + " +" + Math.round(inc/1000), T.boosterColor);
+    //this.achivement(T.booster + " +" + Math.round(inc/1000), T.boosterColor);
+    this.addInfo("booster", () => T.booster + " +" + Math.round(inc/1000), 2000, T.boosterColor);
   }
 
   decrementBooster(dec) {
@@ -90,8 +105,45 @@ class Game {
     this.level.changed(this);
   }
 
-  achivement(message, color) {
-    this.addEntity(new Achivement(this.plane.xy, message, color));
+  /**
+   * @param {string} message 
+   * @param {string} color 
+   * @param {number} time 
+   * @param {Entity=} source 
+   */
+  achivement(message, color, time, source) {
+    this.addEntity(new Achivement((source || this.plane).xy, message, color, time));
+  }
+
+  /**
+   * @param {string} id 
+   * @param {(() => string) | string} textSupplier 
+   * @param {number=} intervalMs
+   * @param {string=} color
+   */
+  addInfo(id, textSupplier, intervalMs, color) {
+    if (typeof textSupplier != "function") {
+      let text = textSupplier.toString();
+      textSupplier = () => text;
+    }
+
+    this.removeInfo(id);
+    let timerId = intervalMs !== undefined && intervalMs > 0
+      ? Timer.set(() => this.removeInfo(id), intervalMs)
+      : null;
+    this.infoItems.set(id, {textSupplier, timerId, color});
+
+  }
+
+  /**
+   * @param {string} id 
+   */
+  removeInfo(id) {
+    let info = this.infoItems.get(id);
+    if (info !== undefined) {
+      if (info.timerId !== null) Timer.clear(info.timerId);
+      this.infoItems.delete(id);
+    }
   }
 
   /**
@@ -321,8 +373,8 @@ class Game {
           }
 
           if (!oneIsPlane) {
-            if (first instanceof Missile) this.level.onDeadMissile();
-            if (second instanceof Missile) this.level.onDeadMissile();
+            if (first instanceof Missile) this.level.onDeadMissile(first);
+            if (second instanceof Missile) this.level.onDeadMissile(second);
           }
 
           if (!(first instanceof Obstacle)) this.explosionFor(first);
@@ -391,6 +443,36 @@ class Game {
     this.ctx.save();
     this.overlays.forEach(it => it.drawPost(this.ctx));
     this.ctx.restore();
+
+    this.ctx.save();
+    this._drawInfo(this.ctx);
+    this.ctx.restore();
+  }
+
+  /**
+   * @param {CanvasRenderingContext2D} ctx
+   */
+  _drawInfo(ctx) {
+    const fontSize = 12;
+    const h = fontSize + 5;
+    const padding = 5;
+    let x = (this.centered ? ctx.canvas.width / 2 : this.plane.xy[0]) + 20;
+    let y = this.centered ? ctx.canvas.height / 2 : this.plane.xy[1];
+    ctx.font = `${fontSize}px serif`;
+    ctx.textBaseline = "top";
+    ctx.globalAlpha = T.infoAlpha;
+    for (let info of this.infoItems.values()) {
+      let text = info.textSupplier();
+      let m = ctx.measureText(text);
+
+      // ctx.fillStyle = T.infoBgColor;
+      // ctx.fillRect(x - padding, y - padding, m.width + 2*padding, fontSize + 2*padding);
+
+      ctx.fillStyle = info.color || T.infoColor;
+      ctx.fillText(text, x, y);
+
+      y += h + 2*padding;
+    }
   }
 
   _drawScore(ctx) {
