@@ -38,12 +38,11 @@ GamePlugins.register(game => {
     do {
       nextIdx = fsa.process(history, context, nextIdx);
       if (context.stateReached == "failed") context.reset();
-      if (context.chasingCount > chasingThreshold)
-        game.addInfo("chasingCount", () => "Chase it to death!", 500);
+      if (context.chasingCount > chasingThreshold) game.addInfo("chasingCount", () => t`Chase it to death!`, 500);
       else game.removeInfo("chasingCount");
       if (context.deathTime !== undefined) {
         // fsa.debug = true; fsa.process(history, c); fsa.debug = false;
-        game.addInfo("deadly chaser", "Deadly chaser!", 3000);
+        game.addInfo("deadly chaser", t`Deadly chaser!`, 3000);
         game.incrementScore(10);
         context.lastFsaTriggerTime = context.deathTime;
         context.reset();

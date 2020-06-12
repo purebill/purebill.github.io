@@ -68,9 +68,9 @@ var Keys = (function () {
   }
 
   const buttonToName = {
-    0: "Left",
-    1: "Middle",
-    2: "Right"
+    0: t`Left`,
+    1: t`Middle`,
+    2: t`Right`
   };
 
   function actionKeyToKeys(actionKey) {
@@ -79,7 +79,7 @@ var Keys = (function () {
       + (parsed[2] == "true" ? "Ctrl + " : "")
       + (parsed[3] == "true" ? "Win + " : "")
       + (parsed[4] == "true" ? "Shift + " : "")
-      + (buttonToName[parsed[0]] ? buttonToName[parsed[0]] : parsed[0].replace(/^Key/, ""));
+      + (buttonToName[parsed[0]] ? buttonToName[parsed[0]] : t(parsed[0]).replace(/^Key/, ""));
   }
 
   function init(target) {

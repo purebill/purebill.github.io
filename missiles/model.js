@@ -406,7 +406,7 @@ class Life extends Perk {
    */
   collected(game) {
     super.collected(game);
-    game.incrementLifes(1);
+    game.incrementLifes(1, this);
   }
 }
 

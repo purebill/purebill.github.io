@@ -2,9 +2,9 @@ function message(text, callback) {
   const snapshot = Keys.snapshot();
   Keys.resetToRoot();
 
-  Keys.key("Space", [], "Hide the message", () => _pop());
-  Keys.key("Escape", [], "Hide the message", () => _pop());
-  Keys.key("Enter", [], "Hide the message", () => _pop());
+  Keys.key("Space", [], t`Hide the message`, () => _pop());
+  Keys.key("Escape", [], t`Hide the message`, () => _pop());
+  Keys.key("Enter", [], t`Hide the message`, () => _pop());
 
   let root = document.getElementById("message");
   root.innerHTML = "";

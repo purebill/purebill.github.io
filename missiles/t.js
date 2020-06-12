@@ -1,3 +1,16 @@
+/**
+ * @param {any} id 
+ * @param {any[]} args
+ */
+function t(id, ...args) {
+  if (id instanceof Array) {
+    id = id.join("{}");
+    let translation = T[id] || id;
+    return translation.split("{}").map((part, idx, a) => part + (a.length - 1 == idx ? "" : args[idx])).join("");
+  }
+  return T[id] || id;
+}
+
 const T = {
   booster: "🚀",
   boosterColor: "black",
@@ -37,6 +50,7 @@ const T = {
   radarAlpha: 0.9,
   radarSize: 100,
   radarScale: 20,
+  infoFontSize: 15,
   infoBgColor: "#ffff88",
   infoColor: "#000000",
   infoAlpha: 0.8,

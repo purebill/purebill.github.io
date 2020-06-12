@@ -57,7 +57,7 @@ class Game {
     this.fakeTargets += inc;
     this.level.changed(this);
     // this.achivement(T.fakeTarget + " +" + inc, T.fakeTargetColor);
-    this.addInfo("fake targerts", () => T.fakeTarget + " +" + inc, 2000, T.fakeTargetColor)
+    this.addInfo("fake targerts", () => t`${T.fakeTarget} +${inc}`, 3000, T.fakeTargetColor)
   }
 
   decrementFakeTargets(dec) {
@@ -65,11 +65,15 @@ class Game {
     this.level.changed(this);
   }
 
-  incrementLifes(inc) {
+  /**
+   * @param {number} inc 
+   * @param {Entity=} source 
+   */
+  incrementLifes(inc, source) {
     this.lifes += inc;
     this.level.changed(this);
-    // this.achivement(T.life + " +" + inc, T.lifeColor);
-    this.addInfo("life", () => T.life + " +" + inc, 2000, T.lifeColor);
+    this.achivement(t`${T.life} +${inc}`, T.lifeColor, 2000, source);
+    // this.addInfo("life", () => t`${T.life} +${inc}`, 3000, T.lifeColor);
   }
 
   decrementLifes(dec) {
@@ -78,14 +82,13 @@ class Game {
   }
 
   /**
-   * 
    * @param {number} inc 
    * @param {Entity=} source 
    */
   incrementScore(inc, source) {
     this.score += inc;
     this.level.changed(this);
-    this.achivement("+" + inc, T.scoreColor, 2000, source);
+    this.achivement(t`+${inc}`, T.scoreColor, 2000, source);
   }
 
   decrementScore(dec) {
@@ -97,7 +100,7 @@ class Game {
     this.booster += inc;
     this.level.changed(this);
     //this.achivement(T.booster + " +" + Math.round(inc/1000), T.boosterColor);
-    this.addInfo("booster", () => T.booster + " +" + Math.round(inc/1000), 2000, T.boosterColor);
+    this.addInfo("booster", () => t`${T.booster} +${Math.round(inc/1000)}`, 3000, T.boosterColor);
   }
 
   decrementBooster(dec) {
@@ -189,7 +192,7 @@ class Game {
     Keys.resetToRoot();
     Keys.push();
 
-    Keys.key("F1", [], "Show this help message (F1 again to hide)", () => {
+    Keys.key("F1", [], t`Show this help message (F1 again to hide)`, () => {
       let el = document.getElementById("help");
 
       let snapshot;
@@ -207,25 +210,24 @@ class Game {
       let help = Keys.help();
       snapshot = Keys.snapshot();
       Keys.resetToRoot();
-      Keys.key("Escape", [], "Hide help message", () => hide());
-      Keys.key("F1", [], "Hide help message", () => hide());
+      Keys.key("Escape", [], t`Hide help message`, () => hide());
+      Keys.key("F1", [], t`Hide help message`, () => hide());
 
       this.pause();
 
       el.innerHTML =
-        "<h2>Keyboard</h2>\n<pre>" + help.keys.join("\n</pre><pre>") + "</pre>"
-        // + "<h2>Mouse</h2>\n<pre>" + help.mouse.join("\n</pre><pre>") + "</pre>"
+        "<h2>" + t`Keyboard` + "</h2>\n<pre>" + help.keys.join("\n</pre><pre>") + "</pre>"
         ;
 
       el.style.display = "block";
     });
-    Keys.key("ArrowRight", [], "Turn right",
+    Keys.key("ArrowRight", [], t`Turn right`,
       () => { this.rotationDirection = "right"; this.plane.right(); },
       () => { if (this.rotationDirection == "right") this.plane.noRotate(); });
-    Keys.key("ArrowLeft", [], "Turn left",
+    Keys.key("ArrowLeft", [], t`Turn left`,
       () => { this.rotationDirection = "left"; this.plane.left() },
       () => { if (this.rotationDirection == "left") this.plane.noRotate(); });
-    Keys.key("KeyF", [], "Fast/Unfast",
+    Keys.key("KeyF", [], t`Fast/Unfast`,
       () => {
         if (this.timeScale < 1) {
           this.timeScale = 1;
@@ -233,7 +235,7 @@ class Game {
           this.timeScale = Math.max(this.timeScale / 1.8, .01);
         }
       });
-    Keys.key("KeyS", [], "Slowmo/Unslowmo",
+    Keys.key("KeyS", [], t`Slowmo/Unslowmo`,
       () => {
         if (this.timeScale > 1) {
           this.timeScale = 1;
@@ -241,7 +243,7 @@ class Game {
           this.timeScale = Math.min(this.timeScale * 2.5, 10);
         }
       });
-    Keys.key("ArrowUp", [], "Boost/Unboost",
+    Keys.key("ArrowUp", [], t`Boost/Unboost`,
       () => {
         if (this.boosterIsUsed) {
           this.plane.maxVelocity = 100/1000;
@@ -252,7 +254,7 @@ class Game {
         }
         this.boosterIsUsed = !this.boosterIsUsed;
       });
-    Keys.key("ArrowDown", [], "Unboost",
+    Keys.key("ArrowDown", [], t`Unboost`,
     () => {
       if (this.boosterIsUsed) {
         this.plane.maxVelocity = 100/1000;
@@ -260,14 +262,14 @@ class Game {
         this.boosterIsUsed = false;
       }
     });
-    Keys.key("Escape", [], "Start from the beginning", () => this.startFromTheBeginning());
-    Keys.key("KeyP", [], "Pause", () => {
+    Keys.key("Escape", [], t`Start from the beginning`, () => this.startFromTheBeginning());
+    Keys.key("KeyP", [], t`Pause`, () => {
       if (this.gameIsOver) return;
       this.pause();
-      message("Paused", () => this.resume());
+      message(t`Paused`, () => this.resume());
     });
-    Keys.key("Space", [], "Launch fake targets", () => this.launchFakeTarget());
-    Keys.key("KeyC", [], "Center/Uncenter", () => this.centered = !this.centered);
+    Keys.key("Space", [], t`Launch fake targets`, () => this.launchFakeTarget());
+    Keys.key("KeyC", [], t`Center/Uncenter`, () => this.centered = !this.centered);
   }
 
   frame(t) {
@@ -401,7 +403,7 @@ class Game {
     this.gameIsOver = true;
     const id = setTimeout(() => {
       this.pause();
-      message("Game Over", () => {
+      message(t`Game Over`, () => {
         clearTimeout(id);
         this.startFromTheBeginning();
       });
@@ -453,7 +455,7 @@ class Game {
    * @param {CanvasRenderingContext2D} ctx
    */
   _drawInfo(ctx) {
-    const fontSize = 12;
+    const fontSize = T.infoFontSize;
     const h = fontSize + 5;
     const padding = 5;
     let x = (this.centered ? ctx.canvas.width / 2 : this.plane.xy[0]) + 20;
@@ -488,27 +490,27 @@ class Game {
     y += lineHeight;
 
     ctx.fillStyle = T.timeColor;
-    ctx.fillText(T.time + " " + (Math.round(this.globalTime / 1000)), 0, y);
+    ctx.fillText(t`${T.time} ${Math.round(this.globalTime / 1000)}`, 0, y);
     y += lineHeight;
 
     ctx.fillStyle = T.scoreColor;
-    ctx.fillText(T.score + " " + this.score, 0, y);
+    ctx.fillText(t`${T.score} ${this.score}`, 0, y);
     y += lineHeight;
 
     if (this.fakeTargets > 0) {
       ctx.fillStyle = T.fakeTargetColor;
-      ctx.fillText(T.fakeTarget + " " + this.fakeTargets, 0, y);
+      ctx.fillText(t`${T.fakeTarget} ${this.fakeTargets}`, 0, y);
       y += lineHeight;
     }
 
     if (this.booster > 0) {
       ctx.fillStyle = T.boosterColor;
-      ctx.fillText(T.booster + " " + Math.round(this.booster / 1000), 0, y);
+      ctx.fillText(t`${T.booster} ${Math.round(this.booster / 1000)}`, 0, y);
       y += lineHeight;
     }
 
     ctx.fillStyle = T.lifeColor;
-    ctx.fillText(T.life + " " + this.lifes, 0, y);
+    ctx.fillText(t`${T.life} ${this.lifes}`, 0, y);
     y += lineHeight;
 
     ctx.save();

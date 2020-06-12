@@ -1,0 +1,1 @@
+grep -Eoh 't`.+`' *.js | sort | uniq | sed 's/^t`//g' | sed 's/`//g' | sed 's/\${[^}]\+}/{}/g'
