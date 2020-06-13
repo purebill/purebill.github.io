@@ -9,8 +9,10 @@ class Game {
   }
 
   startFromTheBeginning() {
+    this.paused = true;
+
     Timer.clearAll();
-    
+
     /** @type {Entity[]} */
     this.flies = [];
     /** @type {Entity[]} */
@@ -18,7 +20,6 @@ class Game {
     /** @type {Overlay[]} */
     this.overlays = [];
     this.triggers = [];
-    this.paused = true;
     this.gameIsOver = false;
     this.inbetween = false;
     this.lastT = null;
@@ -35,22 +36,26 @@ class Game {
     this.fps = 0;
     /**@type {Map<string, {textSupplier, timerId, color}>} */
     this.infoItems = new Map();
-
-    this.plane = new Plane([this.ctx.canvas.width / 2, this.ctx.canvas.height / 2]);
+    this.plane = new Plane(T.planeStartPos);
     this.level = new Level();
-    this.addOverlay(this.level);
-    this.addEntity(this.plane);
-    this.level.init(this);
 
     let samplesCount = T.telemetryWindowSeconds*T.telemetrySamplesPerSecond;
     this.telemetry = new TelemetryCollector(1000/T.telemetrySamplesPerSecond, this, samplesCount);
-    this.addTrigger(this.telemetry.toTrigger());
     this.detector = new Detector(samplesCount);
-    Timer.periodic(() => this.detector.detect(game.telemetry), T.detectorIntervalMs);
 
-    GamePlugins.init(this);
+    GamePlugins.preInit(this)
+    .then(() => {      
+      this.addOverlay(this.level);
+      this.addEntity(this.plane);
+      this.level.init(this);
 
-    this.resume();
+      this.addTrigger(this.telemetry.toTrigger());
+      Timer.periodic(() => this.detector.detect(game.telemetry), T.detectorIntervalMs);
+
+      GamePlugins.init(this);
+
+      this.resume();
+    });
   }
 
   incrementFakeTargets(inc) {
@@ -497,17 +502,13 @@ class Game {
     ctx.fillText(t`${T.score} ${this.score}`, 0, y);
     y += lineHeight;
 
-    if (this.fakeTargets > 0) {
-      ctx.fillStyle = T.fakeTargetColor;
-      ctx.fillText(t`${T.fakeTarget} ${this.fakeTargets}`, 0, y);
-      y += lineHeight;
-    }
+    ctx.fillStyle = T.fakeTargetColor;
+    ctx.fillText(t`${T.fakeTarget} ${this.fakeTargets}`, 0, y);
+    y += lineHeight;
 
-    if (this.booster > 0) {
-      ctx.fillStyle = T.boosterColor;
-      ctx.fillText(t`${T.booster} ${Math.round(this.booster / 1000)}`, 0, y);
-      y += lineHeight;
-    }
+    ctx.fillStyle = T.boosterColor;
+    ctx.fillText(t`${T.booster} ${Math.round(this.booster / 1000)}`, 0, y);
+    y += lineHeight;
 
     ctx.fillStyle = T.lifeColor;
     ctx.fillText(t`${T.life} ${this.lifes}`, 0, y);

@@ -1,3 +1,8 @@
+/**
+ * @param {string} text 
+ * @param {(() => void)=} callback 
+ * @returns {() => void}
+ */
 function message(text, callback) {
   const snapshot = Keys.snapshot();
   Keys.resetToRoot();
@@ -21,4 +26,6 @@ function message(text, callback) {
     Keys.restoreFromSnapshot(snapshot);
     callback && callback();
   }
+
+  return _pop;
 }

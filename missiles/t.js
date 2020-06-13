@@ -27,6 +27,7 @@ const T = {
   planeColor: "black",
   planeBoosterColor: "#ff3333",
   planeBoosterAlpha: 0.5,
+  planeStartPos: [0, 0],
   planeFakeTargetRadiusColor: "#cccccc",
   trailStartColor: [255, 255, 255],
   trailEndColor: [200, 200, 200],

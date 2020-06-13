@@ -15,14 +15,24 @@ class Level extends Overlay {
     this.missileMaxCount = 1;
     this.missileProbability = 0.5;
     this.missilePeriod = 1000;
+    this.missileSpawnRadiusMin = 1000;
+    this.missileSpawnRadiusMax = 2000;
 
     this.starProbability = 0.5;
     this.starPeriod = 1000;
     this.starMaxCount = 1;
+    this.starSpawnRadiusMin = 400;
+    this.starSpawnRadiusMax = 2000;
 
     this.lifePeriod = 5000;
     this.lifeProbability = 0.2;
     this.lifeMaxCount = 1;
+    this.lifeSpawnRadiusMin = 400;
+    this.lifeSpawnRadiusMax = 2000;
+
+    this.cloudSpawnRadiusMax = 2000;
+    this.obstacleSpawnRadiusMax = 2000;
+    this.outOfRangeRadius = 6000;
   }
 
   /**
@@ -35,8 +45,7 @@ class Level extends Overlay {
       () => this.missileProbability,
       () => this.missileMaxCount,
       () => {
-        const screenSize = Math.max(game.ctx.canvas.width/2, game.ctx.canvas.height/2);
-        const mxy = V.add(game.plane.xy, V.random(screenSize + Math.random()*screenSize));
+        const mxy = V.add(game.plane.xy, V.random(this.missileSpawnRadiusMin + Math.random()*(this.missileSpawnRadiusMax - this.missileSpawnRadiusMin)));
         return new Missile(mxy, game.plane);
       },
       () => this.missilePeriod);
@@ -45,8 +54,7 @@ class Level extends Overlay {
       () => this.starProbability,
       () => this.lifeMaxCount,
       () => {
-        const screenSize = Math.max(game.ctx.canvas.width/2, game.ctx.canvas.height/2);
-        const sxy = V.random(screenSize/3 + Math.random()*screenSize);
+        const sxy = V.random(this.starSpawnRadiusMin + Math.random()*(this.starSpawnRadiusMax - this.starSpawnRadiusMin));
         return new Star(this.game.wrapAround(sxy));
       },
       () => this.starPeriod);
@@ -55,8 +63,7 @@ class Level extends Overlay {
       () => this.lifeProbability,
       () => this.lifeMaxCount,
       () => {
-        const screenSize = Math.max(game.ctx.canvas.width/2, game.ctx.canvas.height/2);
-        const lxy = V.random(screenSize/3 + Math.random()*screenSize);
+        const lxy = V.random(this.starSpawnRadiusMin + Math.random()*(this.starSpawnRadiusMax - this.starSpawnRadiusMin));
         return new Life(lxy);
       },
       () => this.lifePeriod);
@@ -79,7 +86,7 @@ class Level extends Overlay {
   }
 
   progress(dt) {
-    if (V.length(this.game.plane.xy) > Math.max(this.game.ctx.canvas.width, this.game.ctx.canvas.height)*3) {
+    if (V.length(this.game.plane.xy) > this.outOfRangeRadius) {
       this.game.outOfRange = true;
       this.level = Infinity;
       this.missileMaxCount = 100;
@@ -137,11 +144,8 @@ class Level extends Overlay {
 
     const N = initial ? 20 : 1;
     for (let i = 0; i < N; i++) {
-      const w = this.game.ctx.canvas.width;
-      const h = this.game.ctx.canvas.height;
-      let xc = this.game.plane.xy[0] + w - 2 * Math.random() * w;
-      let yc = this.game.plane.xy[1] + h - 2 * Math.random() * h;
-      this.game.addEntity(new Cloud([xc, yc]));
+      let xy = V.random(Math.random()*this.cloudSpawnRadiusMax);
+      this.game.addEntity(new Cloud(xy));
     }
 
     // Timer.set(() => this._randomClouds(false), 5000 + Math.random() * 5000);
@@ -155,17 +159,14 @@ class Level extends Overlay {
       let collided = false;
       let obstacle;
       do {
-        const w = this.game.ctx.canvas.width;
-        const h = this.game.ctx.canvas.height;
-        let xc = this.game.plane.xy[0] + w - 2 * Math.random() * w;
-        let yc = this.game.plane.xy[1] + h - 2 * Math.random() * h;
+        let xy = V.random(this.obstacleSpawnRadiusMax);
         let r = 20 + Math.random() * 30;
         const N = Math.round(3 + Math.random()*10);
         const vertices = [];
         for (let i = 0; i < N; i++) {
           const x = r * Math.cos(2*Math.PI/N*i);
           const y = r * Math.sin(2*Math.PI/N*i);
-          vertices.push([xc + x, yc + y]);
+          vertices.push([xy[0] + x, xy[1] + y]);
         }
         obstacle = new Obstacle(new ConvexPolygonRegion(vertices));
         collided = false;
