@@ -50,6 +50,8 @@ V.angle = (v1, v2) => {
   return Math.acos(cos)*180/Math.PI;
 };
 
+V.dist = (v1, v2) => V.length(V.subtract(v1, v2));
+
 V.behind = (v1, point1, point2) => {
   const n = V.normal(v1);
   // x = n1.x*t+x1

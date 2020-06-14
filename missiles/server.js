@@ -16,6 +16,8 @@ class Server {
 
     this.debug = false;
     this.reconnectOnClose = false;
+
+    this.connected = false;
   }
 
   conntectToOtherUrl(wsUrl) {
@@ -34,11 +36,14 @@ class Server {
     this._ws.onerror = m => this._onError(m);
     this._ws.onclose = m => this._onClose(m);
     this._ws.onopen = m => this._onOpen(m);
+
+    this.connected = true;
   }
 
   disconnect() {
     if (this._ws) this._ws.close();
     this._ws = null;
+    this.connected = false;
     if (this.debug) console.log("[SERVER]", "disconnected");
   }
 
@@ -108,79 +113,3 @@ class Server {
     if (this.debug) console.log("[SERVER]", "openned", m);
   }
 }
-
-class RemotePlane extends Plane {
-  constructor(userId) {
-    super([Infinity, Infinity]);
-    this.userId = userId;
-  }
-
-  // progress(dt) {
-  //   // do nothing
-  // }
-
-  // getColideRegion() {
-  //   return Region.EMPTY;
-  // }
-  
-  draw(ctx) {
-    super.draw(ctx);
-    ctx.fillStyle = "gray";
-    ctx.fillText(this.userId, this.xy[0], this.xy[1] + 10);
-  }
-}
-
-let userId = null;
-/**@type {Server} */
-let s = null;
-
-let wsHost = "68.183.217.90";
-let wsPort = 8080;
-
-GamePlugins.registerPreInit(game => new Promise(resolve => {
-  let closeMessage = message(t`Connecting...`);
-
-  let users = new Map();
-
-  s = new Server(`ws://${wsHost}:${wsPort}/`);
-
-  s.onError(() => {
-    wsPort = wsPort == 8080 ? 8081 : 8080;
-    console.log("[SERVER]", "Reconecting to", wsPort);
-    s.conntectToOtherUrl(`ws://${wsHost}:${wsPort}/`);
-  });
-
-  s.on("AUTH", userInfo => {
-    userId = userInfo.id;
-    s.send("GAME_REQ", {id: userId});
-  });
-  s.on("GAME", gameSetup => {
-    closeMessage();
-    Math.seedrandom(gameSetup.seed);
-    resolve();
-  });
-  let lastT = 0;
-  s.on("POS", pos => {
-    if (pos.id != userId) {
-      let plane = users.get(pos.id);
-      if (plane === undefined) {
-        plane = new RemotePlane(pos.id);
-        game.addEntity(plane);
-        users.set(pos.id, plane);
-      }
-      if (pos.t > lastT) {
-        lastT = pos.t;
-        plane.xy = pos.xy;
-        plane.v = pos.v;
-        if (!plane.dead && pos.dead) game.explosionFor(plane);
-      }
-    }
-  });
-
-  s.connect();
-}));
-
-GamePlugins.register(game => {
-  game.addTrigger(() => s.send("POS", {id: userId, t: game.globalTime, dead: game.plane.dead, xy: game.plane.xy, v: game.plane.v}));
-  // Timer.periodic(() => s.send("POS", {id: userId, t: game.globalTime, dead: game.plane.dead, xy: game.plane.xy, v: game.plane.v}), 1000/60);
-});

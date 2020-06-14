@@ -119,7 +119,7 @@ class Level extends Overlay {
   }
 
   _tryToCreate(clazz, probability, maxCount, creator, period, notFirst) {
-    if (notFirst) {
+    if (notFirst && (this.game.localMode || this.game.masterGameNode)) {
       if (Math.random() < probability()) {
         if (this.game.flies.filter(o => o instanceof clazz).length < maxCount()) {
           let entity, colides;
@@ -144,7 +144,7 @@ class Level extends Overlay {
 
     const N = initial ? 20 : 1;
     for (let i = 0; i < N; i++) {
-      let xy = V.random(Math.random()*this.cloudSpawnRadiusMax);
+      let xy = V.random(Math.random() * this.cloudSpawnRadiusMax);
       this.game.addEntity(new Cloud(xy));
     }
 
@@ -159,7 +159,7 @@ class Level extends Overlay {
       let collided = false;
       let obstacle;
       do {
-        let xy = V.random(this.obstacleSpawnRadiusMax);
+        let xy = V.random(Math.random() * this.obstacleSpawnRadiusMax);
         let r = 20 + Math.random() * 30;
         const N = Math.round(3 + Math.random()*10);
         const vertices = [];

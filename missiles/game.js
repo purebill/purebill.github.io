@@ -1,11 +1,16 @@
 class Game {
   /**
    * @param {CanvasRenderingContext2D} ctx
+   * @param {boolean=} localMode
    */
-  constructor(ctx) {
+  constructor(ctx, localMode) {
+    this.localMode = localMode === undefined ? true : localMode;
+    this.masterGameNode = false;
     this.ctx = ctx;
     this.centered = true;
     this.frameCallback = null;
+    this.gameOverCallback = null;
+    this._init();
   }
 
   startFromTheBeginning() {
@@ -15,6 +20,8 @@ class Game {
 
     /** @type {Entity[]} */
     this.flies = [];
+    /** @type {Map<string, Entity>} */
+    this.fliesById = new Map();
     /** @type {Entity[]} */
     this.fliesToAddAfterTick = [];
     /** @type {Overlay[]} */
@@ -39,23 +46,13 @@ class Game {
     this.plane = new Plane(T.planeStartPos);
     this.level = new Level();
 
-    let samplesCount = T.telemetryWindowSeconds*T.telemetrySamplesPerSecond;
-    this.telemetry = new TelemetryCollector(1000/T.telemetrySamplesPerSecond, this, samplesCount);
-    this.detector = new Detector(samplesCount);
+    this.addOverlay(this.level);
+    this.addEntity(this.plane);
+    this.level.init(this);
 
-    GamePlugins.preInit(this)
-    .then(() => {      
-      this.addOverlay(this.level);
-      this.addEntity(this.plane);
-      this.level.init(this);
+    GamePlugins.init(this);
 
-      this.addTrigger(this.telemetry.toTrigger());
-      Timer.periodic(() => this.detector.detect(game.telemetry), T.detectorIntervalMs);
-
-      GamePlugins.init(this);
-
-      this.resume();
-    });
+    this.resume();
   }
 
   incrementFakeTargets(inc) {
@@ -161,14 +158,18 @@ class Game {
     if (this.inbetween) this.fliesToAddAfterTick.push(entity);
     else {
       this.flies.push(entity);
+      this.fliesById.set(entity.id, entity);
       this._sort();
       this.level.changed(this);
     }
   }
 
-  addNewFlies() {
+  _addNewFlies() {
     if (this.fliesToAddAfterTick.length > 0) {
-      this.fliesToAddAfterTick.forEach(o => this.flies.push(o));
+      this.fliesToAddAfterTick.forEach(o => {
+        this.flies.push(o);
+        this.fliesById.set(o.id, o);
+      });
       this._sort();
       this.fliesToAddAfterTick = [];
       this.level.changed(this);
@@ -193,7 +194,7 @@ class Game {
     this.overlays.push(overlay);
   }
 
-  init() {
+  _init() {
     Keys.resetToRoot();
     Keys.push();
 
@@ -267,7 +268,7 @@ class Game {
         this.boosterIsUsed = false;
       }
     });
-    Keys.key("Escape", [], t`Start from the beginning`, () => this.startFromTheBeginning());
+    Keys.key("Escape", [], t`Start from the beginning`, () => this.gameOver(0));
     Keys.key("KeyP", [], t`Pause`, () => {
       if (this.gameIsOver) return;
       this.pause();
@@ -298,9 +299,9 @@ class Game {
       this.updateBooster(dt);
       this.progress(dt);
       this.detectCollision();
-      this.removeDead();
-      this.addNewFlies();
       this.triggers.forEach(trigger => trigger(dt));
+      this.removeDead();
+      this._addNewFlies();
       this.draw();
 
       if (this.frameCallback) this.frameCallback();
@@ -348,6 +349,8 @@ class Game {
   }
 
   detectCollision() {
+    if (!this.localMode && !this.masterGameNode) return;
+
     for (let i = 0; i < this.flies.length; i++) {
       for (let j = i + 1; j < this.flies.length; j++) {
         const first = this.flies[i];
@@ -398,21 +401,23 @@ class Game {
       let gameOver = false;
       toRemove.forEach(o => {
         if (o === this.plane) gameOver = true;
-        this.flies.splice(this.flies.indexOf(o), 1);
+        let deleted = this.flies.splice(this.flies.indexOf(o), 1);
+        deleted.forEach(it => this.fliesById.delete(it.id));
       });
       if (gameOver) this.gameOver();
     }
   }
 
-  gameOver() {
+  gameOver(delay) {
     this.gameIsOver = true;
     const id = setTimeout(() => {
       this.pause();
       message(t`Game Over`, () => {
         clearTimeout(id);
-        this.startFromTheBeginning();
+        if (this.gameOverCallback !== null) this.gameOverCallback();
+        else this.startFromTheBeginning();
       });
-    }, 2000);
+    }, delay !== undefined ? delay : 2000);
   }
   
   explosionFor(o) {
@@ -425,7 +430,7 @@ class Game {
     this.ctx.fillRect(0, 0, this.ctx.canvas.width, this.ctx.canvas.height);
 
     this.ctx.save();
-    this.overlays.forEach(it => it.drawPre(this.ctx));
+    this.overlays.forEach(it => it.drawPre && it.drawPre(this.ctx));
     this.ctx.restore();
 
     this.ctx.save();
@@ -448,7 +453,7 @@ class Game {
     this.ctx.restore();
 
     this.ctx.save();
-    this.overlays.forEach(it => it.drawPost(this.ctx));
+    this.overlays.forEach(it => it.drawPost && it.drawPost(this.ctx));
     this.ctx.restore();
 
     this.ctx.save();
@@ -513,10 +518,6 @@ class Game {
     ctx.fillStyle = T.lifeColor;
     ctx.fillText(t`${T.life} ${this.lifes}`, 0, y);
     y += lineHeight;
-
-    ctx.save();
-    this._drawRadar(ctx);
-    ctx.restore();
   }
 
     /**
@@ -602,7 +603,9 @@ class Game {
         ctx.fill();
         ctx.restore();
       } else {
-        // fly.draw(ctx);
+        ctx.save();
+        fly.draw(ctx);
+        ctx.restore();
       }
     }
 
@@ -629,14 +632,13 @@ class Game {
 
   launchFakeTarget() {
     if (this.fakeTargets <= 0) return;
-    const radius = 200;
 
     if (!this.fakeTargetTimerId) {
       this.fakeTargetTimerId = Timer.set(() => {
         this.plane.hideFakeTargetRadius();
         this.fakeTargetTimerId = null;
       }, 2000);
-      this.plane.showFakeTargetRadius(radius);
+      this.plane.showFakeTargetRadius(T.fakeTargetRadius);
       return;
     }
 
@@ -644,9 +646,9 @@ class Game {
 
     const fakeTarget = new FakeTarget(this.plane);
     this.addEntity(fakeTarget);
-    this.flies
-      .filter(it => it instanceof Missile)
-      .filter(it => V.length(V.subtract(it.xy, this.plane.xy)) <= radius)
-      .forEach(it => it.retarget(fakeTarget));
+    // this.flies
+    //   .filter(it => it instanceof Missile)
+    //   .filter(it => V.length(V.subtract(it.xy, this.plane.xy)) <= T.fakeTargetRadius)
+    //   .forEach(it => it.retarget(fakeTarget));
   }
 }

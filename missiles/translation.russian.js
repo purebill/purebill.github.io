@@ -24,3 +24,5 @@ T["ArrowLeft"] = "←";
 T["ArrowUp"] = "↑";
 T["ArrowDown"] = "↓";
 T["Space"] = "Пробел";
+T["Initializing..."] = "Инициализация...";
+T["Connecting..."] = "Подключение к серверу...";

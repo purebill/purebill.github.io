@@ -1,15 +1,18 @@
 /**
  * @param {string} text 
- * @param {(() => void)=} callback 
+ * @param {(() => void)=} callback
  * @returns {() => void}
  */
 function message(text, callback) {
-  const snapshot = Keys.snapshot();
-  Keys.resetToRoot();
+  let snapshot;
 
-  Keys.key("Space", [], t`Hide the message`, () => _pop());
-  Keys.key("Escape", [], t`Hide the message`, () => _pop());
-  Keys.key("Enter", [], t`Hide the message`, () => _pop());
+  if (callback) {
+    snapshot = Keys.snapshot();
+    Keys.resetToRoot();
+    Keys.key("Space", [], t`Hide the message`, () => _pop());
+    Keys.key("Escape", [], t`Hide the message`, () => _pop());
+    Keys.key("Enter", [], t`Hide the message`, () => _pop());
+  }
 
   let root = document.getElementById("message");
   root.innerHTML = "";
@@ -23,7 +26,7 @@ function message(text, callback) {
 
   function _pop() {
     document.getElementById("message").style.display = "none";
-    Keys.restoreFromSnapshot(snapshot);
+    if (snapshot !== undefined) Keys.restoreFromSnapshot(snapshot);
     callback && callback();
   }
 

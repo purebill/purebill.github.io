@@ -1,8 +1,8 @@
-GamePlugins.register(game => {
+GamePlugins.register("chart-for-telemetry", [TelemetryCollector], (game, telemetry) => {
   const chartCanvas = document.createElement("canvas");
   chartCanvas.width = 300;
   chartCanvas.height = 300;
-  Timer.periodic(() => chartFor(game.telemetry, chartCanvas), 1000);
+  Timer.periodic(() => chartFor(telemetry, chartCanvas), 1000);
   game.addOverlay({
     drawPre: ctx => true,
     drawPost: ctx => ctx.drawImage(chartCanvas, 20, 200)

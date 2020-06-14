@@ -20,8 +20,8 @@ function animate(v1, v2, t1, t2, timingFunctionFactory) {
  * @param {number} progressMs interval to change the animated vector
  * @param {number} intervalMs animation interval
  * @param {() => TimingFunction} timingFunctionFactory
- * @param {(value: number[]) => any} progressCallback called when animation progresses
- * @param {(value: number[]) => any} finishCallback called when animation is done
+ * @param {((value: number[]) => any)=} progressCallback called when animation progresses
+ * @param {((value: number[]) => any)=} finishCallback called when animation is done
  * @returns {() => number[]} getter for the vector being animated
  */
 function animateOnTimer(v1, v2, progressMs, intervalMs, timingFunctionFactory, progressCallback, finishCallback) {

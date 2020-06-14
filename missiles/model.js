@@ -1,8 +1,26 @@
 class Entity {
+  /**
+   * @param {number[]} xy 
+   */
   constructor(xy) {
     this.xy = V.clone(xy);
     this.dead = false;
     this.layer = 0;
+    this.id = Entity.idPrefix + "-" + Entity.idIndex++;
+  }
+
+  __serialize() {
+    return {
+      xy: this.xy,
+      dead: this.dead,
+      id: this.id
+    };
+  }
+
+  __unserialize(pojo) {
+    this.xy = pojo.xy;
+    this.dead = pojo.dead;
+    this.id = pojo.id;
   }
 
   /**
@@ -21,10 +39,30 @@ class Entity {
   draw(ctx) {
   }
 
+  /**
+   * @param {(ctx: CanvasRenderingContext2D) => void} enhancer 
+   * @returns {() => void}
+   */
+  enhanceDrawWith(enhancer) {
+    let oldDraw = this.draw;
+    this.draw = ctx => {
+      oldDraw.call(this, ctx);
+      enhancer.call(this, ctx);
+    };
+    return () => this.draw = oldDraw;
+  }
+
   colideWith(other) {
     return Region.intersects(this.getColideRegion(), other.getColideRegion());
   }
 }
+
+Entity.__unserialize = pojo => {
+  let e = new Entity(null);
+  e.__unserialize(pojo);
+};
+Entity.idPrefix = Uid.get();
+Entity.idIndex = 0;
 
 class Fly extends Entity {
   constructor(xy, m, v, size) {
@@ -33,6 +71,18 @@ class Fly extends Entity {
     this.v = V.clone(v);
     this.size = size;
     this.dead = false;
+  }
+
+  __serialize() {
+    let pojo = super.__serialize();
+    pojo.m = this.m;
+    pojo.v = this.v;
+    pojo.size = this.size;
+    return pojo;
+  }
+
+  __unserialize(pojo) {
+    super.__unserialize(pojo);
   }
 
   /**
@@ -57,6 +107,12 @@ class Fly extends Entity {
   }
 }
 
+Fly.__unserialize = pojo => {
+  let e = new Fly(pojo.xy, pojo.m, pojo.v, pojo.size);
+  e.__unserialize(pojo);
+  return e;
+};
+
 class Trail extends Fly {
   constructor(xy, m, v, size) {
     super(xy, m, v, size);
@@ -65,6 +121,11 @@ class Trail extends Fly {
     this.lastXy = null;
     this.progressTrail = true;
     this.fadingAlpha = null;
+  }
+
+  __serialize() {
+    let pojo = super.__serialize();
+    return pojo;
   }
 
   _stopTrailing(periodToFade) {
@@ -116,6 +177,12 @@ class Trail extends Fly {
   }
 }
 
+Trail.__unserialize = pojo => {
+  let e = new Trail(pojo.xy, pojo.m, pojo.v, pojo.size);
+  e.__unserialize(pojo);
+  return e;
+};
+
 class Plane extends Fly {
   constructor(xy) {
     const maxVelocity = 100/1000;
@@ -127,6 +194,36 @@ class Plane extends Fly {
     this.boostForce = null;
     this.minVelocity = 10/1000;
     this.maxVelocity = maxVelocity;
+    this.void = true;
+    Timer.set(() => this.void = false, T.planeBirthVoidPeriod);
+  }
+
+  getColideRegion() {
+    if (this.void) return Region.EMPTY;
+    else return super.getColideRegion();
+  }
+
+  __serialize() {
+    let pojo = super.__serialize();
+    pojo.maxVelocity = this.maxVelocity;
+    pojo.omega = this.omega;
+    pojo.hangForce = this.hangForce;
+    pojo.boostForce = this.boostForce;
+    pojo.minVelocity = this.minVelocity;
+    pojo.maxVelocity = this.maxVelocity;
+    pojo.void = this.void;
+    return pojo;
+  }
+
+  __unserialize(pojo) {
+    super.__unserialize(pojo);
+    this.maxVelocity = pojo.maxVelocity;
+    this.omega = pojo.omega;
+    this.hangForce = pojo.hangForce;
+    this.boostForce = pojo.boostForce;
+    this.minVelocity = pojo.minVelocity;
+    this.maxVelocity = pojo.maxVelocity;
+    this.void = pojo.void;
   }
 
   /**
@@ -140,6 +237,9 @@ class Plane extends Fly {
     const head = V.add(this.xy, V.mulByScalar(nv, this.size/7*10));
     const left = V.subtract(this.xy, V.mulByScalar(V.normal(nv), this.size));
     const right = V.add(this.xy, V.mulByScalar(V.normal(nv), this.size));
+
+    ctx.lineWidth = 3;
+    if (this.void) ctx.globalAlpha = 0.2;
 
     ctx.strokeStyle = T.planeColor;
     ctx.beginPath();
@@ -234,21 +334,40 @@ class Plane extends Fly {
   }
 }
 
+Plane.__unserialize = pojo => {
+  let e = new Plane(pojo.xy);
+  e.__unserialize(pojo);
+  return e;
+};
+
 class FakeTarget extends Fly {
   constructor(plane) {
-    const negV = V.negate(V.normalize(plane.v));
-    const dAngle = Math.random()*2*Math.PI/10;
-    const angle = dAngle - 2*dAngle;
-    const v = V.rotate(V.mulByScalar(negV, 100/1000 + Math.random()*50/1000), angle);
-    const pos = V.add(plane.xy, V.mulByScalar(negV, plane.size * 2));
-    super(pos, 0.1, v, 3);
-    this.layer = 100;
-    this.plane = plane;
-    this.omega = .002 - Math.random()*2*.002;
+    if (plane !== null) {
+      const negV = V.negate(V.normalize(plane.v));
+      const dAngle = Math.random()*2*Math.PI/10;
+      const angle = dAngle - 2*dAngle;
+      const v = V.rotate(V.mulByScalar(negV, 100/1000 + Math.random()*50/1000), angle);
+      const pos = V.add(plane.xy, V.mulByScalar(negV, plane.size * 2));
+      super(pos, 0.1, v, 3);
+      this.layer = 100;
+      this.omega = .002 - Math.random()*2*.002;
 
-    this.color = T.fakeTargetStartColor;
-    animateOnTimer(T.fakeTargetStartColor, T.fakeTargetEndColor, 100, 5000, TimingFunction.ease(), v => this.color = v, null);
-    animateOnTimer([V.length(v)], [0], 100, 5000, TimingFunction.ease(), v => this.v = V.mulByScalar(V.normalize(this.v), v), () => this.dead = true);
+      this.color = T.fakeTargetStartColor;
+      animateOnTimer(T.fakeTargetStartColor, T.fakeTargetEndColor, 100, 5000, TimingFunction.ease(), v => this.color = v, null);
+      animateOnTimer([V.length(v)], [0], 100, 5000, TimingFunction.ease(), v => this.v = V.mulByScalar(V.normalize(this.v), v), () => this.dead = true);
+    }
+  }
+
+  __serialize() {
+    let pojo = super.__serialize();
+    pojo.omega = this.omega;
+    pojo.color = this.color;
+    return pojo;
+  }
+
+  __unserialize(pojo) {
+    this.omega = pojo.omega;
+    this.color = pojo.color;
   }
 
   progress(dt) {
@@ -272,6 +391,12 @@ class FakeTarget extends Fly {
   }
 }
 
+FakeTarget.__unserialize = pojo => {
+  let e = new FakeTarget(null);
+  e.__unserialize(pojo);
+  return e;
+};
+
 class Missile extends Trail {
   constructor(xy, target) {
     const minSpeed = 130/1000;
@@ -284,6 +409,25 @@ class Missile extends Trail {
     this.target = target;
     this.maxOmega = 0.002;
     this.lifeTime = 10000 + Math.random()*30000;
+  }
+
+  __serialize() {
+    let pojo = super.__serialize();
+    pojo.maxSpeed = this.maxSpeed;
+    pojo.minSpeed = this.minSpeed;
+    pojo.maxOmega = this.maxOmega;
+    pojo.lifeTime = this.lifeTime;
+    pojo.target = this.target ? this.target.id : null;
+    pojo.oldTargets = this.oldTargets.map(it => it.id);
+    return pojo;
+  }
+
+  __unserialize(pojo) {
+    super.__unserialize(pojo);
+    this.maxSpeed = pojo.maxSpeed;
+    this.minSpeed = pojo.minSpeed;
+    this.maxOmega = pojo.maxOmega;
+    this.lifeTime = pojo.lifeTime;
   }
 
   isDying() {
@@ -320,6 +464,26 @@ class Missile extends Trail {
   }
 
   retarget(newTarget) {
+    if (this.target === newTarget) return;
+
+    let r;
+    let m = this;
+    let unwrap = this.target.enhanceDrawWith(function (ctx) {
+      ctx.fillStyle = "#ff9999";
+      ctx.globalAlpha = 0.3;
+      ctx.strokeStyle = "#ff9999";
+
+      ctx.beginPath();
+      ctx.moveTo(m.xy[0], m.xy[1]);
+      ctx.lineTo(m.target.xy[0], m.target.xy[1]);
+      ctx.stroke();
+      
+      ctx.beginPath();
+      ctx.arc(newTarget.xy[0], newTarget.xy[1], r()[0], 0, 2*Math.PI);
+      ctx.fill();      
+    });
+    r = animateOnTimer([50], [0], 100, 1000, TimingFunction.ease(), null, unwrap);
+
     this.oldTargets.push(this.target);
     this.target = newTarget;
   }
@@ -364,13 +528,32 @@ class Missile extends Trail {
   }
 }
 
+Missile.__unserialize = pojo => {
+  let e = new Missile(pojo.xy, undefined);
+  if (pojo.target !== null) Serialization.getLink(pojo.target, target => e.target = target, () => undefined);
+  else e.target = {xy: [Infinity, Infinity]};
+  Serialization.getLink(pojo.oldTargets, oldTargets => e.oldTargets = oldTargets, () => undefined);
+  e.__unserialize(pojo);
+  return e;
+};
+
 class Perk extends Entity {
   constructor(xy) {
     super(xy);
     this.layer = 100;
-    this.xy = V.clone(xy);
     this.size = 3;
     Timer.set(() => this.dead = true, 20000 + Math.random()*40000);
+  }
+
+  __serialize() {
+    let pojo = super.__serialize();
+    pojo.size = this.size;
+    return pojo;
+  }
+
+  __unserialize(pojo) {
+    super.__unserialize(pojo);
+    this.size = pojo.size;
   }
 
   /**
@@ -384,6 +567,12 @@ class Perk extends Entity {
     this.dead = true;
   }
 }
+
+Perk.__unserialize = pojo => {
+  let e = new Perk(pojo.xy);
+  e.__unserialize(pojo);
+  return e;
+};
 
 class Life extends Perk {
   constructor(xy) {
@@ -410,6 +599,12 @@ class Life extends Perk {
   }
 }
 
+Life.__unserialize = pojo => {
+  let e = new Life(pojo.xy);
+  e.__unserialize(pojo);
+  return e;
+};
+
 class Star extends Perk {
   constructor(xy) {
     super(xy);
@@ -435,11 +630,16 @@ class Star extends Perk {
   }
 }
 
+Star.__unserialize = pojo => {
+  let e = new Star(pojo.xy);
+  e.__unserialize(pojo);
+  return e;
+};
+
 class Explosion extends Fly {
   constructor(xy, N) {
     super(xy, 1, [0, 0], 1);
     this.layer = 100;
-    this.timeLeft = 500;
 
     this.deadCount = N;
     this.circles = [];
@@ -469,6 +669,16 @@ class Explosion extends Fly {
     }
   }
 
+  __serialize() {
+    let pojo = super.__serialize();
+    pojo.deadCount = this.deadCount;
+    return pojo;
+  }
+
+  __unserialize(pojo) {
+    super.__unserialize(pojo);
+  }
+
   progress(dt) {
     this.particles.forEach(p => p[0] = V.add(p[0], V.mulByScalar(p[1], dt)));
   }
@@ -496,6 +706,12 @@ class Explosion extends Fly {
   }
 }
 
+Explosion.__unserialize = pojo => {
+  let e = new Explosion(pojo.xy, pojo.deadCount);
+  e.__unserialize(pojo);
+  return e;
+};
+
 class Obstacle extends Entity {
   /**
    * @param {Region} region 
@@ -507,8 +723,8 @@ class Obstacle extends Entity {
     super(xy);
     this.layer = 100;
     this.region = region;
-    this.region.void = true;
-    this.alphaAnim = animateOnTimer([0.0], [1.0], 100, 4000, TimingFunction.linear(0), null, () => this.region.void = false);
+    // this.region.void = true;
+    // this.alphaAnim = animateOnTimer([0.0], [1.0], 100, T.planeBirthVoidPeriod, TimingFunction.linear(0), null, () => this.region.void = false);
   }
 
   getColideRegion() {
@@ -519,7 +735,7 @@ class Obstacle extends Entity {
    * @param {CanvasRenderingContext2D} ctx 
    */
   draw(ctx) {
-    ctx.globalAlpha = this.alphaAnim()[0];
+    // ctx.globalAlpha = this.alphaAnim()[0];
     this.region.draw(ctx, T.obstacleFillColor, T.obstacleStrokeColor);
   }
 }
@@ -572,5 +788,26 @@ class Achivement extends Entity {
     ctx.fillStyle = this.color;
     ctx.font = this.fontSize()[0] + "px serif";
     ctx.fillText(this.message, this.xy[0], this.xy[1]);
+  }
+}
+
+class RemotePlane extends Plane {
+  constructor(userId) {
+    super([Infinity, Infinity]);
+    this.userId = userId;
+  }
+
+  // progress(dt) {
+  //   // do nothing
+  // }
+
+  // getColideRegion() {
+  //   return Region.EMPTY;
+  // }
+  
+  draw(ctx) {
+    super.draw(ctx);
+    ctx.fillStyle = "gray";
+    ctx.fillText(this.userId, this.xy[0], this.xy[1] + 10);
   }
 }
