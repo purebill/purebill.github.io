@@ -70,7 +70,6 @@ class Fly extends Entity {
     this.m = m;
     this.v = V.clone(v);
     this.size = size;
-    this.dead = false;
   }
 
   __serialize() {
@@ -83,6 +82,9 @@ class Fly extends Entity {
 
   __unserialize(pojo) {
     super.__unserialize(pojo);
+    this.m = pojo.m;
+    this.v = pojo.v;
+    this.size = pojo.size;
   }
 
   /**
