@@ -2,14 +2,17 @@ class Game {
   /**
    * @param {CanvasRenderingContext2D} ctx
    * @param {boolean=} localMode
+   * @param {string=} userId
    */
-  constructor(ctx, localMode) {
+  constructor(ctx, localMode, userId) {
     this.localMode = localMode === undefined ? true : localMode;
+    this.userId = userId;
     this.masterGameNode = false;
     this.ctx = ctx;
     this.centered = true;
     this.frameCallback = null;
     this.gameOverCallback = null;
+    this.newGameCallback = null;
     this._init();
   }
 
@@ -31,19 +34,14 @@ class Game {
     this.inbetween = false;
     this.lastT = null;
     this.timeScale = 1;
-    this.score = 0;
-    this.lifes = 1;
-    this.booster = 10000;
-    this.fakeTargets = 2;
     this.boosterIsUsed = false;
     this.globalTime = 0;
     this.rotationDirection = null;
     this.fakeTargetTimerId = null;
     this.outOfRange = false;
     this.fps = 0;
-    /**@type {Map<string, {textSupplier, timerId, color}>} */
-    this.infoItems = new Map();
     this.plane = new Plane(T.planeStartPos);
+    if (this.userId) this.plane.id = this.userId;
     this.level = new Level();
 
     this.addOverlay(this.level);
@@ -55,59 +53,77 @@ class Game {
     this.resume();
   }
 
-  incrementFakeTargets(inc) {
-    this.fakeTargets += inc;
-    this.level.changed(this);
-    // this.achivement(T.fakeTarget + " +" + inc, T.fakeTargetColor);
-    this.addInfo("fake targerts", () => t`${T.fakeTarget} +${inc}`, 3000, T.fakeTargetColor)
-  }
-
-  decrementFakeTargets(dec) {
-    this.fakeTargets -= dec;
-    this.level.changed(this);
+  /**
+   * @param {Plane} plane 
+   * @param {number} inc 
+   */
+  incrementFakeTargets(plane, inc) {
+    plane.fakeTargets += inc;
+    plane.addInfo("fake targerts", () => t`${T.fakeTarget} +${inc}`, 3000, T.fakeTargetColor)
   }
 
   /**
+   * @param {Plane} plane
+   * @param {number} dec 
+   */
+  decrementFakeTargets(plane, dec) {
+    plane.fakeTargets -= dec;
+  }
+
+  /**
+   * @param {Plane} plane
    * @param {number} inc 
    * @param {Entity=} source 
    */
-  incrementLifes(inc, source) {
-    this.lifes += inc;
-    this.level.changed(this);
+  incrementLifes(plane, inc, source) {
+    plane.lifes += inc;
     this.achivement(t`${T.life} +${inc}`, T.lifeColor, 2000, source);
     // this.addInfo("life", () => t`${T.life} +${inc}`, 3000, T.lifeColor);
   }
 
-  decrementLifes(dec) {
-    this.lifes -= dec;
-    this.level.changed(this);
+  /**
+   * @param {Plane} plane 
+   * @param {number} dec 
+   */
+  decrementLifes(plane, dec) {
+    plane.lifes -= dec;
+    if (plane.lifes <= 0) this.explosionFor(plane);
   }
 
   /**
+   * @param {Plane} plane
    * @param {number} inc 
    * @param {Entity=} source 
    */
-  incrementScore(inc, source) {
-    this.score += inc;
-    this.level.changed(this);
+  incrementScore(plane, inc, source) {
+    plane.score += inc;
     this.achivement(t`+${inc}`, T.scoreColor, 2000, source);
   }
 
-  decrementScore(dec) {
-    this.score -= dec;
-    this.level.changed(this);
+  /**
+   * @param {Plane} plane 
+   * @param {number} dec 
+   */
+  decrementScore(plane, dec) {
+    plane.score -= dec;
   }
 
-  incrementBooster(inc) {
-    this.booster += inc;
-    this.level.changed(this);
+  /**
+   * @param {Plane} plane 
+   * @param {number} inc 
+   */
+  incrementBooster(plane, inc) {
+    plane.booster += inc;
     //this.achivement(T.booster + " +" + Math.round(inc/1000), T.boosterColor);
-    this.addInfo("booster", () => t`${T.booster} +${Math.round(inc/1000)}`, 3000, T.boosterColor);
+    plane.addInfo("booster", () => t`${T.booster} +${Math.round(inc/1000)}`, 3000, T.boosterColor);
   }
 
-  decrementBooster(dec) {
-    this.booster -= dec;
-    this.level.changed(this);
+  /**
+   * @param {Plane} plane 
+   * @param {number} dec 
+   */
+  decrementBooster(plane, dec) {
+    plane.booster -= dec;
   }
 
   /**
@@ -127,28 +143,14 @@ class Game {
    * @param {string=} color
    */
   addInfo(id, textSupplier, intervalMs, color) {
-    if (typeof textSupplier != "function") {
-      let text = textSupplier.toString();
-      textSupplier = () => text;
-    }
-
-    this.removeInfo(id);
-    let timerId = intervalMs !== undefined && intervalMs > 0
-      ? Timer.set(() => this.removeInfo(id), intervalMs)
-      : null;
-    this.infoItems.set(id, {textSupplier, timerId, color});
-
+    this.plane.addInfo(id, textSupplier, intervalMs, color);
   }
 
   /**
    * @param {string} id 
    */
   removeInfo(id) {
-    let info = this.infoItems.get(id);
-    if (info !== undefined) {
-      if (info.timerId !== null) Timer.clear(info.timerId);
-      this.infoItems.delete(id);
-    }
+    this.plane.removeInfo(id);
   }
 
   /**
@@ -160,7 +162,6 @@ class Game {
       this.flies.push(entity);
       this.fliesById.set(entity.id, entity);
       this._sort();
-      this.level.changed(this);
     }
   }
 
@@ -172,7 +173,6 @@ class Game {
       });
       this._sort();
       this.fliesToAddAfterTick = [];
-      this.level.changed(this);
     }
   }
 
@@ -255,7 +255,7 @@ class Game {
           this.plane.maxVelocity = 100/1000;
           this.plane.stopBoost();
         } else {
-          this.plane.maxVelocity = (this.booster > 0 ? 150/1000 : 100/1000);
+          this.plane.maxVelocity = (this.plane.booster > 0 ? 150/1000 : 100/1000);
           this.plane.startBoost();
         }
         this.boosterIsUsed = !this.boosterIsUsed;
@@ -288,7 +288,8 @@ class Game {
 
       Timer.progress(dt);
 
-      if (dt > 0) this.fps = (this.fps + 1000 / dt) / 2;
+      if (dt > 0) this.fps = (this.fps*100 + 1000 / dt) / 101;
+      else this.fps = 0;
 
       dt /= this.timeScale;
       this.lastT = t;
@@ -298,9 +299,9 @@ class Game {
       this.level.progress(dt);
       this.updateBooster(dt);
       this.progress(dt);
-      this.detectCollision();
+      this._detectCollision();
       this.triggers.forEach(trigger => trigger(dt));
-      this.removeDead();
+      this._removeDead();
       this._addNewFlies();
       this.draw();
 
@@ -314,9 +315,9 @@ class Game {
 
   updateBooster(dt) {
     if (this.boosterIsUsed) {
-      this.decrementBooster(dt);
-      if (this.booster <= 0) {
-        this.booster = 0;
+      this.decrementBooster(this.plane, dt);
+      if (this.plane.booster <= 0) {
+        this.plane.booster = 0;
         this.boosterIsUsed = false;
         this.plane.maxVelocity = 100/1000;
         this.plane.stopBoost();
@@ -348,7 +349,7 @@ class Game {
     });
   }
 
-  detectCollision() {
+  _detectCollision() {
     if (!this.localMode && !this.masterGameNode) return;
 
     for (let i = 0; i < this.flies.length; i++) {
@@ -359,44 +360,47 @@ class Game {
         if (first instanceof Obstacle && second instanceof Obstacle) continue;
 
         if (first.colideWith(second)) {
-          const oneIsPlane = first === this.plane || second === this.plane;
-
-          if (first instanceof Perk || second instanceof Perk) {
-            if (oneIsPlane) {
-              ((first instanceof Perk) ? first : second).collected(this);
-            }
+          if (first instanceof Plane && second instanceof Plane) {
+            // permanent death
+            first.lifes = 1;
+            second.lifes = 1;
+            this.decrementLifes(first, 1);
+            this.decrementLifes(second, 1);
             continue;
           }
 
+          const oneIsPlane = first instanceof Plane || second instanceof Plane;
           if (oneIsPlane) {
-            const other = first === this.plane ? second : first;
+            const other = first instanceof Plane ? second : first;
+            const plane = first instanceof Plane ? first : second;
+
+            if (other instanceof Perk) {
+              other.collected(plane);
+              continue;
+            }
 
             if (other instanceof Obstacle) {
-              this.lifes = 1; // permanent death
+              plane.lifes = 1; // permanent death
             } else {
               this.explosionFor(other);
             }
 
-            this.decrementLifes(1);
-            if (this.lifes <= 0) this.explosionFor(this.plane);
+            this.decrementLifes(plane, 1);
             continue;
-          }
-
-          if (!oneIsPlane) {
+          } else {
             if (first instanceof Missile) this.level.onDeadMissile(first);
             if (second instanceof Missile) this.level.onDeadMissile(second);
+            
+            if (!(first instanceof Obstacle)) this.explosionFor(first);
+            if (!(second instanceof Obstacle)) this.explosionFor(second);
           }
-
-          if (!(first instanceof Obstacle)) this.explosionFor(first);
-          if (!(second instanceof Obstacle)) this.explosionFor(second);
         }
       }
     }
   }
 
-  removeDead() {
-    const toRemove = [];
-    this.flies.forEach(o => { if (o.dead) toRemove.push(o); });
+  _removeDead() {
+    const toRemove = this.flies.filter(o => o.dead);
     if (toRemove.length > 0) {
       let gameOver = false;
       toRemove.forEach(o => {
@@ -410,11 +414,12 @@ class Game {
 
   gameOver(delay) {
     this.gameIsOver = true;
+    if (this.gameOverCallback !== null) this.gameOverCallback();
     const id = setTimeout(() => {
       this.pause();
       message(t`Game Over`, () => {
         clearTimeout(id);
-        if (this.gameOverCallback !== null) this.gameOverCallback();
+        if (this.newGameCallback !== null) this.newGameCallback();
         else this.startFromTheBeginning();
       });
     }, delay !== undefined ? delay : 2000);
@@ -455,36 +460,6 @@ class Game {
     this.ctx.save();
     this.overlays.forEach(it => it.drawPost && it.drawPost(this.ctx));
     this.ctx.restore();
-
-    this.ctx.save();
-    this._drawInfo(this.ctx);
-    this.ctx.restore();
-  }
-
-  /**
-   * @param {CanvasRenderingContext2D} ctx
-   */
-  _drawInfo(ctx) {
-    const fontSize = T.infoFontSize;
-    const h = fontSize + 5;
-    const padding = 5;
-    let x = (this.centered ? ctx.canvas.width / 2 : this.plane.xy[0]) + 20;
-    let y = this.centered ? ctx.canvas.height / 2 : this.plane.xy[1];
-    ctx.font = `${fontSize}px serif`;
-    ctx.textBaseline = "top";
-    ctx.globalAlpha = T.infoAlpha;
-    for (let info of this.infoItems.values()) {
-      let text = info.textSupplier();
-      let m = ctx.measureText(text);
-
-      // ctx.fillStyle = T.infoBgColor;
-      // ctx.fillRect(x - padding, y - padding, m.width + 2*padding, fontSize + 2*padding);
-
-      ctx.fillStyle = info.color || T.infoColor;
-      ctx.fillText(text, x, y);
-
-      y += h + 2*padding;
-    }
   }
 
   _drawScore(ctx) {
@@ -504,19 +479,19 @@ class Game {
     y += lineHeight;
 
     ctx.fillStyle = T.scoreColor;
-    ctx.fillText(t`${T.score} ${this.score}`, 0, y);
+    ctx.fillText(t`${T.score} ${this.plane.score}`, 0, y);
     y += lineHeight;
 
     ctx.fillStyle = T.fakeTargetColor;
-    ctx.fillText(t`${T.fakeTarget} ${this.fakeTargets}`, 0, y);
+    ctx.fillText(t`${T.fakeTarget} ${this.plane.fakeTargets}`, 0, y);
     y += lineHeight;
 
     ctx.fillStyle = T.boosterColor;
-    ctx.fillText(t`${T.booster} ${Math.round(this.booster / 1000)}`, 0, y);
+    ctx.fillText(t`${T.booster} ${Math.round(this.plane.booster / 1000)}`, 0, y);
     y += lineHeight;
 
     ctx.fillStyle = T.lifeColor;
-    ctx.fillText(t`${T.life} ${this.lifes}`, 0, y);
+    ctx.fillText(t`${T.life} ${this.plane.lifes}`, 0, y);
     y += lineHeight;
   }
 
@@ -584,29 +559,36 @@ class Game {
     ctx.translate(w/2*z, h/2*z);
     
     // plane
+    const planeSize = 3;
     ctx.strokeStyle = T.radarPlaneColor;
     ctx.lineWidth = z;
     ctx.beginPath();
-    ctx.moveTo(this.plane.xy[0], this.plane.xy[1] - 3*z/aspect);
-    ctx.lineTo(this.plane.xy[0], this.plane.xy[1] + 3*z/aspect);
-    ctx.moveTo(this.plane.xy[0] - 3*z, this.plane.xy[1]);
-    ctx.lineTo(this.plane.xy[0] + 3*z, this.plane.xy[1]);
+    ctx.moveTo(this.plane.xy[0], this.plane.xy[1] - planeSize*z/aspect);
+    ctx.lineTo(this.plane.xy[0], this.plane.xy[1] + planeSize*z/aspect);
+    ctx.moveTo(this.plane.xy[0] - planeSize*z, this.plane.xy[1]);
+    ctx.lineTo(this.plane.xy[0] + planeSize*z, this.plane.xy[1]);
     ctx.stroke();
 
     // draw missiles and perks
     for (let fly of this.flies) {
-      if (fly instanceof Missile || fly instanceof Perk) {
-        ctx.save();
+      ctx.save();
+      if (fly !== this.plane && fly instanceof Plane) {
+        ctx.strokeStyle = T.radarEnemyColor;
+        ctx.beginPath();
+        ctx.moveTo(fly.xy[0] - planeSize*z, fly.xy[1]);
+        ctx.lineTo(fly.xy[0] + planeSize*z, fly.xy[1]);
+        ctx.moveTo(fly.xy[0], fly.xy[1] - planeSize*z/aspect);
+        ctx.lineTo(fly.xy[0], fly.xy[1] + planeSize*z/aspect);
+        ctx.stroke();
+      } else if (fly instanceof Missile || fly instanceof Perk) {
         ctx.fillStyle = fly instanceof Missile ? T.radarMissileColor : T.radarPerkColor;
         ctx.beginPath();
         ctx.ellipse(fly.xy[0], fly.xy[1], 2*z, 2*z/aspect, 0, 0, 2*Math.PI);
         ctx.fill();
-        ctx.restore();
       } else {
-        ctx.save();
         fly.draw(ctx);
-        ctx.restore();
       }
+      ctx.restore();
     }
 
     ctx.restore();
@@ -631,7 +613,7 @@ class Game {
   }
 
   launchFakeTarget() {
-    if (this.fakeTargets <= 0) return;
+    if (this.plane.fakeTargets <= 0) return;
 
     if (!this.fakeTargetTimerId) {
       this.fakeTargetTimerId = Timer.set(() => {
@@ -642,7 +624,7 @@ class Game {
       return;
     }
 
-    this.decrementFakeTargets(1);
+    this.decrementFakeTargets(this.plane, 1);
 
     const fakeTarget = new FakeTarget(this.plane);
     this.addEntity(fakeTarget);

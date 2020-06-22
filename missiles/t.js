@@ -50,6 +50,7 @@ const T = {
   radarPlaneColor: "#663300",
   radarMissileColor: "#ff0000",
   radarPerkColor: "#000000",
+  radarEnemyColor: "#0000ff",
   radarAlpha: 0.9,
   radarSize: 100,
   radarScale: 20,

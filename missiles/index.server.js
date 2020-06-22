@@ -57,7 +57,6 @@ function connectToServer({wsHost, wsPort}) {
       setupGame(gameSetup);
     });
     server.on("MASTER", ({id, master}) => {
-      console.log("MM", id, master);
       if (master) {
         if (id == userId) {
           console.log("[SERVER]", "Master status changed to ON");
@@ -67,6 +66,16 @@ function connectToServer({wsHost, wsPort}) {
           game.masterGameNode = false;
         }
       }
+    });
+    server.on("CLOSE", ({id}) => {
+      console.log("[SERVER]", "disconnected", id);
+      let plane = game.fliesById.get(id);
+      if (plane && game.plane != plane) {
+        plane.dead = true;
+      }
+    });
+    server.on("OPEN", ({id}) => {
+      console.log("[SERVER]", "connected", id);
     });
     let lastT = 0;
     server.on("POS", state => {
@@ -82,11 +91,9 @@ function connectToServer({wsHost, wsPort}) {
         let e = game.fliesById.get(entity.data.id);
         if (e === undefined) {
           e = Serialization.unserialize(entity);
+          // if (e instanceof Plane) e.addInfo("userId", t`enemy`);
+          if (e instanceof Plane) e.addInfo("userId", e.id);
           game.addEntity(e);
-          if (e instanceof Plane) e.enhanceDrawWith(ctx => {
-            ctx.fillStyle = "red";
-            ctx.fillRect(e.xy[0] - 2, e.xy[1] - 2, 4, 4);
-          });
         } else {
           Serialization.unserializeExisting(e, entity);
         }
@@ -96,13 +103,14 @@ function connectToServer({wsHost, wsPort}) {
     });
   }
 
+  server.setWsUrl(`ws://${wsHost}:${wsPort}/` + (userId ? userId : ""));
   server.connect();
 
   function setupGame(gameSetup) {
     Math.seedrandom(gameSetup.seed);
 
     if (firstTime) {
-      game = new Game(frameCtx, false);
+      game = new Game(frameCtx, false, userId);
 
       game.frameCallback = () => {
         ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
@@ -111,7 +119,8 @@ function connectToServer({wsHost, wsPort}) {
     }
 
     game.masterGameNode = gameSetup.master;
-    game.gameOverCallback = connect;
+    game.newGameCallback = () => connect();
+    game.gameOverCallback = () => server.disconnect();
 
     setupServerCommunication();
     game.startFromTheBeginning();
@@ -123,11 +132,6 @@ function connectToServer({wsHost, wsPort}) {
   
     GamePlugins.register(Server, [], game => {
       game.addTrigger(() => {
-        if (game.gameIsOver && server.connected) {
-          server.disconnect();
-          return;
-        }
-
         if (!server.connected) return;
   
         let entities;

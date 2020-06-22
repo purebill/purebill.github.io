@@ -43,7 +43,7 @@ GamePlugins.register("detector-checks", [Detector], (game, detector) => {
       if (context.deathTime !== undefined) {
         // fsa.debug = true; fsa.process(history, c); fsa.debug = false;
         game.addInfo("deadly chaser", t`Deadly chaser!`, 3000);
-        game.incrementScore(10);
+        game.incrementScore(game.plane, 10);
         context.lastFsaTriggerTime = context.deathTime;
         context.reset();
       }

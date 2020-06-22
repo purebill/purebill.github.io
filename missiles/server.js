@@ -26,6 +26,10 @@ class Server {
     this.connect();
   }
 
+  setWsUrl(url) {
+    this._wsUrl = url;
+  }
+
   connect() {
     this.disconnect();
 

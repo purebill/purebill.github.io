@@ -7,6 +7,8 @@ class Entity {
     this.dead = false;
     this.layer = 0;
     this.id = Entity.idPrefix + "-" + Entity.idIndex++;
+    /**@type {Map<string, {textSupplier, timerId, color}>} */
+    this.infoItems = new Map();
   }
 
   __serialize() {
@@ -37,6 +39,66 @@ class Entity {
    * @param {CanvasRenderingContext2D} ctx
    */
   draw(ctx) {
+    this._drawInfo(ctx);
+  }
+
+  /**
+   * @param {string} id 
+   * @param {(() => string) | string} textSupplier 
+   * @param {number=} intervalMs
+   * @param {string=} color
+   */
+  addInfo(id, textSupplier, intervalMs, color) {
+    if (typeof textSupplier != "function") {
+      let text = textSupplier.toString();
+      textSupplier = () => text;
+    }
+
+    this.removeInfo(id);
+    let timerId = intervalMs !== undefined && intervalMs > 0
+      ? Timer.set(() => this.removeInfo(id), intervalMs)
+      : null;
+    this.infoItems.set(id, {textSupplier, timerId, color});
+  }
+
+  /**
+   * @param {string} id 
+   */
+  removeInfo(id) {
+    let info = this.infoItems.get(id);
+    if (info !== undefined) {
+      if (info.timerId !== null) Timer.clear(info.timerId);
+      this.infoItems.delete(id);
+    }
+  }
+
+  /**
+   * @param {CanvasRenderingContext2D} ctx
+   */
+  _drawInfo(ctx) {
+    ctx.save();
+    const fontSize = T.infoFontSize;
+    const lineSpacing = T.infoFontSize/2;
+    const h = fontSize + lineSpacing;
+    const padding = lineSpacing/2;
+    let x = this.xy[0] + 20;
+    let y = this.xy[1];
+    ctx.font = `${fontSize}px serif`;
+    ctx.textBaseline = "top";
+    ctx.globalAlpha = T.infoAlpha;
+    for (let info of this.infoItems.values()) {
+      let text = info.textSupplier();
+
+      // let m = ctx.measureText(text);
+      // ctx.fillStyle = T.infoBgColor;
+      // ctx.fillRect(x - padding, y - padding, m.width + 2*padding, h + 2*padding);
+
+      ctx.fillStyle = info.color || T.infoColor;
+      ctx.fillText(text, x, y);
+
+      y += h;
+    }
+    ctx.restore();
   }
 
   /**
@@ -190,6 +252,11 @@ class Plane extends Fly {
     const maxVelocity = 100/1000;
     super(xy, 1, [0, -maxVelocity], 7);
 
+    this.lifes = 1;
+    this.fakeTargets = 2;
+    this.score = 0;
+    this.booster = 10000;
+
     this.layer = 100;
     this.omega = null;
     this.hangForce = null;
@@ -214,6 +281,10 @@ class Plane extends Fly {
     pojo.minVelocity = this.minVelocity;
     pojo.maxVelocity = this.maxVelocity;
     pojo.void = this.void;
+    pojo.lifes = this.lifes;
+    pojo.fakeTargets = this.fakeTargets;
+    pojo.score = this.score;
+    pojo.booster = this.booster;
     return pojo;
   }
 
@@ -226,6 +297,10 @@ class Plane extends Fly {
     this.minVelocity = pojo.minVelocity;
     this.maxVelocity = pojo.maxVelocity;
     this.void = pojo.void;
+    this.lifes = pojo.lifes;
+    this.fakeTargets = pojo.fakeTargets;
+    this.score = pojo.score;
+    this.booster = pojo.booster;
   }
 
   /**
@@ -565,7 +640,10 @@ class Perk extends Entity {
     return new CircleRegion(this.xy, this.size);
   }
 
-  collected(game) {
+  /**
+   * @param {Plane} plane 
+   */
+  collected(plane) {
     this.dead = true;
   }
 }
@@ -582,6 +660,8 @@ class Life extends Perk {
   }
 
   draw(ctx) {
+    super.draw(ctx);
+
     ctx.strokeStyle = T.lifeColor;
     ctx.fillStyle = T.lifeColor;
     ctx.beginPath();
@@ -593,11 +673,11 @@ class Life extends Perk {
   }
 
   /**
-   * @param {Game} game 
+   * @param {Plane} plane 
    */
-  collected(game) {
-    super.collected(game);
-    game.incrementLifes(1, this);
+  collected(plane) {
+    super.collected(plane);
+    game.incrementLifes(plane, 1, this);
   }
 }
 
@@ -613,6 +693,8 @@ class Star extends Perk {
   }
 
   draw(ctx) {
+    super.draw(ctx);
+    
     ctx.strokeStyle = T.scoreColor;
     ctx.fillStyle = T.scoreColor;
     ctx.beginPath();
@@ -624,11 +706,11 @@ class Star extends Perk {
   }
 
   /**
-   * @param {Game} game 
+   * @param {Plane} plane 
    */
-  collected(game) {
-    super.collected(game);
-    game.incrementScore(1, this);
+  collected(plane) {
+    super.collected(plane);
+    game.incrementScore(plane, 1, this);
   }
 }
 
@@ -693,6 +775,8 @@ class Explosion extends Fly {
    * @param {CanvasRenderingContext2D} ctx
    */
   draw(ctx) {
+    super.draw(ctx);
+    
     ctx.globalAlpha = T.explosionAlpha;
     ctx.fillStyle = rgb(this.color());
     this.circles.forEach(c => {
@@ -737,6 +821,8 @@ class Obstacle extends Entity {
    * @param {CanvasRenderingContext2D} ctx 
    */
   draw(ctx) {
+    super.draw(ctx);
+    
     // ctx.globalAlpha = this.alphaAnim()[0];
     this.region.draw(ctx, T.obstacleFillColor, T.obstacleStrokeColor);
   }
@@ -762,6 +848,8 @@ class Cloud extends Entity {
   }
 
   draw(ctx) {
+    super.draw(ctx);
+    
     ctx.fillStyle = this.color;
     ctx.globalAlpha = this.alphaAnim()[0];
     this.circles.forEach(it => {
@@ -786,30 +874,11 @@ class Achivement extends Entity {
   }
 
   draw(ctx) {
+    super.draw(ctx);
+    
     ctx.globalAlpha = 0.5;
     ctx.fillStyle = this.color;
     ctx.font = this.fontSize()[0] + "px serif";
     ctx.fillText(this.message, this.xy[0], this.xy[1]);
-  }
-}
-
-class RemotePlane extends Plane {
-  constructor(userId) {
-    super([Infinity, Infinity]);
-    this.userId = userId;
-  }
-
-  // progress(dt) {
-  //   // do nothing
-  // }
-
-  // getColideRegion() {
-  //   return Region.EMPTY;
-  // }
-  
-  draw(ctx) {
-    super.draw(ctx);
-    ctx.fillStyle = "gray";
-    ctx.fillText(this.userId, this.xy[0], this.xy[1] + 10);
   }
 }

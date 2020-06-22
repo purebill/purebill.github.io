@@ -68,21 +68,12 @@ class Level extends Overlay {
       },
       () => this.lifePeriod);
 
-    this.game.addTrigger(scoreTrigger(this.game, 10, () => this.game.incrementLifes(1)));
-    this.game.addTrigger(scoreTrigger(this.game, 5, () => this.game.incrementFakeTargets(1)));
-    this.game.addTrigger(scoreTrigger(this.game, 2, () => this.game.incrementBooster(2000)));
+    this.game.addTrigger(scoreTrigger(this.game, 10, () => this.game.incrementLifes(this.game.plane, 1)));
+    this.game.addTrigger(scoreTrigger(this.game, 5, () => this.game.incrementFakeTargets(this.game.plane, 1)));
+    this.game.addTrigger(scoreTrigger(this.game, 2, () => this.game.incrementBooster(this.game.plane, 2000)));
 
     this._randomObstacles(true);
     this._randomClouds(true);
-  }
-
-  changed(game) {
-    this.prevState = {
-      lifes: game.lifes,
-      score: game.score,
-      booster: game.booster,
-      fakeTargets: game.fakeTargets
-    };
   }
 
   progress(dt) {
@@ -95,7 +86,7 @@ class Level extends Overlay {
 
     switch (this.level) {
       case 1:
-        if (this.game.score > 4 || this.game.globalTime > 30000) {
+        if (this.game.plane.score > 4 || this.game.globalTime > 30000) {
           this.level = 2;
           this.missileMaxCount = 2;
         }
@@ -115,7 +106,7 @@ class Level extends Overlay {
    * @param {Missile} missile 
    */
   onDeadMissile(missile) {
-    this.game.incrementScore(1, missile);
+    this.game.incrementScore(this.game.plane, 1, missile);
   }
 
   _tryToCreate(clazz, probability, maxCount, creator, period, notFirst) {
@@ -188,10 +179,10 @@ class Level extends Overlay {
  * @param {() => any} callback 
  */
 function scoreTrigger(game, incrementScore, callback) {
-  let lastScore = game.score;
+  let lastScore = game.plane.score;
   return () => {
-    if (game.score - lastScore >= incrementScore) {
-      lastScore = game.score;
+    if (game.plane.score - lastScore >= incrementScore) {
+      lastScore = game.plane.score;
       callback();
     }
   };

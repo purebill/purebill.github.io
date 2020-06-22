@@ -52,6 +52,9 @@ V.angle = (v1, v2) => {
 
 V.dist = (v1, v2) => V.length(V.subtract(v1, v2));
 
+/**
+ * @returns whenther point2 is behind point1 that looks to v1 direction.
+ */
 V.behind = (v1, point1, point2) => {
   const n = V.normal(v1);
   // x = n1.x*t+x1
