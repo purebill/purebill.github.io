@@ -1,0 +1,13 @@
+.error {
+  outline: 2px solid #ffcccc;
+}
+
+mark.error {
+  display: none;
+}
+
+.error + mark.error {
+  display: block;
+  background-color: #ffcccc;
+  color: #8a1e1e;
+}
