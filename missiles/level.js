@@ -1,12 +1,11 @@
-class Overlay {
-  drawPre(ctx) {
-  }
+import { Overlay } from './overlay.js';
+import { Game } from "./game.js";
+import { Missile, Star, Life, Cloud, Obstacle, Plane } from "./model.js";
+import V from "./vector.js";
+import Timer from "./timer.js";
+import { ConvexPolygonRegion } from "./region.js";
 
-  drawPost(ctx) {
-  }
-}
-
-class Level extends Overlay {
+export class Level extends Overlay {
   constructor() {
     super();
     
@@ -68,9 +67,9 @@ class Level extends Overlay {
       },
       () => this.lifePeriod);
 
-    this.game.addTrigger(scoreTrigger(this.game, 10, () => this.game.incrementLifes(this.game.plane, 1)));
-    this.game.addTrigger(scoreTrigger(this.game, 5, () => this.game.incrementFakeTargets(this.game.plane, 1)));
-    this.game.addTrigger(scoreTrigger(this.game, 2, () => this.game.incrementBooster(this.game.plane, 2000)));
+    scoreTrigger(this.game, 10, () => this.game.plane.lifes += 1);
+    scoreTrigger(this.game, 5, () => this.game.plane.fakeTargets += 1);
+    scoreTrigger(this.game, 2, () => this.game.plane.booster += 2000);
 
     this._randomObstacles(true);
     this._randomClouds(true);
@@ -106,7 +105,8 @@ class Level extends Overlay {
    * @param {Missile} missile 
    */
   onDeadMissile(missile) {
-    this.game.incrementScore(this.game.plane, 1, missile);
+    this.game.plane.score += 1;
+    this.game.achivement(t`+1`, T.scoreColor, 2000, missile);
   }
 
   _tryToCreate(clazz, probability, maxCount, creator, period, notFirst) {
@@ -180,10 +180,12 @@ class Level extends Overlay {
  */
 function scoreTrigger(game, incrementScore, callback) {
   let lastScore = game.plane.score;
-  return () => {
-    if (game.plane.score - lastScore >= incrementScore) {
-      lastScore = game.plane.score;
-      callback();
+  game.plane.subscribe(event => {
+    if (event instanceof Plane.ScoreChanged) {
+      if (game.plane.score - lastScore >= incrementScore) {
+        lastScore = game.plane.score;
+        callback();
+      }
     }
-  };
+  });
 }

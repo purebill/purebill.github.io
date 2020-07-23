@@ -1,9 +1,11 @@
+import Keys from "./keys.js";
+
 /**
  * @param {string} text 
  * @param {(() => void)=} callback
  * @returns {() => void}
  */
-function message(text, callback) {
+export function message(text, callback) {
   let snapshot;
 
   if (callback) {

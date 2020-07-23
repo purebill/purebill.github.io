@@ -1,4 +1,6 @@
-class FsaTransition {
+import { RingBuffer, ConsumedBuffer } from "./ring-buffer.js";
+
+export class FsaTransition {
   /**
    * @param {FsaState} toState
    * @param {(sample: any, context: object) => boolean} condition 
@@ -19,7 +21,7 @@ class FsaTransition {
   }
 }
 
-class FsaState {
+export class FsaState {
   /**
    * @param {string} name
    * @param {FsaTransition[]} transitions 
@@ -30,13 +32,13 @@ class FsaState {
   }
 }
 
-class FsaContext {
+export class FsaContext {
   constructor() {
     this.stateReached = null;
   }
 }
 
-class Fsa {
+export class Fsa {
   /**
    * @param {FsaState} startState
    * @param {((sample: object, context: object) => boolean)=} sampleFilter
@@ -50,6 +52,8 @@ class Fsa {
   /**
    * Consumes the buffer and returns back the index to start from next time (or -1).
    * 
+   * Mutates context but setting the stateReached to the name of the state reached so far.
+   * 
    * @param {RingBuffer} buffer
    * @param {object} context
    * @param {number=} startIdx
@@ -59,10 +63,10 @@ class Fsa {
     startIdx = startIdx || 0;
     context.stateReached = null;
     let cb = new ConsumedBuffer(buffer, startIdx);
-    let state = this._startState;
+    context._state = this._startState;
     
     if (this.debug) console.groupCollapsed("FSA");
-    if (this.debug) console.log("[start]", state.name);
+    if (this.debug) console.log("[start]", context._state.name);
     
     while(!cb.atEnd()) {
       let sample = cb.next();
@@ -75,7 +79,7 @@ class Fsa {
       if (this.debug) console.log("[sample]", sample);
 
       let nextState = null;
-      for (let t of state.transitions) {
+      for (let t of context._state.transitions) {
         nextState = t.transit(sample, context);
         if (nextState !== null) {
           context.stateReached = nextState.name;
@@ -84,10 +88,10 @@ class Fsa {
         }
       }
       if (nextState === null) {
-        if (this.debug) console.log("[end]", state, "[context]", Object.assign({}, context));
+        if (this.debug) console.log("[end]", context._state, "[context]", Object.assign({}, context));
         break;
       }
-      state = nextState;
+      context._state = nextState;
     }
 
     if (this.debug) console.log("[buffer consumed]", cb.atEnd() ? "'till end" : "'till " + cb.idx);
@@ -95,9 +99,50 @@ class Fsa {
 
     return cb.atEnd() ? -1 : cb.idx;
   }
+
+  /**
+   * Make one step based on the sample.
+   * 
+   * If there is a state to transfer to based on the current state and the sample then
+   * mutates context but setting the stateReached to the name of the state reached so far and return true.
+   * 
+   * False is returned otherwise.
+   * 
+   * @param {any} sample 
+   * @param {object} context 
+   * @returns {boolean} wheather the step succeeded to find a next state
+   */
+  step(sample, context) {
+    if (context._state === undefined) {
+      context._state = this._startState;
+    }
+
+    if (this._sampleFilter !== null && !this._sampleFilter(sample, context)) {
+      if (this.debug) console.log("[skip sample]", sample);
+      return true;
+    }
+
+    if (this.debug) console.log("[sample]", sample);
+
+    let nextState = null;
+    for (let t of context._state.transitions) {
+      nextState = t.transit(sample, context);
+      if (nextState !== null) {
+        context.stateReached = nextState.name;
+        if (this.debug) console.log("[transition]", context._state.name, " => ", nextState.name, "[context]", Object.assign({}, context));
+        context._state = nextState;
+        return true;
+      }
+    }
+
+    if (this.debug) console.log("[end]", context._state, "[context]", Object.assign({}, context));
+    delete context._state;
+
+    return false;
+  }
 }
 
-class FsaBuilder {
+export class FsaBuilder {
   constructor(name, parent) {
     this._name = name || null;
     /**@type {Map<string, FsaBuilder>} */
@@ -179,6 +224,12 @@ class FsaBuilder {
 // console.log(builder);
 // let fsa = builder.build("start");
 // console.log(fsa);
+
+// let context = {count: 0};
+// for (let sample of [2, 4, 6, 7, 3, 2, 2, 3]) {
+//   let proceed = fsa.step(sample, context);
+//   console.log(sample, proceed, context.stateReached);
+// }
 
 // let rb = new RingBuffer(10);
 // rb.push(2, 4, 6, 7, 3);

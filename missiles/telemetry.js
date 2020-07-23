@@ -1,4 +1,9 @@
-class TelemetryCollector {
+import { Game } from "./game.js";
+import { RingBuffer } from "./ring-buffer.js";
+import { Missile } from "./model.js";
+import V from "./vector.js";
+
+export class TelemetryCollector {
   /**
    * @param {number} interval
    * @param {Game} game
@@ -59,5 +64,15 @@ class TelemetryCollector {
       this.missileState.push({t: this.time, xy: closestMissile.xy, v: V.normalize(closestMissile.v), lastMissileIsDead});
     else
       this.missileState.push({t: this.time, xy: [Infinity, Infinity], v: [0, 0], lastMissileIsDead});
+  }
+
+  getLatestPlaneState() {
+    if (this.planeState.size > 0) return this.planeState.get(this.planeState.size - 1);
+    return null;
+  }
+
+  getLatestMissileState() {
+    if (this.missileState.size > 0) return this.missileState.get(this.missileState.size - 1);
+    return null;
   }
 }

@@ -72,3 +72,5 @@ V.behind = (v1, point1, point2) => {
 
   return Math.sign(y2-point2[1]) != Math.sign(y1-point1[1]);
 };
+
+export default V;

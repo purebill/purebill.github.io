@@ -1,3 +1,5 @@
+import {Game} from './game.js'
+
 const GamePlugins = (function () {
   const NOT_INITIALIZED = {};
 
@@ -14,7 +16,7 @@ const GamePlugins = (function () {
       this.pluginValue = NOT_INITIALIZED;
     }
   }
-  /** @type {Map<any, PluginInfo>} */
+  /** @type {Map<string, PluginInfo>} */
   const plugins = new Map();
 
   let insideInit = false;
@@ -91,7 +93,7 @@ const GamePlugins = (function () {
   }
 
   /**
-   * @param {any} pluginId 
+   * @param {string} pluginId 
    * @returns {any | undefined}
    */
   function get(pluginId) {
@@ -109,3 +111,5 @@ const GamePlugins = (function () {
     get
   };
 })();
+
+export default GamePlugins;

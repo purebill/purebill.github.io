@@ -1,37 +1,74 @@
+/**@type {Map<string, (any) => any>} */
+const constructors = new Map();
+
 const Serialization = {};
 
-Serialization.serialize = o => {
-  if (typeof o.__serialize === "function") {
+/**
+ * @param {{__serialize: () => any}} o 
+ * @returns {object}
+ */
+Serialization.toPojo = o => {
+  if (typeof o.__serialize === "function" && o.__proto__.constructor.__type) {
+    let type = o.__proto__.constructor.__type;
     return {
-      type: o.__proto__.constructor.name,
+      type,
       data: o.__serialize()
-    }
+    };
   } else {
     throw new Error("Can't serialize " + o);
   }
 };
 
-Serialization._uCount = 0;
-Serialization.unserialize = pojo => {
+/**
+ * @param {{__serialize: () => any}} o 
+ * @returns {string}
+ */
+Serialization.serialize = o => {
+  return JSON.stringify(Serialization.toPojo(o));
+};
+
+/**
+ * @param {string} name 
+ * @param {() => any} cons 
+ */
+Serialization.registerConstructor = (name, cons) => {
+  if (constructors.has(name)) throw new Error("The constructor already exist: " + name);
+  constructors.set(name, cons);
+}
+
+let _uCount = 0;
+
+/**
+ * @param {string | object} s 
+ * @returns {any}
+ */
+Serialization.unserialize = (s) => {
+  let pojo = s;
+  if (typeof pojo == "string") pojo = JSON.parse(pojo);
+
   if (pojo.type) {
-    let constructor = eval(pojo.type);
     try {
-      Serialization._uCount++;
-      return constructor.__unserialize(pojo.data);
+      _uCount++;
+      let cons = constructors.get(pojo.type);
+      if (cons === undefined) throw new Error("No constructor registered for type: " + pojo.type);
+      let result = cons(pojo.data);
+      result.__unserialize(pojo.data);
+      return result;
     } finally {
-      Serialization._uCount--;
+      _uCount--;
     }
   } else {
-    throw new Error("Can't unserialize " + pojo);
+    throw new Error("'type' expected. Can't unserialize " + pojo);
   }
 };
 
+/**
+ * @param {{ __unserialize: (arg0: any) => void; }} o
+ * @param {object} pojo
+ */
 Serialization.unserializeExisting = (o, pojo) => {
   if (pojo.type) {
-    let constructor = eval(pojo.type);
-    if (!constructor.prototype.__unserialize) throw new Error("Type " + constructor.name + " has no __unserialize instance method");
-    if (o instanceof constructor) o.__unserialize(pojo.data);
-    else throw new Error("Instance is not of the type " + pojo.type);
+    o.__unserialize(pojo.data);
   } else {
     throw new Error("Can't unserialize " + pojo);
   }
@@ -41,14 +78,14 @@ Serialization.linkRequests = [];
 
 Serialization.getLink = (id, consumer, defaultProducer) => {
   defaultProducer = defaultProducer || (() => undefined);
-  if (Serialization._uCount == 0) throw new Error("getLink can only be called inside __unserialize mathod");
+  if (_uCount == 0) throw new Error("getLink can only be called inside __unserialize mathod");
   Serialization.linkRequests.push({id, consumer, defaultProducer});
 };
 
 Serialization.resetLinks = () => Serialization.linkRequests = [];
 
 Serialization.resolveLinks = links => {
-  if (Serialization._uCount != 0) throw new Error("resolveLinks can only be called outside __unserialize mathod");
+  if (_uCount != 0) throw new Error("resolveLinks can only be called outside __unserialize mathod");
   Serialization.linkRequests.forEach(r => {
     let link;
     if (r.id instanceof Array) {
@@ -70,3 +107,4 @@ Serialization.resolveLinks = links => {
   });
 };
 
+export default Serialization;

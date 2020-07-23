@@ -1,4 +1,11 @@
-GamePlugins.register("detector-checks", [Detector], (game, detector) => {
+import { Game } from './game.js'
+import GamePlugins from './plugins.js'
+import { Detector } from './detector.js';
+import { FsaBuilder } from './state-machine.js';
+import { TelemetryCollector } from './telemetry.js';
+import V from "./vector.js";
+
+GamePlugins.register("detector-checks", [Detector, TelemetryCollector], (/**@type Game */ game, /**@type Detector */ detector, /**@type {TelemetryCollector} */ telemetry) => {
   const fsaCond = (s, c) => s.sameDir && s.dist < 100 && s.behind;
   const fsaNotCond = (s, c) => !fsaCond(s, c);
   const chasingThreshold = 3*T.telemetrySamplesPerSecond;
@@ -32,21 +39,34 @@ GamePlugins.register("detector-checks", [Detector], (game, detector) => {
     }
   }
   let context = new Context();
-  
-  detector.addCheck(history => {
-    let nextIdx = 0;
-    do {
-      nextIdx = fsa.process(history, context, nextIdx);
-      if (context.stateReached == "failed") context.reset();
-      if (context.chasingCount > chasingThreshold) game.addInfo("chasingCount", () => t`Chase it to death!`, 500);
-      else game.removeInfo("chasingCount");
-      if (context.deathTime !== undefined) {
-        // fsa.debug = true; fsa.process(history, c); fsa.debug = false;
-        game.addInfo("deadly chaser", t`Deadly chaser!`, 3000);
-        game.incrementScore(game.plane, 10);
-        context.lastFsaTriggerTime = context.deathTime;
-        context.reset();
-      }
-    } while (nextIdx != -1);
+
+  function checkState() {
+    if (context.stateReached == "failed") context.reset();
+    if (context.chasingCount > chasingThreshold) game.addInfo("chasingCount", () => t`Chase it to death!`, 500);
+    else game.removeInfo("chasingCount");
+    if (context.deathTime !== undefined) {
+      // fsa.debug = true; fsa.process(history, c); fsa.debug = false;
+      game.addInfo("deadly chaser", t`Deadly chaser!`, 3000);
+      game.plane.score += 10;
+      context.lastFsaTriggerTime = context.deathTime;
+      context.reset();
+    }    
+  }
+
+  detector.addStep(sample => {
+    let proceeded = fsa.step(sample, context);
+    if (proceeded) {
+      checkState();
+    } else {
+      context.reset();
+    }
   });
+
+  // detector.addCheck(history => {
+  //   let nextIdx = 0;
+  //   do {
+  //     nextIdx = fsa.process(history, context, nextIdx);
+  //     checkState();
+  //   } while (nextIdx != -1);
+  // });
 });

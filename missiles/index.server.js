@@ -1,3 +1,13 @@
+import GamePlugins from './plugins.js'
+import { message } from './message.js';
+import { Server } from './server.js';
+import { Game } from './game.js';
+import Firebase from './firebase.js';
+import Serialization from './serialization.js';
+import { Plane, Explosion, Missile, Perk } from './model.js';
+import Keys from './keys.js';
+import Timer from './timer.js';
+
 /** @type {HTMLCanvasElement} */
 const canvas = document.getElementById("canvas");
 const ctx = canvas.getContext("2d");
@@ -41,12 +51,6 @@ function connectToServer({wsHost, wsPort}) {
   if (firstTime) {
     server = new Server(`ws://${wsHost}:${wsPort}/`);
 
-    // s.onError(() => {
-    //   wsPort = wsPort == 8080 ? 8081 : 8080;
-    //   console.log("[SERVER]", "Reconecting to", wsPort);
-    //   s.conntectToOtherUrl(`ws://${wsHost}:${wsPort}/`);
-    // });
-
     server.on("AUTH", userInfo => {
       userId = userInfo.id;
       server.send("GAME_REQ", {id: userId});
@@ -77,7 +81,12 @@ function connectToServer({wsHost, wsPort}) {
     server.on("OPEN", ({id}) => {
       console.log("[SERVER]", "connected", id);
     });
+
     let lastT = 0;
+    let t = new Date().getTime();
+    /**@type {Map<string, {t, diff}>} */
+    let diff = new Map();
+    setInterval(() => diff.forEach((d, id) => console.log(id, d.diff)), 1000);
     server.on("POS", state => {
       if (game === null) return;
       if (state.userId == userId) return;
@@ -85,13 +94,24 @@ function connectToServer({wsHost, wsPort}) {
       if (state.t < lastT) return;
       lastT = state.t;
 
+      let now = new Date().getTime();
+      let dt = now - t;
+      t = now;
+
+      let d = diff.get(state.userId);
+      if (d === undefined) {
+        d = {t, diff: 0};
+        diff.set(state.userId, d);
+      }
+      d.diff = (999*d.diff + ((now - d.t) - state.time.dt)) / 1000;
+      d.t = t;
+
       Serialization.resetLinks();
 
       for (let entity of state.entities) {
         let e = game.fliesById.get(entity.data.id);
         if (e === undefined) {
           e = Serialization.unserialize(entity);
-          // if (e instanceof Plane) e.addInfo("userId", t`enemy`);
           if (e instanceof Plane) e.addInfo("userId", e.id);
           game.addEntity(e);
         } else {
@@ -130,6 +150,8 @@ function connectToServer({wsHost, wsPort}) {
   function setupServerCommunication() {
     if (!firstTime) return;
   
+    let t = new Date().getTime();
+
     GamePlugins.register(Server, [], game => {
       game.addTrigger(() => {
         if (!server.connected) return;
@@ -139,11 +161,16 @@ function connectToServer({wsHost, wsPort}) {
           entities = game.flies
               .filter(it => !(it instanceof Plane) || it === game.plane || it.dead)
               .filter(it => it instanceof Explosion || it instanceof Plane || it instanceof Missile || it instanceof Perk)
-              .map(it => Serialization.serialize(it));
+              .map(it => Serialization.toPojo(it));
         } else {
-          entities = [Serialization.serialize(game.plane)];
+          entities = [Serialization.toPojo(game.plane)];
         }
-        server.send("POS", {userId, entities});
+
+        let now = new Date().getTime();
+        let dt = now - t;
+        t = now;
+        let time = { now, dt };
+        server.send("POS", {userId, entities, time});
       });
   
       return server;

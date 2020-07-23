@@ -1,4 +1,18 @@
-class Entity {
+import { animateOnTimer, TimingFunction, animate } from "./animation.js";
+import { Region, CircleRegion } from "./region.js";
+import V from "./vector.js";
+import Timer from "./timer.js";
+import Uid from "./uid.js";
+import Serialization from "./serialization.js";
+
+export class Event {
+  constructor() {
+    /**@type {Entity} */
+    this.target = null;
+  }
+}
+
+export class Entity {
   /**
    * @param {number[]} xy 
    */
@@ -9,6 +23,24 @@ class Entity {
     this.id = Entity.idPrefix + "-" + Entity.idIndex++;
     /**@type {Map<string, {textSupplier, timerId, color}>} */
     this.infoItems = new Map();
+
+    /**@type {((event: Event) => void)[]} */
+    this._subscribers = [];
+  }
+
+  /**
+   * @param {Event} event 
+   */
+  emit(event) {
+    event.target = this;
+    this._subscribers.forEach(sub => sub(event));
+  }
+
+  /**
+   * @param {(event: Event) => void} subscriber
+   */
+  subscribe(subscriber) {
+    this._subscribers.push(subscriber);
   }
 
   __serialize() {
@@ -119,14 +151,12 @@ class Entity {
   }
 }
 
-Entity.__unserialize = pojo => {
-  let e = new Entity(null);
-  e.__unserialize(pojo);
-};
+Serialization.registerConstructor(Entity.__type = "Entity", pojo => new Entity(pojo.xy));
+
 Entity.idPrefix = Uid.get();
 Entity.idIndex = 0;
 
-class Fly extends Entity {
+export class Fly extends Entity {
   constructor(xy, m, v, size) {
     super(xy);
     this.m = m;
@@ -171,13 +201,9 @@ class Fly extends Entity {
   }
 }
 
-Fly.__unserialize = pojo => {
-  let e = new Fly(pojo.xy, pojo.m, pojo.v, pojo.size);
-  e.__unserialize(pojo);
-  return e;
-};
+Serialization.registerConstructor(Fly.__type = "Fly", pojo => new Fly(pojo.xy, pojo.m, pojo.v, pojo.size));
 
-class Trail extends Fly {
+export class Trail extends Fly {
   constructor(xy, m, v, size) {
     super(xy, m, v, size);
 
@@ -241,21 +267,17 @@ class Trail extends Fly {
   }
 }
 
-Trail.__unserialize = pojo => {
-  let e = new Trail(pojo.xy, pojo.m, pojo.v, pojo.size);
-  e.__unserialize(pojo);
-  return e;
-};
+Serialization.registerConstructor(Trail.__type = "Trail", pojo => new Trail(pojo.xy, pojo.m, pojo.v, pojo.size));
 
-class Plane extends Fly {
+export class Plane extends Fly {
   constructor(xy) {
     const maxVelocity = 100/1000;
     super(xy, 1, [0, -maxVelocity], 7);
 
-    this.lifes = 1;
-    this.fakeTargets = 2;
-    this.score = 0;
-    this.booster = 10000;
+    this._lifes = 1;
+    this._fakeTargets = 2;
+    this._score = 0;
+    this._booster = 10000;
 
     this.layer = 100;
     this.omega = null;
@@ -265,6 +287,54 @@ class Plane extends Fly {
     this.maxVelocity = maxVelocity;
     this.void = true;
     Timer.set(() => this.void = false, T.planeBirthVoidPeriod);
+  }
+
+  set lifes(newValue) {
+    if (newValue < 0) newValue = 0;
+
+    let amount = newValue - this._lifes;
+    this._lifes = newValue;
+    this.emit(new Plane.LifeChanged(amount));
+  }
+
+  get lifes() {
+    return this._lifes;
+  }
+
+  set fakeTargets(newValue) {
+    if (newValue < 0) newValue = 0;
+
+    let amount = newValue - this._fakeTargets;
+    this._fakeTargets = newValue;
+    this.emit(new Plane.FakeTargetsChanged(amount));
+  }
+
+  get fakeTargets() {
+    return this._fakeTargets;
+  }
+
+  set score(newValue) {
+    if (newValue < 0) newValue = 0;
+
+    let amount = newValue - this._score;
+    this._score = newValue;
+    this.emit(new Plane.ScoreChanged(amount));
+  }
+
+  get score() {
+    return this._score;
+  }
+
+  set booster(newValue) {
+    if (newValue < 0) newValue = 0;
+
+    let amount = newValue - this._booster;
+    this._booster = newValue;
+    this.emit(new Plane.BoosterChanged(amount));
+  }
+
+  get booster() {
+    return this._booster;
   }
 
   getColideRegion() {
@@ -411,13 +481,21 @@ class Plane extends Fly {
   }
 }
 
-Plane.__unserialize = pojo => {
-  let e = new Plane(pojo.xy);
-  e.__unserialize(pojo);
-  return e;
-};
+Serialization.registerConstructor(Plane.__type = "Plane", pojo => new Plane(pojo.xy));
 
-class FakeTarget extends Fly {
+class ChangedEvent extends Event {
+  constructor(amount) {
+    super();
+    this.amount = amount;
+  }
+}
+
+Plane.LifeChanged = class extends ChangedEvent {};
+Plane.FakeTargetsChanged = class extends ChangedEvent {};
+Plane.ScoreChanged = class extends ChangedEvent {};
+Plane.BoosterChanged = class extends ChangedEvent {};
+
+export class FakeTarget extends Fly {
   constructor(plane) {
     if (plane !== null) {
       const negV = V.negate(V.normalize(plane.v));
@@ -468,13 +546,9 @@ class FakeTarget extends Fly {
   }
 }
 
-FakeTarget.__unserialize = pojo => {
-  let e = new FakeTarget(null);
-  e.__unserialize(pojo);
-  return e;
-};
+Serialization.registerConstructor(FakeTarget.__type = "FakeTarget", pojo => new FakeTarget(null));
 
-class Missile extends Trail {
+export class Missile extends Trail {
   constructor(xy, target) {
     const minSpeed = 130/1000;
     const maxSpeed = 150/1000;
@@ -605,21 +679,20 @@ class Missile extends Trail {
   }
 }
 
-Missile.__unserialize = pojo => {
+Serialization.registerConstructor(Missile.__type = "Missile", pojo => {
   let e = new Missile(pojo.xy, undefined);
   if (pojo.target !== null) Serialization.getLink(pojo.target, target => e.target = target, () => undefined);
   else e.target = {xy: [Infinity, Infinity]};
   Serialization.getLink(pojo.oldTargets, oldTargets => e.oldTargets = oldTargets, () => undefined);
-  e.__unserialize(pojo);
   return e;
-};
+});
 
-class Perk extends Entity {
+export class Perk extends Entity {
   constructor(xy) {
     super(xy);
     this.layer = 100;
     this.size = 3;
-    Timer.set(() => this.dead = true, 20000 + Math.random()*40000);
+    Timer.set(() => this.dead = true, 60000 + Math.random()*60000);
   }
 
   __serialize() {
@@ -648,13 +721,9 @@ class Perk extends Entity {
   }
 }
 
-Perk.__unserialize = pojo => {
-  let e = new Perk(pojo.xy);
-  e.__unserialize(pojo);
-  return e;
-};
+Serialization.registerConstructor(Perk.__type = "Perk", pojo => new Perk(pojo.xy));
 
-class Life extends Perk {
+export class Life extends Perk {
   constructor(xy) {
     super(xy);
   }
@@ -677,17 +746,13 @@ class Life extends Perk {
    */
   collected(plane) {
     super.collected(plane);
-    game.incrementLifes(plane, 1, this);
+    plane.lifes += 1;
   }
 }
 
-Life.__unserialize = pojo => {
-  let e = new Life(pojo.xy);
-  e.__unserialize(pojo);
-  return e;
-};
+Serialization.registerConstructor(Life.__type = "Life", pojo => new Life(pojo.xy));
 
-class Star extends Perk {
+export class Star extends Perk {
   constructor(xy) {
     super(xy);
   }
@@ -710,17 +775,13 @@ class Star extends Perk {
    */
   collected(plane) {
     super.collected(plane);
-    game.incrementScore(plane, 1, this);
+    plane.score += 1;
   }
 }
 
-Star.__unserialize = pojo => {
-  let e = new Star(pojo.xy);
-  e.__unserialize(pojo);
-  return e;
-};
+Serialization.registerConstructor(Star.__type = "Star", pojo => new Star(pojo.xy));
 
-class Explosion extends Fly {
+export class Explosion extends Fly {
   constructor(xy, N) {
     super(xy, 1, [0, 0], 1);
     this.layer = 100;
@@ -792,13 +853,9 @@ class Explosion extends Fly {
   }
 }
 
-Explosion.__unserialize = pojo => {
-  let e = new Explosion(pojo.xy, pojo.deadCount);
-  e.__unserialize(pojo);
-  return e;
-};
+Serialization.registerConstructor(Explosion.__type = "Explosion", pojo => new Explosion(pojo.xy, pojo.deadCount));
 
-class Obstacle extends Entity {
+export class Obstacle extends Entity {
   /**
    * @param {Region} region 
    */
@@ -828,7 +885,7 @@ class Obstacle extends Entity {
   }
 }
 
-class Cloud extends Entity {
+export class Cloud extends Entity {
   constructor(xy) {
     super(xy);
     this.layer = 200;
@@ -860,7 +917,7 @@ class Cloud extends Entity {
   }
 }
 
-class Achivement extends Entity {
+export class Achivement extends Entity {
   constructor(xy, message, color, time) {
     super(xy);
     this.layer = 300;

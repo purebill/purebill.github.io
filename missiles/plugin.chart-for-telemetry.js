@@ -1,3 +1,9 @@
+import GamePlugins from './plugins.js'
+import { TelemetryCollector } from './telemetry.js';
+import Timer from './timer.js';
+import { Chart } from './chart.js';
+import V from './vector.js';
+
 GamePlugins.register("chart-for-telemetry", [TelemetryCollector], (game, telemetry) => {
   const chartCanvas = document.createElement("canvas");
   chartCanvas.width = 300;

@@ -1,4 +1,4 @@
-class Chart {
+export class Chart {
   constructor() {
     this.arrays = [];
     this.colors = [];

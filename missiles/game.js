@@ -1,4 +1,12 @@
-class Game {
+import GamePlugins from './plugins.js'
+import Timer from './timer.js';
+import { Entity, Plane, Achivement, Fly, Obstacle, Perk, Missile, Explosion, FakeTarget, Event } from './model.js';
+import { Level } from './level.js';
+import Keys from './keys.js';
+import { message } from './message.js';
+import { Overlay } from './overlay.js';
+
+export class Game {
   /**
    * @param {CanvasRenderingContext2D} ctx
    * @param {boolean=} localMode
@@ -41,6 +49,7 @@ class Game {
     this.outOfRange = false;
     this.fps = 0;
     this.plane = new Plane(T.planeStartPos);
+    this.plane.subscribe(event => this._onPlaneEvent(event));
     if (this.userId) this.plane.id = this.userId;
     this.level = new Level();
 
@@ -54,76 +63,19 @@ class Game {
   }
 
   /**
-   * @param {Plane} plane 
-   * @param {number} inc 
+   * @param {Event} event 
    */
-  incrementFakeTargets(plane, inc) {
-    plane.fakeTargets += inc;
-    plane.addInfo("fake targerts", () => t`${T.fakeTarget} +${inc}`, 3000, T.fakeTargetColor)
-  }
-
-  /**
-   * @param {Plane} plane
-   * @param {number} dec 
-   */
-  decrementFakeTargets(plane, dec) {
-    plane.fakeTargets -= dec;
-  }
-
-  /**
-   * @param {Plane} plane
-   * @param {number} inc 
-   * @param {Entity=} source 
-   */
-  incrementLifes(plane, inc, source) {
-    plane.lifes += inc;
-    this.achivement(t`${T.life} +${inc}`, T.lifeColor, 2000, source);
-    // this.addInfo("life", () => t`${T.life} +${inc}`, 3000, T.lifeColor);
-  }
-
-  /**
-   * @param {Plane} plane 
-   * @param {number} dec 
-   */
-  decrementLifes(plane, dec) {
-    plane.lifes -= dec;
-    if (plane.lifes <= 0) this.explosionFor(plane);
-  }
-
-  /**
-   * @param {Plane} plane
-   * @param {number} inc 
-   * @param {Entity=} source 
-   */
-  incrementScore(plane, inc, source) {
-    plane.score += inc;
-    this.achivement(t`+${inc}`, T.scoreColor, 2000, source);
-  }
-
-  /**
-   * @param {Plane} plane 
-   * @param {number} dec 
-   */
-  decrementScore(plane, dec) {
-    plane.score -= dec;
-  }
-
-  /**
-   * @param {Plane} plane 
-   * @param {number} inc 
-   */
-  incrementBooster(plane, inc) {
-    plane.booster += inc;
-    //this.achivement(T.booster + " +" + Math.round(inc/1000), T.boosterColor);
-    plane.addInfo("booster", () => t`${T.booster} +${Math.round(inc/1000)}`, 3000, T.boosterColor);
-  }
-
-  /**
-   * @param {Plane} plane 
-   * @param {number} dec 
-   */
-  decrementBooster(plane, dec) {
-    plane.booster -= dec;
+  _onPlaneEvent(event) {
+    if (event instanceof Plane.LifeChanged) {
+      if (event.amount > 0) this.achivement(t`${T.life} +${event.amount}`, T.lifeColor, 2000, event.target);
+      if (event.target.lifes <= 0) this.explosionFor(event.target);
+    }
+    if (event instanceof Plane.FakeTargetsChanged && event.amount > 0) {
+      event.target.addInfo("fake targerts", () => t`${T.fakeTarget} +${event.amount}`, 3000, T.fakeTargetColor);
+    }
+    if (event instanceof Plane.BoosterChanged && event.amount > 0) {
+      event.target.addInfo("booster", () => t`${T.booster} +${Math.round(event.amount/1000)}`, 3000, T.boosterColor);
+    }
   }
 
   /**
@@ -315,7 +267,7 @@ class Game {
 
   updateBooster(dt) {
     if (this.boosterIsUsed) {
-      this.decrementBooster(this.plane, dt);
+      this.plane.booster -= dt;
       if (this.plane.booster <= 0) {
         this.plane.booster = 0;
         this.boosterIsUsed = false;
@@ -364,8 +316,8 @@ class Game {
             // permanent death
             first.lifes = 1;
             second.lifes = 1;
-            this.decrementLifes(first, 1);
-            this.decrementLifes(second, 1);
+            first.lifes -= 1;
+            second.lifes -= 1;
             continue;
           }
 
@@ -385,7 +337,7 @@ class Game {
               this.explosionFor(other);
             }
 
-            this.decrementLifes(plane, 1);
+            plane.lifes -= 1;
             continue;
           } else {
             if (first instanceof Missile) this.level.onDeadMissile(first);
@@ -586,6 +538,7 @@ class Game {
         ctx.ellipse(fly.xy[0], fly.xy[1], 2*z, 2*z/aspect, 0, 0, 2*Math.PI);
         ctx.fill();
       } else {
+        ctx.globalAlpha = 0.4;
         fly.draw(ctx);
       }
       ctx.restore();
@@ -624,7 +577,7 @@ class Game {
       return;
     }
 
-    this.decrementFakeTargets(this.plane, 1);
+    this.plane.fakeTargets -= 1;
 
     const fakeTarget = new FakeTarget(this.plane);
     this.addEntity(fakeTarget);

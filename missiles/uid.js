@@ -1,5 +1,3 @@
-"use strict";
-
 const Uid = (function () {
   function uid() {
       return generateLocally();
@@ -38,3 +36,5 @@ const Uid = (function () {
     get: uid
   };
 }) ();
+
+export default Uid;

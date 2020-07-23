@@ -1,3 +1,6 @@
+import GamePlugins from './plugins.js'
+import {TelemetryCollector} from './telemetry.js'
+
 GamePlugins.register(TelemetryCollector, [], game => {
   let samplesCount = T.telemetryWindowSeconds*T.telemetrySamplesPerSecond;
   let telemetry = new TelemetryCollector(1000/T.telemetrySamplesPerSecond, game, samplesCount);

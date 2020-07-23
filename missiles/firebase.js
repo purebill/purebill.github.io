@@ -1,5 +1,3 @@
-"use strict";
-
 var Firebase = (function () {
   var baseUrl = "https://missiles-e8ad3.firebaseio.com";
   var version = "v1";
@@ -64,3 +62,5 @@ var Firebase = (function () {
     loadKeys
   };
 })();
+
+export default Firebase;

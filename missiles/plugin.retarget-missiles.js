@@ -1,3 +1,8 @@
+import GamePlugins from './plugins.js'
+import Timer from './timer.js';
+import { Plane, FakeTarget, Missile } from './model.js';
+import V from './vector.js';
+
 GamePlugins.register("retarget-missiles", [], game => {
   Timer.periodic(retargetMaybe, 300);
 

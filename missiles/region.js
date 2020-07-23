@@ -1,4 +1,6 @@
-class Region {
+import V from "./vector.js";
+
+export class Region {
   constructor() {
     this.void = false;
     this.poly = null;
@@ -64,7 +66,7 @@ class Region {
   }
 }
 
-class CircleRegion extends Region {
+export class CircleRegion extends Region {
   constructor(xy, r) {
     super();
     this.xy = xy;
@@ -115,7 +117,7 @@ class Semispace {
   }
 }
 
-class ConvexPolygonRegion extends Region {
+export class ConvexPolygonRegion extends Region {
   constructor(vertices) {
     super();
     this.vertices = vertices;

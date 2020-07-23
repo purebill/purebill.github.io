@@ -1,4 +1,4 @@
-class Server {
+export class Server {
   /**
    * @param {string} wsUrl 
    */

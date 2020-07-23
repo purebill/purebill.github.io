@@ -164,3 +164,5 @@ var Timer = (function () {
     now: () => currentTime
   };
 })();
+
+export default Timer;

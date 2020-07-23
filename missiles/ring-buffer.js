@@ -1,4 +1,4 @@
-class RingBuffer {
+export class RingBuffer {
   constructor(capacity) {
     this.buffer = new Array(capacity);
     this.startIdx = 0;
@@ -39,7 +39,7 @@ class RingBuffer {
   }
 }
 
-class ConsumedBuffer {
+export class ConsumedBuffer {
   /**
    * @param {RingBuffer} buffer 
    * @param {number=} startIdx

@@ -1,3 +1,8 @@
+import GamePlugins from './plugins.js'
+import Timer from './timer.js';
+import { Plane, Missile } from './model.js';
+import V from './vector.js';
+
 GamePlugins.register("debug", [], game => {
   game.plane.lifes = 100;
 

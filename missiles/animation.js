@@ -1,3 +1,4 @@
+import Timer from "./timer.js";
 
 /**
  * @param {number[]} v1 start vector
@@ -122,3 +123,5 @@ class EaseTimingFunction extends TimingFunction {
 
 TimingFunction.ease = () => () => new EaseTimingFunction();
 TimingFunction.linear = (shift) => () => new LinearTimingFunction(shift);
+
+export {animate, animateOnTimer, TimingFunction};
