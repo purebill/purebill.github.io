@@ -1,9 +1,3 @@
-// importScripts(
-//   "workerp.js",
-//   "linear.js",
-//   "goo.js"
-// );
-
 import { goo, gooImg, gooImgLinear, operatorInverse, operatorPush, operatorScale, operatorUndo, operatorWawe, scaleImgBuffer } from "./goo.js";
 import { Workerp } from "./workerp.js";
 

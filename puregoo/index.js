@@ -2,7 +2,7 @@ import saveAs from "./file-saver.js";
 import Files from "./files.js";
 import Keys from "./keys.js";
 import Message from "./message.js";
-import Progress from "./progress.js";
+import {Progress, Phase} from "./progress.js";
 import Undo from "./undo.js";
 import { Workerp } from "./workerp.js";
 
@@ -104,7 +104,7 @@ function createBuffer(img) {
   return imgBuffer;
 }
 
-function createOriginalImgBuffer() {
+function createOriginalImgBuffer(progress) {
   const fromWidth = state.img.width;
   const fromHeight = state.img.height;
   const toWidth = state.imgOriginal.width;
@@ -113,7 +113,7 @@ function createOriginalImgBuffer() {
   let result = new Float64Array(toWidth * 2 * toHeight);
   const tiles = splitWH(toWidth, toHeight, 128);
   
-  Progress.add(tiles.length);
+  progress.add(tiles.length);
 
   return Promise.all(workers.map(it => it.call({imgBuffer: state.imgBuffer})))
   .then(() => Promise.all(
@@ -122,7 +122,7 @@ function createOriginalImgBuffer() {
           scaleImgBuffer: {fromWidth, fromHeight, toWidth, toHeight, tile}
         })
         .then(imgBufferPart => {
-          Progress.done(1);
+          progress.done(1);
           let si = 0;
           let di = 2*(tile.top * toWidth + tile.left);
           for (let y = 0; y < tile.height; y++) {
@@ -139,14 +139,23 @@ function createOriginalImgBuffer() {
   );
 }
 
-function renderImage(img, imgBuffer, canvas, offlineCanvas) {
+/**
+ * @param {*} img 
+ * @param {*} imgBuffer 
+ * @param {*} canvas 
+ * @param {*} offlineCanvas 
+ * @param {Phase|void} progressPhase 
+ */
+function renderImage(img, imgBuffer, canvas, offlineCanvas, progressPhase) {
+  const progress = progressPhase || Progress.NOOP;
+
   const tiles = split(img, 128);
 
   state.busy = true;
 
   const ctx = offlineCanvas ? offlineCanvas.getContext("2d") : canvas.getContext("2d");
 
-  Progress.add(tiles.length);
+  progress.add(tiles.length);
   return Promise.all(workers.map(it => it.call({img})))
     .then(() => Promise.all(workers.map(it => it.call({imgBuffer}))))
     .then(() => new Promise(resolve => {
@@ -161,11 +170,11 @@ function renderImage(img, imgBuffer, canvas, offlineCanvas) {
 
             ctx.putImageData(part, tile.left, tile.top);
 
-            Progress.done(1);
+            progress.done(1);
             if (++c == tiles.length) {
               // console.debug("rendered in " + (new Date().getTime() - start) / 1000.0 + " seconds");
               state.busy = false;
-              Progress.stop();
+              progress.stop();
               resolve();
             }
           });
@@ -178,7 +187,12 @@ function renderImage(img, imgBuffer, canvas, offlineCanvas) {
 
 function applyOperator(img, offlineCanvas, imgBuffer, canvas, operator, params) {
   const tiles = split(img, 128);
-  Progress.start(tiles);
+
+  Progress.start();
+  const operatorProgress = Progress.phase("operator");
+  const renderImageProgress = Progress.phase("renderImage");
+
+  operatorProgress.add(tiles.length);
 
   state.busy = true;
 
@@ -196,11 +210,12 @@ function applyOperator(img, offlineCanvas, imgBuffer, canvas, operator, params) 
             }
             di += 2*(img.width - tile.width);
           }
-          Progress.done(1);
+          operatorProgress.done(1);
         }))
     ))
     .then(() => state.busy = false)
-    .then(() => renderImage(img, imgBuffer, canvas, offlineCanvas));
+    .then(() => renderImage(img, imgBuffer, canvas, offlineCanvas, renderImageProgress))
+    .then(() => Progress.stop());
 }
 
 function applyGoo(prevBuffer) {
@@ -362,10 +377,13 @@ Keys.mouse(0, [], "Click and move to GOO",
     state.xc = e.offsetX;
     state.yc = e.offsetY;
 
+    state.interpolate = true;
     applyGoo(prevBuffer);
   },
   // Mouse down
   e => {
+    state.interpolate = false;
+
     prevBuffer = new Float64Array(state.imgBuffer);
 
     state.animate = false;
@@ -409,6 +427,11 @@ Keys.mouseMove([], "Move to apply the GOO", e => {
   
   showState();
 });
+Keys.mouseLeave("Ends current edit", () => {
+  state.action = false;
+  state.interpolate = true;
+  applyGoo(prevBuffer);
+});
 Keys.mouseZoom([], "Select the circle radius", e => {
   e.preventDefault();
 
@@ -428,18 +451,24 @@ Keys.key("KeyI", [], "Trigger interpolation",
   }
 );
 Keys.key("KeyS", ["Ctrl"], "Save inverted original image", () => {
-  createOriginalImgBuffer()
+  Progress.start();
+  const phase1 = Progress.phase("createOriginalImgBuffer");
+  const phase2 = Progress.phase("renderImage");
+  const phase3 = Progress.phase("save");
+
+  createOriginalImgBuffer(phase1)
   .then(originalImgBuffer => {
     const canvas = document.createElement("canvas");
     canvas.width = state.imgOriginal.width;
     canvas.height = state.imgOriginal.height;
 
-    renderImage(state.imgOriginal, originalImgBuffer, canvas)
+    renderImage(state.imgOriginal, originalImgBuffer, canvas, null, phase2)
     .then(() => new Promise(resolve => {
-      Progress.add(1);
+      phase3.add(1);
       canvas.toBlob(blob => {
         const saver = saveAs(blob, "puregoo-" + (new Date().getTime()) + ".jpg");
         saver.onwriteend = resolve;
+        phase3.stop();
         Progress.stop();
       }, "image/jpeg", 0.9);
     }));
@@ -556,6 +585,7 @@ function bounceIf(f, t, predicate) {
 }
 
 function animate() {
+  state.interpolate = false;
   hideState();
   let snapshot = Keys.snapshot();
   Keys.resetToRoot();
@@ -574,6 +604,7 @@ function animate() {
 
   function doAnimate(t) {
     if (!state.animate) {
+      state.interpolate = true;
       Keys.restoreFromSnapshot(snapshot);
       renderImage(state.img, state.imgBuffer, state.canvas);
       return;
