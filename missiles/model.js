@@ -557,6 +557,7 @@ export class Missile extends Trail {
     this.maxSpeed = maxSpeed;
     this.minSpeed = minSpeed;
     this.oldTargets = [];
+    /**@type {Entity} */
     this.target = target;
     this.maxOmega = 0.002;
     this.lifeTime = 10000 + Math.random()*30000;

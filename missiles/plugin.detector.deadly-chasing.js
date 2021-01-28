@@ -3,7 +3,6 @@ import GamePlugins from './plugins.js'
 import { Detector } from './detector.js';
 import { FsaBuilder } from './state-machine.js';
 import { TelemetryCollector } from './telemetry.js';
-import V from "./vector.js";
 
 GamePlugins.register("detector-checks", [Detector, TelemetryCollector], (/**@type Game */ game, /**@type Detector */ detector, /**@type {TelemetryCollector} */ telemetry) => {
   const fsaCond = (s, c) => s.sameDir && s.dist < 100 && s.behind;
