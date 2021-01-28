@@ -704,4 +704,4 @@ function modal(f) {
   f().then(close);
 }
 
-loadDataUri("grid.jpg");
+// loadDataUri("grid.jpg");
