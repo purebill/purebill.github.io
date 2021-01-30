@@ -1,3 +1,4 @@
+import { diff } from "./diff.js";
 import saveAs from "./file-saver.js";
 import Files from "./files.js";
 import Keys from "./keys.js";
@@ -220,10 +221,13 @@ function applyOperator(img, offlineCanvas, imgBuffer, canvas, operator, params) 
 
 function applyGoo(prevBuffer) {
   if (!state.action) {
+    console.log(prevBuffer ? "1 YES" : "1 NO");
     renderImage(state.img, state.imgBuffer, state.canvas, state.offlineCanvas)
     .then(() => createUndo(prevBuffer));
     return;
   }
+
+  console.log(prevBuffer ? "2 YES" : "2 NO");
   
   applyOperator(state.img, 
     state.offlineCanvas,
@@ -251,6 +255,18 @@ function createUndo(prevBuffer) {
 
   const beforeBuffer = new Float64Array(prevBuffer);
   const currentBuffer = new Float64Array(state.imgBuffer);
+
+  let patches = diff(beforeBuffer, currentBuffer, state.img.width, state.img.height);
+  const ctx = state.uiCanvas.getContext("2d");
+  ctx.save();
+  ctx.strokeStyle = "#00ff00";
+  patches.forEach(patch => {
+    ctx.beginPath();
+    ctx.rect(patch.left, patch.top, patch.width, patch.height);
+    ctx.stroke();
+  });
+  ctx.restore();
+
   let first = true;
   Undo.do({
     do: () => {
@@ -372,6 +388,8 @@ let prevBuffer = null;
 Keys.mouse(0, [], "Click and move to GOO",
   // Mouse up
   e => {
+    if (!state.action) return;
+
     state.action = false;
 
     state.xc = e.offsetX;
@@ -704,4 +722,4 @@ function modal(f) {
   f().then(close);
 }
 
-// loadDataUri("grid.jpg");
+loadDataUri("grid.jpg");
