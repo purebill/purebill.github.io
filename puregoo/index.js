@@ -2,8 +2,10 @@ import { diff } from "./diff.js";
 import saveAs from "./file-saver.js";
 import Files from "./files.js";
 import Keys from "./keys.js";
+import { menu } from "./menu.js";
 import Message from "./message.js";
-import {Progress, Phase} from "./progress.js";
+import { Progress, Phase } from "./progress.js";
+import { selectValue } from "./select-value.js";
 import Undo from "./undo.js";
 import { Workerp } from "./workerp.js";
 
@@ -17,25 +19,33 @@ function worker() {
   return workers[currentWorker++ % workers.length];
 }
 
-let gooOperators = ["push", "scale", "wave", "inverse", "undo"];
+const gooOperators = ["push", "scale", "wave", "inverse", "undo"];
 
-let state = {
+const state = {
   xc: 0,
   yc: 0,
   r: 50,
   scaleValue: 1/1.05,
   pushValue: 1,
+  prevXc: 0,
+  prevYc: 0,
   startXc: 0,
   startYc: 0,
   busy: false,
   action: false,
   interpolate: true,
+  /**@type {ImageData} */
   img: null,
+  /**@type {HTMLCanvasElement} */
+  // @ts-ignore
   canvas: document.getElementById("result"),
+  /**@type {HTMLCanvasElement} */
+  // @ts-ignore
   uiCanvas: document.getElementById("interface"),
   offlineCanvas: null,
   /**@type {Float64Array} */
   imgBuffer: null,
+  /**@type {ImageData} */
   imgOriginal: null,
   operatorIdx: 0,
   animate: false
@@ -54,6 +64,7 @@ document.onpaste = function (event) {
       file = clipboardData.items[i].getAsFile();
       reader = new FileReader();
       reader.onload = function (evt) {
+        // @ts-ignore
         loadDataUri(evt.target.result);
       };
       reader.readAsDataURL(file);
@@ -68,31 +79,39 @@ Files.registerCallback(files => files.forEach(file => {
   loadDataUri(file.uri);
 }));
 
-function loadDataUri(uri) {
+/**
+ * @param {string} uri
+ */
+async function loadDataUri(uri) {
+  // @ts-ignore
   [...document.querySelectorAll(".result")].forEach(it => it.style.display = "block");
+  // @ts-ignore
   [...document.querySelectorAll(".intro")].forEach(it => it.style.display = "none");
 
-  loadImageData(uri, 1024, 1024)
-  .then(function ([img, imgOriginal]) {
-    state.canvas.width = img.width;
-    state.canvas.height = img.height;
-    state.uiCanvas.width = img.width;
-    state.uiCanvas.height = img.height;
+  const [img, imgOriginal] = await loadImageData(uri, 1024, 1024);
+  state.canvas.width = img.width;
+  state.canvas.height = img.height;
+  state.uiCanvas.width = img.width;
+  state.uiCanvas.height = img.height;
 
-    state.imgBuffer = createBuffer(img);
-    Undo.reset();
+  state.imgBuffer = createBuffer(img);
+  Undo.reset();
 
-    state.xc = - img.width / 2;
-    state.yc = - img.height / 2;
-    state.r = Math.min(img.width, img.height) / 6;
-    state.img = img;
-    state.offlineCanvas = new OffscreenCanvas(img.width, img.height);
-    state.imgOriginal = imgOriginal;
-  })
-  .then(applyGoo)
-  .then(() => state.action = false);
+  state.xc = - img.width / 2;
+  state.yc = - img.height / 2;
+  state.r = Math.min(img.width, img.height) / 6;
+  state.img = img;
+  state.offlineCanvas = new OffscreenCanvas(img.width, img.height);
+  state.imgOriginal = imgOriginal;
+  
+  await applyGoo();
+
+  state.action = false;
 }
 
+/**
+ * @param {ImageData} img
+ */
 function createBuffer(img) {
   let imgBuffer = new Float64Array(img.width * 2 * img.height);
   let i = 0;
@@ -105,6 +124,9 @@ function createBuffer(img) {
   return imgBuffer;
 }
 
+/**
+ * @param {Phase} progress
+ */
 function createOriginalImgBuffer(progress) {
   const fromWidth = state.img.width;
   const fromHeight = state.img.height;
@@ -118,7 +140,10 @@ function createOriginalImgBuffer(progress) {
 
   return Promise.all(workers.map(it => it.call({imgBuffer: state.imgBuffer})))
   .then(() => Promise.all(
-      tiles.map(tile => 
+      tiles.map(/**
+         * @param {number[]} imgBufferPart
+         */
+tile => 
         worker().call({
           scaleImgBuffer: {fromWidth, fromHeight, toWidth, toHeight, tile}
         })
@@ -146,8 +171,9 @@ function createOriginalImgBuffer(progress) {
  * @param {*} canvas 
  * @param {*} offlineCanvas 
  * @param {Phase|void} progressPhase 
+ * @returns {Promise<void>}
  */
-function renderImage(img, imgBuffer, canvas, offlineCanvas, progressPhase) {
+async function renderImage(img, imgBuffer, canvas, offlineCanvas, progressPhase) {
   const progress = progressPhase || Progress.NOOP;
 
   const tiles = split(img, 128);
@@ -157,99 +183,114 @@ function renderImage(img, imgBuffer, canvas, offlineCanvas, progressPhase) {
   const ctx = offlineCanvas ? offlineCanvas.getContext("2d") : canvas.getContext("2d");
 
   progress.add(tiles.length);
-  return Promise.all(workers.map(it => it.call({img})))
-    .then(() => Promise.all(workers.map(it => it.call({imgBuffer}))))
-    .then(() => new Promise(resolve => {
-      let c = 0;
-      let start = new Date().getTime();
 
-      tiles.forEach(tile => {
-        worker()
-          .call({tile, interpolation: state.interpolate})
-          .then(part => {
-            if (!part) return;
+  await Promise.all(workers.map(it => it.call({img})));
 
-            ctx.putImageData(part, tile.left, tile.top);
+  await Promise.all(workers.map(it => it.call({imgBuffer})));
 
-            progress.done(1);
-            if (++c == tiles.length) {
-              // console.debug("rendered in " + (new Date().getTime() - start) / 1000.0 + " seconds");
-              state.busy = false;
-              progress.stop();
-              resolve();
-            }
-          });
-      });
-    }))
-    .then(() => {
-      if (offlineCanvas) canvas.getContext("2d").drawImage(offlineCanvas, 0, 0);
-    });
+  await Promise.all(
+    tiles.map(/**
+       * @param {any} part
+       */
+tile => worker()
+      .call({ tile, interpolation: state.interpolate })
+      .then(part => {
+        ctx.putImageData(part, tile.left, tile.top);
+        progress.done(1);
+      }))
+  );
+
+  if (offlineCanvas) canvas.getContext("2d").drawImage(offlineCanvas, 0, 0);
+  progress.stop();
+  state.busy = false;
 }
 
-function applyOperator(img, offlineCanvas, imgBuffer, canvas, operator, params) {
+/**
+ * @param {ImageData} img
+ * @param {HTMLCanvasElement} offlineCanvas
+ * @param {Float64Array} imgBuffer
+ * @param {HTMLCanvasElement} canvas
+ * @param {string} operator
+ * @param {{ xc: number; yc: number; r: number; prevXc: any; prevYc: any; startXc: number; startYc: number; w: number; h: number; scaleValue: number; pushValue: number; }} params
+ * @returns {Promise<void>}
+ */
+async function applyOperator(img, offlineCanvas, imgBuffer, canvas, operator, params) {
   const tiles = split(img, 128);
 
-  Progress.start();
-  const operatorProgress = Progress.phase("operator");
-  const renderImageProgress = Progress.phase("renderImage");
+  const progress = new Progress(document.getElementById("progress"));
+  progress.start();
+  const operatorProgress = progress.phase("operator");
+  const renderImageProgress = progress.phase("renderImage");
 
   operatorProgress.add(tiles.length);
 
   state.busy = true;
 
-  return Promise.all(workers.map(it => it.call({imgBuffer})))
-    .then(() => Promise.all(
-      tiles.map(tile =>
-        worker().call({tile, operator, ...params, interpolation: state.interpolate})
-        .then(imgBufferPart => {
-          let si = 0;
-          let di = 2*(tile.top*img.width + tile.left);
-          for (let y = 0; y < tile.height; y++) {
-            for (let x = 0; x < tile.width; x++) {
-              imgBuffer[di++] = imgBufferPart[si++];
-              imgBuffer[di++] = imgBufferPart[si++];
-            }
-            di += 2*(img.width - tile.width);
+  await Promise.all(workers.map(it => it.call({imgBuffer})));
+
+  await Promise.all(
+    tiles.map(tile =>
+      worker().call({tile, operator, ...params, interpolation: state.interpolate})
+      .then(imgBufferPart => {
+        let si = 0;
+        let di = 2*(tile.top*img.width + tile.left);
+        for (let y = 0; y < tile.height; y++) {
+          for (let x = 0; x < tile.width; x++) {
+            imgBuffer[di++] = imgBufferPart[si++];
+            imgBuffer[di++] = imgBufferPart[si++];
           }
-          operatorProgress.done(1);
-        }))
-    ))
-    .then(() => state.busy = false)
-    .then(() => renderImage(img, imgBuffer, canvas, offlineCanvas, renderImageProgress))
-    .then(() => Progress.stop());
+          di += 2*(img.width - tile.width);
+        }
+        operatorProgress.done(1);
+      }))
+  );
+
+  await renderImage(img, imgBuffer, canvas, offlineCanvas, renderImageProgress);
+
+  state.busy = false;
+  progress.stop();
 }
 
-function applyGoo(prevBuffer) {
+/**
+ * @param {Float64Array | void} [prevBuffer]
+ */
+async function applyGoo(prevBuffer) {
   if (!state.action) {
-    console.log(prevBuffer ? "1 YES" : "1 NO");
-    renderImage(state.img, state.imgBuffer, state.canvas, state.offlineCanvas)
-    .then(() => createUndo(prevBuffer));
+    await renderImage(state.img, state.imgBuffer, state.canvas, state.offlineCanvas)
+    createUndo(prevBuffer);
+    prevBuffer = null;
     return;
   }
 
-  console.log(prevBuffer ? "2 YES" : "2 NO");
-  
-  applyOperator(state.img, 
+  const params = {
+    xc: state.xc,
+    yc: state.yc,
+    r: state.r,
+    prevXc: state.prevXc,
+    prevYc: state.prevYc,
+    startXc: state.startXc,
+    startYc: state.startYc,
+    w: state.img.width,
+    h: state.img.height,
+    scaleValue: state.scaleValue,
+    pushValue: state.pushValue
+  };
+
+  await applyOperator(state.img, 
     state.offlineCanvas,
     state.action ? state.imgBuffer : new Float64Array(state.imgBuffer),
     state.canvas,
     gooOperators[state.operatorIdx],
-    {
-      xc: state.xc,
-      yc: state.yc,
-      r: state.r,
-      prevXc: state.prevXc,
-      prevYc: state.prevYc,
-      startXc: state.startXc,
-      startYc: state.startYc,
-      w: state.img.width,
-      h: state.img.height,
-      scaleValue: state.scaleValue,
-      pushValue: state.pushValue
-    })
-  .then(() => createUndo(prevBuffer));
+    params
+  );
+
+  createUndo(prevBuffer);
+  prevBuffer = null;
 }
 
+/**
+ * @param {Float64Array | void} prevBuffer
+ */
 function createUndo(prevBuffer) {
   if (!prevBuffer) return;
 
@@ -257,15 +298,16 @@ function createUndo(prevBuffer) {
   const currentBuffer = new Float64Array(state.imgBuffer);
 
   let patches = diff(beforeBuffer, currentBuffer, state.img.width, state.img.height);
-  const ctx = state.uiCanvas.getContext("2d");
-  ctx.save();
-  ctx.strokeStyle = "#00ff00";
-  patches.forEach(patch => {
-    ctx.beginPath();
-    ctx.rect(patch.left, patch.top, patch.width, patch.height);
-    ctx.stroke();
-  });
-  ctx.restore();
+  
+  // const ctx = state.uiCanvas.getContext("2d");
+  // ctx.save();
+  // ctx.strokeStyle = "#00ff00";
+  // patches.forEach(patch => {
+  //   ctx.beginPath();
+  //   ctx.rect(patch.left, patch.top, patch.width, patch.height);
+  //   ctx.stroke();
+  // });
+  // ctx.restore();
 
   let first = true;
   Undo.do({
@@ -274,18 +316,24 @@ function createUndo(prevBuffer) {
         first = false;
         return;
       }
-      state.imgBuffer = currentBuffer;
+      patches.forEach(patch => patch.apply(state.imgBuffer, state.img.width, true));
+      // state.imgBuffer = currentBuffer;
       return renderImage(state.img, state.imgBuffer, state.canvas, state.offlineCanvas);
     },
     undo: () => {
-      state.imgBuffer = beforeBuffer;
+      patches.forEach(patch => patch.apply(state.imgBuffer, state.img.width, false));
+      // state.imgBuffer = beforeBuffer;
       return renderImage(state.img, state.imgBuffer, state.canvas, state.offlineCanvas);
     }
   });
 }
 
-applyGoo = bounceIf(applyGoo, 300, () => state.busy);
-
+/**
+ * @param {string} imageUrl
+ * @param {number} maxWidth
+ * @param {number} maxHeight
+ * @returns {Promise<[ImageData, ImageData]>}
+ */
 function loadImageData(imageUrl, maxWidth, maxHeight) {
   return new Promise(function (resolve) {
     var canvas = document.createElement('canvas');
@@ -321,10 +369,21 @@ function loadImageData(imageUrl, maxWidth, maxHeight) {
   });
 }
 
+/**
+ * @param {ImageData} img
+ * @param {number} S
+ * @returns {{left: number, top: number, width: number, height: number}[]}
+ */
 function split(img, S) {
   return splitWH(img.width, img.height, S);
 }
 
+/**
+ * @param {number} width
+ * @param {number} height
+ * @param {number} S
+ * @returns {{left: number, top: number, width: number, height: number}[]}
+ */
 function splitWH(width, height, S) {
   var tw = Math.ceil(width / S);
   var lastW = width % S;
@@ -346,10 +405,6 @@ function splitWH(width, height, S) {
 
   return tiles;
 }
-
-const dx = 200;
-const dy = 200;
-let ctx;
 
 Keys.init(state.uiCanvas);
 Undo.reset();
@@ -382,6 +437,8 @@ Keys.key("F1", [], "Show this help message (F1 again to hide)", () => {
 });
 Keys.push(); // root contains only 'Help' functionality
 
+const applyGooBounced = bounceIf(applyGoo, 300, () => state.busy);
+
 Keys.key("KeyZ", ["Ctrl"], "Undo", () => Undo.undo());
 Keys.key("KeyY", ["Ctrl"], "Redu", () => Undo.redo());
 let prevBuffer = null;
@@ -396,7 +453,7 @@ Keys.mouse(0, [], "Click and move to GOO",
     state.yc = e.offsetY;
 
     state.interpolate = true;
-    applyGoo(prevBuffer);
+    applyGooBounced(prevBuffer);
   },
   // Mouse down
   e => {
@@ -413,19 +470,19 @@ Keys.mouse(0, [], "Click and move to GOO",
     state.prevXc = state.startXc = state.xc;
     state.prevYc = state.startYc = state.yc;
 
-    applyGoo();
+    applyGooBounced();
   }
 );
 Keys.mouse(2, [], "Select value", e => {
   if (gooOperators[state.operatorIdx] == "scale") {
-    selectValue(1/1.1, 1.1, state.scaleValue, e.offsetX, e.offsetY, v => "x " + (1/v).toFixed(2))
+    selectValue(1/1.1, 1.1, state.scaleValue, e.offsetX, e.offsetY, v => "x " + (1/v).toFixed(2), state.uiCanvas)
       .then(v => {
         state.scaleValue = v;
         showState();
       });
   }
   else if (gooOperators[state.operatorIdx] == "push") {
-    selectValue(1, 10, state.pushValue, e.offsetX, e.offsetY, v => v.toFixed(2))
+    selectValue(1, 10, state.pushValue, e.offsetX, e.offsetY, v => v.toFixed(2), state.uiCanvas)
       .then(v => {
         state.pushValue = v;
         showState();
@@ -438,7 +495,7 @@ Keys.mouseMove([], "Move to apply the GOO", e => {
   state.xc = e.offsetX;
   state.yc = e.offsetY;
 
-  if (state.action) applyGoo();
+  if (state.action) applyGooBounced();
 
   state.prevXc = state.xc;
   state.prevYc = state.yc;
@@ -446,16 +503,18 @@ Keys.mouseMove([], "Move to apply the GOO", e => {
   showState();
 });
 Keys.mouseLeave("Ends current edit", () => {
+  if (!state.action) return;
+
   state.action = false;
   state.interpolate = true;
-  applyGoo(prevBuffer);
+  applyGooBounced(prevBuffer);
 });
 Keys.mouseZoom([], "Select the circle radius", e => {
   e.preventDefault();
 
   state.r = Math.max(5, state.r + 3 * e.deltaY / Math.abs(e.deltaY));
   
-  if (state.action) applyGoo();
+  if (state.action) applyGooBounced();
   
   showState();
 });
@@ -468,89 +527,44 @@ Keys.key("KeyI", [], "Trigger interpolation",
     applyGoo();
   }
 );
-Keys.key("KeyS", ["Ctrl"], "Save inverted original image", () => {
-  Progress.start();
-  const phase1 = Progress.phase("createOriginalImgBuffer");
-  const phase2 = Progress.phase("renderImage");
-  const phase3 = Progress.phase("save");
+Keys.key("KeyS", ["Ctrl"], "Save inverted original image", async () => {
+  const progress = new Progress(document.getElementById("progress"));
+  progress.start();
+  const phase1 = progress.phase("createOriginalImgBuffer");
+  const phase2 = progress.phase("renderImage");
+  const phase3 = progress.phase("save");
 
-  createOriginalImgBuffer(phase1)
-  .then(originalImgBuffer => {
-    const canvas = document.createElement("canvas");
-    canvas.width = state.imgOriginal.width;
-    canvas.height = state.imgOriginal.height;
+  const originalImgBuffer = await createOriginalImgBuffer(phase1);
 
-    renderImage(state.imgOriginal, originalImgBuffer, canvas, null, phase2)
-    .then(() => new Promise(resolve => {
+  const canvas = document.createElement("canvas");
+  canvas.width = state.imgOriginal.width;
+  canvas.height = state.imgOriginal.height;
+
+  await renderImage(state.imgOriginal, originalImgBuffer, canvas, null, phase2);
+
+  await new Promise(resolve => {
       phase3.add(1);
       canvas.toBlob(blob => {
         const saver = saveAs(blob, "puregoo-" + (new Date().getTime()) + ".jpg");
-        saver.onwriteend = resolve;
-        phase3.stop();
-        Progress.stop();
+        //@ts-ignore
+        saver.onwriteend = () => {
+          phase3.stop();
+          resolve();
+        }
       }, "image/jpeg", 0.9);
-    }));
   });
+
+  progress.stop();
 });
-Keys.key("KeyA", [], "Animate", () => {
-  animate();
-});
-Keys.key("Space", [], "Select GOO", () => {
+Keys.key("KeyA", [], "Animate", animate);
+Keys.key("Space", [], "Select GOO", async () => {
   if (!state.img) return;
 
-  let menuItems = [];
-  let menuItemSelected = state.operatorIdx;
-
-  let snapshot = Keys.snapshot();
-  Keys.resetToRoot();
-  Keys.key("ArrowUp", [], "Up", () => {
-    menuItemSelected = (menuItemSelected + menuItems.length - 1) % menuItems.length;
-    menuItems[menuItemSelected].onmouseover({target: menuItems[menuItemSelected]});
-  });
-  Keys.key("ArrowDown", [], "Down", () => {
-    menuItemSelected = (menuItemSelected + 1) % menuItems.length;
-    menuItems[menuItemSelected].onmouseover({target: menuItems[menuItemSelected]});
-  });
-  const selectMenuItem = () => menuItems[menuItemSelected].onclick({target: menuItems[menuItemSelected]});
-  Keys.key("Enter", [], "Select", selectMenuItem);
-  Keys.key("Space", [], "Select", selectMenuItem);
-  Keys.key("Escape", [], "Exit", () => {
-    menuItems[menuItemSelected].onclick({gooCancelled: true});
-  });
-
-  let div = document.createElement("div");
-  div.classList.add("modal");
-
-  let menu = document.createElement("div");
-  menu.classList.add("menu");
-  for (let i = 0; i < gooOperators.length; i++) {
-    const operator = gooOperators[i];
-    let a = document.createElement("a");
-    a.innerText = operator;
-    a.onmouseover = e => {
-      [...menu.querySelectorAll(".hover")].forEach(it => it.classList.remove("hover"));
-      e.target.classList.add("hover");
-    }
-    a.onclick = e => {
-      if (!e.gooCancelled) {
-        state.operatorIdx = i;
-        Message.show("GOO Selected: " + operator, 2000);
-      }
-      applyGoo();
-      div.remove();
-      menu.remove();
-      Keys.restoreFromSnapshot(snapshot);
-    }
-    if (i == state.operatorIdx) a.classList.add("hover");
-    menu.appendChild(a);
-    menuItems.push(a);
-  }
-  document.body.appendChild(div);
-  document.body.appendChild(menu);
+  const i = await menu(gooOperators, state.operatorIdx);
+  state.operatorIdx = i;
+  Message.show("GOO Selected: " + gooOperators[i], 2000);
 });
-Keys.key("Escape", [], "Undo all changes", () => {
-  Undo.undoAll();
-});
+Keys.key("Escape", [], "Undo all changes", Undo.undoAll);
 
 function showState() {
   const ctx = state.uiCanvas.getContext("2d");
@@ -571,12 +585,25 @@ function hideState() {
   ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
 }
 
+/**
+ * @param {CanvasRenderingContext2D} ctx
+ * @param {number} x
+ * @param {number} y
+ * @param {number} r
+ */
 function circle(ctx, x, y, r) {
   ctx.beginPath();
   ctx.arc(x, y, r, 0, Math.PI * 2);
   ctx.stroke();
 }
 
+/**
+ * @param {{ beginPath: () => void; moveTo: (arg0: any, arg1: any) => void; lineTo: (arg0: any, arg1: any) => void; stroke: () => void; }} ctx
+ * @param {any} x1
+ * @param {any} y1
+ * @param {any} x2
+ * @param {any} y2
+ */
 function line(ctx, x1, y1, x2, y2) {
   ctx.beginPath();
   ctx.moveTo(x1, y1);
@@ -584,6 +611,11 @@ function line(ctx, x1, y1, x2, y2) {
   ctx.stroke();
 }
 
+/**
+ * @param {(any) => any} f
+ * @param {number} t
+ * @param {() => boolean} predicate
+ */
 function bounceIf(f, t, predicate) {
   let id = null;
 
@@ -620,7 +652,10 @@ function animate() {
 
   window.requestAnimationFrame(doAnimate);
 
-  function doAnimate(t) {
+  /**
+   * @param {number} t
+   */
+  async function doAnimate(t) {
     if (!state.animate) {
       state.interpolate = true;
       Keys.restoreFromSnapshot(snapshot);
@@ -645,81 +680,31 @@ function animate() {
       }
     }
   
-    renderImage(state.img, buffer, state.canvas, state.offlineCanvas)
-      // .then(() => console.log("frame in " + (new Date().getTime() - startTime) / 1000.0 + " seconds"))
-      .then(() => window.requestAnimationFrame(doAnimate));
+    await renderImage(state.img, buffer, state.canvas, state.offlineCanvas);
+    //console.log("frame in " + (new Date().getTime() - startTime) / 1000.0 + " seconds");
+    window.requestAnimationFrame(doAnimate);
   }
 }
 
-function selectValue(from, to, current, initialX, initialY, toString) {
-  return new Promise(resolve => {
-    const snapshot = Keys.snapshot();
-    Keys.resetToRoot();
-
-    const height = 200;
-
-    let value = current;
-    Keys.mouseMove([], "Move to change the value", e => {
-      value = current + (to - from)/height * (e.offsetY-initialY);
-      value = Math.min(to, Math.max(from, value));
-
-      drawSelection();
-    });
-  
-    Keys.mouse(0, [], "Select", e => {
-      Keys.restoreFromSnapshot(snapshot);
-      resolve(value);
-    });
-
-    Keys.key("Escape", [], "Cancel selection", () => {
-      Keys.restoreFromSnapshot(snapshot);
-      resolve(current);
-    });
-
-    drawSelection();
-
-    function drawSelection() {
-      const ctx = state.uiCanvas.getContext("2d");
-      ctx.save();
-      
-      ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
-      let fromy = (from - current)/(to - from)*height + initialY;
-      let toy = (to - current)/(to - from)*height + initialY;
-      let vy = (value - current)/(to - from)*height + initialY;
-
-      ctx.strokeStyle = "#ffffff";
-      ctx.beginPath();
-      ctx.moveTo(initialX-1, fromy);
-      ctx.lineTo(initialX-1, toy);
-      ctx.stroke();
-      ctx.strokeStyle = "#000000";
-      ctx.beginPath();
-      ctx.moveTo(initialX, fromy);
-      ctx.lineTo(initialX, toy);
-      ctx.stroke();
-
-      ctx.fillStyle = "#ffffff";
-      ctx.strokeStyle = "#000000";
-      ctx.beginPath();
-      ctx.arc(initialX, vy, 5, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.beginPath();
-      ctx.arc(initialX, vy, 5, 0, Math.PI * 2);
-      ctx.stroke();
-
-      ctx.strokeText(toString(value), initialX + 5, vy);
-      ctx.fillText(toString(value), initialX + 5, vy);
-
-      ctx.restore();
-    }
-  });
-}
-
-function modal(f) {
-  const snapshot = Keys.snapshot();
-  Keys.resetToRoot();
-  const close = () => Keys.restoreFromSnapshot(snapshot);
-  f().then(close);
-}
-
-loadDataUri("grid.jpg");
+// loadDataUri("grid.jpg")
+// .then(async () => {
+//   state.startXc = state.xc = state.img.width / 2;
+//   state.prevXc = state.startYc = state.yc = state.img.height / 2;
+//   state.operatorIdx = 1;
+//   state.scaleValue = 1/2;
+//   state.action = true;
+//   state.interpolate = false;
+//   const prevBuffer = new Float64Array(state.imgBuffer);
+//   for (let i = 0; i < 10; i++) {
+//     await applyGoo();
+//     state.prevXc = state.xc;
+//     state.prevYc = state.yc;
+//     if (i < 5) state.yc += 20;
+//     else state.xc += 20;
+//     // state.xc = Math.random() * state.img.width;
+//     // state.yc = Math.random() * state.img.height;
+//   }
+//   state.action = false;
+//   state.interpolate = true;
+//   await applyGoo(prevBuffer);
+// });

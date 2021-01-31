@@ -28,15 +28,20 @@ export class Patch {
   /**
    * @param {Float64Array} toBuffer
    * @param {number} toWidth
-   * @param {number} toHeight
+   * @param {boolean} forward
    */
-  apply(toBuffer, toWidth, toHeight) {
+  apply(toBuffer, toWidth, forward) {
     let si = 0;
     let di = 2*(this.top * toWidth + this.left);
     for (let y = 0; y < this.height; y++) {
       for (let x = 0; x < this.width; x++) {
-        toBuffer[di++] = this.buffer[si++];
-        toBuffer[di++] = this.buffer[si++];
+        if (forward) {
+          toBuffer[di++] += this.buffer[si++];
+          toBuffer[di++] += this.buffer[si++];
+        } else {
+          toBuffer[di++] -= this.buffer[si++];
+          toBuffer[di++] -= this.buffer[si++];
+        }
       }
       di += 2*(toWidth - this.width);
     }
@@ -65,19 +70,18 @@ export function diff(fromBuffer, toBuffer, width, height) {
   let y1Found = false;
   let x1 = width - 1, x2 = 0, y1, y2;
   for (let y = 0; y < height; y++) {
-    let x1Found = false;
     let zeroLineFound = true;
     for (let x = 0; x < width; x++) {
-      if (Math.abs(diffBuffer[i++]) < epsilon && Math.abs(diffBuffer[i++]) < epsilon) continue;
+      let dx = diffBuffer[i++];
+      let dy = diffBuffer[i++];
+
+      if (Math.abs(dx) < epsilon && Math.abs(dy) < epsilon) continue;
       zeroLineFound = false;
 
-      if (!x1Found && x < x1) {
-        x1 = x;
-        x1Found = true;
-      }
-      else if (x1Found && x > x2) x2 = x;
+      if (x < x1) x1 = x;
+      if (x > x2) x2 = x;
     }
-    
+
     if (!zeroLineFound && !y1Found) {
       y1 = y;
       y1Found = true;
@@ -86,7 +90,6 @@ export function diff(fromBuffer, toBuffer, width, height) {
       y2 = y - 1;
     }
   }
-
 
   let patches = [];
 
@@ -98,8 +101,8 @@ export function diff(fromBuffer, toBuffer, width, height) {
     let di = 2*(y1 * width + x1);
     for (let y = 0; y < patchHeight; y++) {
       for (let x = 0; x < patchWidth; x++) {
-        buffer[di++] = toBuffer[si++];
-        buffer[di++] = toBuffer[si++];
+        buffer[si++] = diffBuffer[di++];
+        buffer[si++] = diffBuffer[di++];
       }
       di += 2*(width - patchWidth);
     }
