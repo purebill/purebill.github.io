@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Balls</title>
+  <style type="text/css">
+    body {
+      border: 0;
+      padding: 0;
+      margin: 0;
+    }
+
+    canvas {
+      position: absolute;
+      left: 0;
+      top: 0;
+    }
+
+    #result {
+      border: 1px solid black;
+    }
+
+    div {
+      margin-left: 10px;
+    }
+
+    @keyframes fade-in {
+      0% {
+        opacity: 0;
+      }
+      100% {
+        opacity: 1;
+      }
+    }
+
+    #message {
+      display: none;
+      position: absolute;
+      background-color: #ffffcc;
+      z-index: 1000;
+      padding: 20px 0;
+      text-align: center;
+      width: 100%;
+      animation: fade-in 0.5s ease-in;
+    }
+
+    body,
+    input,
+    button {
+      font-size: 15pt;
+      box-sizing: border-box;
+    }
+
+    #progress {
+      z-index: 1001;
+      display: none;
+      position: fixed;
+      background: black;
+      color: white;
+      padding: 10px;
+      border: 1px solid white;
+    }
+
+    .modal {
+      position: absolute;
+      background-color: gray;
+      opacity: 0.5;
+      left: 0;
+      top: 0;
+      width: 100%;
+      height: 100%;
+    }
+
+    .menu {
+      background-color: white;
+      color: black;
+      position: absolute;
+      left: 50%;
+      top: 100px;
+      padding: 5px;
+    }
+    .menu a {
+      display: block;
+      cursor: pointer;
+      margin-bottom: 5px;
+      background-color: white;
+    }
+
+    .menu a.hover {
+      background-color: black;
+      color: white;
+    }
+  </style>
+</head>
+
+<body>
+  <div id="message"></div>
+  <div id="progress"></div>
+
+  <div class="result">
+    <canvas id="result"></canvas>
+    <!-- <canvas id="interface"></canvas> -->
+  </div>
+
+  <script type="module" src="index.js"></script>
+</body>
+
+</html>
