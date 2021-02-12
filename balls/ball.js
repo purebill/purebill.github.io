@@ -7,6 +7,7 @@ export class Ball {
   m;
   p = O;
   v = O;
+  cell = null;
 
   constructor(r, m, p, v) {
     this.r = r;
@@ -26,7 +27,7 @@ export function collide(b1, b2) {
   if (V.length(v2) < 1e-9) {
     // b1.v = [0, 0];
     // b2.v = [0, 0];
-    return [[0, 0], [0, 0]];
+    return [b2.v, b1.v];
   }
 
   let [v2parallel, v2norm] = V.decompose(v2, n);
@@ -37,5 +38,6 @@ export function collide(b1, b2) {
   let v1 = b1.v;
   // b1.v = V.add(v1prim, v1);
   // b2.v = V.add(V.add(v2prim, v2norm), v1);
+  // console.log(V.add(v1prim, v1), V.add(V.add(v2prim, v2norm), v1));
   return [V.add(v1prim, v1), V.add(V.add(v2prim, v2norm), v1)];
 }

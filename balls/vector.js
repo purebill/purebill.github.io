@@ -1,3 +1,5 @@
+import { Random } from "./random.js";
+
 const V = {};
 
 V.add = (v1, v2) => v1.map((e, idx) => e + v2[idx]);
@@ -16,9 +18,15 @@ V.dotProduct = (v1, v2) => v1.map((e, idx) => e*v2[idx]).reduce((acc, e) => acc+
 
 V.clone = v => v.slice(0);
 
-V.random = (length) => {
+const random = new Random();
+
+/**
+ * @param {number} length 
+ * @param {Random | void} randomSource 
+ */
+V.random = (length, randomSource) => {
   let l = length === undefined ? 1 : length;
-  let alpha = Math.random()*Math.PI*2;
+  let alpha = (randomSource || random).nextFloat(0, Math.PI*2);
   return [l * Math.sin(alpha), l * Math.cos(alpha)];
 };
 
@@ -50,6 +58,7 @@ V.alignUp = (vToUp, v) => {
  * 
  * @param {number[]} v1 
  * @param {number[]} v2 
+ * @returns {number}
  */
 V.angle = (v1, v2) => {
   const cos = V.dotProduct(v1, v2)/V.length(v1)/V.length(v2);
@@ -73,6 +82,14 @@ V.decompose = (v, n) => {
   const norm = V.subtract(v, parallel);
   return [parallel, norm];
 }
+
+/**
+ * Project v to toV and return the projectec component.
+ * 
+ * @param {number[]} v 
+ * @param {number[]} toV 
+ */
+V.project = (v, toV) => V.dotProduct(v, toV) / V.length(toV);
 
 /**
  * @returns whenther point2 is behind point1 that looks to v1 direction.
