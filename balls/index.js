@@ -1,9 +1,9 @@
-import {Ball, collide} from "./ball.js";
+import {Ball} from "./ball.js";
 import Keys from "./keys.js";
 import { Tree } from "./tree.js";
 import V from "./vector.js";
 import Metrics from "./metrics.js";
-import { collider, collider2 } from "./collider.js";
+import { collider, collider2, touching } from "./collider.js";
 import { Random } from "./random.js";
 
 /**@type {HTMLCanvasElement} */
@@ -17,8 +17,8 @@ const colliders = [collider, collider2, () => {}];
 /**@type {Tree} */
 let tree = null;
 let showInfo = false;
-let showMetrics = true;
-let colliderIdx = 0;
+let showMetrics = false;
+let colliderIdx = 1;
 let paused = false;
 let drawLoopId = null;
 let updateModelLoopId = null;
@@ -42,11 +42,8 @@ function updateModel(dt) {
     const b = balls[i];
     const newp = V.add(b.p, V.mulByScalar(b.v, dt));
     
-    // const [x1, x2, y1, y2] = b.cell;
-    // if (newp[0] <= x1 || newp[0] >= x2 || newp[1] <= y1 || newp[1] >= y2) {
-      tree.remove(b.p, b);
-      b.cell = tree.insert(newp, b);
-    // }
+    tree.remove(b.p, b.r, b);
+    tree.insert(newp, b.r, b);
 
     b.p = newp;
   }
@@ -139,30 +136,40 @@ Keys.mouseMove([], "Select", e => {
   let x = e.offsetX;
   let y = canvas2.height - e.offsetY;
 
+  const found = tree.find([x, y], 5);
+
   let ctx = canvas2.getContext("2d");
   ctx.save();
   ctx.clearRect(0, 0, canvas2.width, canvas2.height);
+
   ctx.fillStyle = "black";
-  ctx.strokeStyle = "black";
+  ctx.beginPath();
+  ctx.ellipse(e.offsetX, e.offsetY, 5, 5, 0, 0, Math.PI*2);
+  ctx.fill();
 
-  ctx.fillText(x + ", " + y, 0, 30);
-
-  const found = new Set();
-  tree.find([x, y]).forEach(b => found.add(b));
-  tree.find([x - 10, y - 10]).forEach(b => found.add(b));
-  tree.find([x - 10, y + 10]).forEach(b => found.add(b));
-  tree.find([x + 10, y - 10]).forEach(b => found.add(b));
-  tree.find([x + 10, y + 10]).forEach(b => found.add(b));
-
+  let i = 0;
   found.forEach(b => {
-    const [x1, x2, y1, y2] = b.cell;
-    ctx.beginPath();
-    ctx.rect(x1, canvas.height - y2, x2 - x1, y2 - y1);
-    ctx.stroke();
+    i++;
 
+    ctx.fillStyle = "black";
+    ctx.strokeStyle = "black";
+    b.treeCells.forEach(([_1, _2, [x1, y1, x2, y2]]) => {
+      ctx.beginPath();
+      ctx.rect(x1, canvas2.height - y2, x2 - x1, y2 - y1);
+      ctx.stroke();
+
+      ctx.fillStyle = "green";
+      ctx.fillText(i.toString(), x1, canvas2.height - y1);
+    });
+
+    ctx.fillStyle = "white";
     ctx.beginPath();
-    ctx.ellipse(b.p[0], canvas2.height - b.p[1], b.r + 1, b.r + 1, 0, 0, Math.PI*2);
-    ctx.stroke();
+    ctx.ellipse(b.p[0], canvas2.height - b.p[1], b.r - 1, b.r - 1, 0, 0, Math.PI*2);
+    ctx.fill();
+    ctx.fillStyle = "black";
+    // ctx.fillText(i.toString(), b.p[0] - 5, canvas2.height - b.p[1] - 5);
+    const cells = b.treeCells.map(([i, j]) => "(" + i + ", " + j + ")").join(", ");
+    ctx.fillText(cells, b.p[0] - 5, canvas2.height - b.p[1] - 5);
   });
 
   ctx.restore();
@@ -180,9 +187,17 @@ function updateModelLoop() {
 
   if (modelT0 == null) modelT0 = new Date().getTime();
   let dt = (t - modelT0) / 1000;
+  const maxDt = 0.010;
+  let iter = 1;
+  if (dt > maxDt) {
+    iter = Math.ceil(dt/maxDt);
+    dt = maxDt;
+  }
 
-  modelUpdateTimer.measure(() => updateModel(dt));
-  ticks.increment();
+  for (let i = 0; i < iter; i++) {
+    modelUpdateTimer.measure(() => updateModel(dt));
+    ticks.increment();
+  }
 
   modelT0 = t;
 
@@ -205,26 +220,44 @@ function initModel() {
   balls = [];
   tree = new Tree(50, canvas.width, canvas.height);
 
-  // balls.push(new Ball(10, 100, [50, 200], [50, 0]));
-  // balls.push(new Ball(10, 1, [150, 200], [200, 0]));
-  // balls.push(new Ball(10, 1, [200, 200], [200, 0]));
-  // balls.push(new Ball(10, 1, [250, 200], [200, 0]));
-  // balls.push(new Ball(10, 100, [300, 200], [50, 0]));
+  // const c = [canvas.width/2, canvas.height/2];
+  // balls.push(new Ball(100, 100, c, [0, 0]));
+  // let N = 20;
+  // const alpha = Math.PI*2/N;
+  // const dist = 300;
+  // for (let i = 0; i < N; i++) {
+  //   const p = [canvas.width/2 + Math.cos(alpha * i) * dist, canvas.height/2 + Math.sin(alpha * i) * dist];
+  //   const v = V.mulByScalar(V.normalize(V.subtract(c, p)), 100);
+  //   const m = 10 + 10*i;
+  //   const r = 5*Math.pow(m, 1/3);
+  //   balls.push(new Ball(r, m, p, v));
+  // }
 
   // let N = 40;
   // let space = 25;
-  // for (let i = 0; i < N; i++) balls.push(new Ball(10, 1 + i*0, [100 + i*space, 200], [0, 0]));
-  // balls.push(new Ball(10, 1, [(N+1) * space + 100, 200], [-300, 0]));
+  // for (let i = 0; i < N; i++) balls.push(new Ball(10, 1 + i*.1, [100 + i*space, 200], [0, 0]));
+  // balls.push(new Ball(10, N, [(N+1) * space + 100, 200], [-300, 0]));
 
-  let N = 500;
-  for (let i = 0; i < N; i++) {
-    const p = [random.nextFloat(0, canvas.width), random.nextFloat(0, canvas.height)];
+  let N = 100;
+  for (let i = 0; i < N;) {
+    const r = random.nextFloat(4, 40);
+    const m = r*r*r*.001;
+    const p = [random.nextFloat(r + 5, canvas.width - r - 5), random.nextFloat(r + 5, canvas.height - r - 5)];
     const v = V.random(100, random);
-    let b = new Ball(4, 1 + random.nextFloat(0, 1), p, v);
+    let b = new Ball(r, 1 + random.nextFloat(0, 1), p, v);
+
+    const otherp = tree.find(p, r);
+    let free = true;
+    otherp.forEach(other => free = free && !touching(other, b));
+    if (!free) continue;
+
     balls.push(b);
+    tree.insert(b.p, b.r, b);
+
+    i++;
   }
 
-  balls.forEach(b => b.cell = tree.insert(b.p, b));
+  balls.forEach(b => tree.insert(b.p, b.r, b));
 }
 
 function init() {
@@ -240,6 +273,8 @@ function init() {
 
   updateModelLoop();
   drawLoop();
+
+  if (paused) draw();
 
   // setInterval(() => {
   //   const pe = balls.map(b => Math.pow(V.length(b.v), 2) * b.m / 2).reduce((accum, v) => accum + v);
@@ -298,34 +333,11 @@ function experiment() {
     if (!eq(balls1, balls2)) break;
   }
 
-
-  // let N = 510;
-
-  // initModel();
-  // for (let i = 0; i < N; i++) {
-  //   updateModel(0.01);
-  //   console.log("[1]", i);
-  // }
-  // let balls1 = balls.slice(0, balls.length);
-
-
-  // colliderIdx += 1;
-
-
-  // initModel();
-  // for (let i = 0; i < N; i++) {
-  //   updateModel(0.01);
-  //   console.log("[2]", i);
-  // }
-  // let balls2 = balls.slice(0, balls.length);
-
-  // eq(balls1, balls2);
-
   function eq(balls1, balls2) {
     for (let i = 0; i < balls1.length; i++) {
       let b1 = balls1[i];
       let b2 = balls2[i];
-      if (b1.p[0] != b2.p[0] || b1.p[1] != b2.p[1]) {
+      if (Math.abs(b1.p[0] - b2.p[0]) > 1 || Math.abs(b1.p[1] - b2.p[1]) > 1) {
         console.error("Not equual", i, V.subtract(balls1[i].p, balls2[i].p));
         setInterval(() => {
           balls = balls === balls1 ? balls2 : balls1;

@@ -3,110 +3,104 @@ const EMPTY_SET = new Set();
 export class Tree {
   w;
   h;
-  r;
   n;
+  /**@type {Map<number, Map<number, Set<any>>>} */
+  map;
 
   constructor (r, w, h) {
-    this.n = Math.min(Math.floor(Math.log2(w) - Math.log2(r)), Math.floor(Math.log2(h) - Math.log2(r)));
-    this.r = r;
+    this.n = Math.min(Math.ceil(w/r), Math.ceil(h/r));
     this.w = w;
     this.h = h;
-    this.root = [null, null, null, null];
+    this.map = new Map();
   }
 
   /**
-   * @param {number[]} p 
-   * @returns {number}
+   * @param {number[]} p object's center coordinates
+   * @param {number} r effective radius (size) of the object
+   * @param {any} o 
    */
-  code(p) {
-    let result = 0;
-    let x1 = 0, x2 = this.w;
-    let y1 = 0, y2 = this.h;
-    for (let i = 0; i < this.n; i++) {
-      let x = (x1 + x2)/2;
-      let y = (y1 + y2)/2;
-      let idx = 0;
-      if (p[0] > x) idx |= 2;
-      if (p[1] > y) idx |= 1;
+  insert(p, r, o) {
+    const cellw = this.w / this.n;
+    const cellh = this.h / this.n;
 
-      if (idx & 2) x1 = x;
-      else x2 = x;
-      if (idx & 1) y1 = y;
-      else y2 = y;
+    let i1 = Math.floor((p[0] - r) / cellw);
+    let i2 = Math.floor((p[0] + r) / cellw);
+    let j1 = Math.floor((p[1] - r) / cellh);
+    let j2 = Math.floor((p[1] + r) / cellh);
 
-      result <<= 2;
-      result |= idx;
+    o.treeCells = [];
+
+    for (let i = i1, x = i1 * cellw; i <= i2; i++, x += cellw) {
+      for (let j = j1, y = j1 * cellh; j <= j2; j++, y += cellh) {
+        let jmap = this.map.get(i);
+        if (!jmap) {
+          jmap = new Map();
+          this.map.set(i, jmap);
+        }
+
+        let set = jmap.get(j);
+        if (!set) {
+          set = new Set();
+          jmap.set(j, set);
+        }
+
+        set.add(o);
+        o.treeCells.push([i, j, [x, y, x + cellw, y + cellh]]);
+      }
+    }
+  }
+
+  /**
+   * @param {number[]} p object's center coordinates
+   * @param {number} r effective radius (size) of the object
+   * @returns {Set<any>}
+   */
+  find(p, r) {
+    let i1 = Math.floor((p[0] - r) / this.w * this.n);
+    let i2 = Math.floor((p[0] + r) / this.w * this.n);
+    let j1 = Math.floor((p[1] - r) / this.h * this.n);
+    let j2 = Math.floor((p[1] + r) / this.h * this.n);
+
+    let result = EMPTY_SET;
+
+    for (let i = i1; i <= i2; i++) {
+      for (let j = j1; j <= j2; j++) {
+        let jmap = this.map.get(i);
+        if (!jmap) continue;
+
+        let set = jmap.get(j);
+        if (!set) continue;
+
+        if (result === EMPTY_SET) result = new Set();
+        set.forEach(o => result.add(o));
+      }
     }
 
     return result;
   }
 
   /**
-   * @param {number[]} p 
-   * @param {any} o 
-   * @returns {[number, number, number, number]}
-   */
-  insert(p, o) {
-    let node = this.root;
-    let x1 = 0, x2 = this.w;
-    let y1 = 0, y2 = this.h;
-    for (let i = 0; i < this.n; i++) {
-      let x = (x1 + x2)/2;
-      let y = (y1 + y2)/2;
-      let idx = 0;
-      if (p[0] > x) idx |= 2;
-      if (p[1] > y) idx |= 1;
-
-      if (idx & 2) x1 = x;
-      else x2 = x;
-      if (idx & 1) y1 = y;
-      else y2 = y;
-
-      if (node[idx] === null) node[idx] = i == this.n - 1 ? new Set() : [null, null, null, null];
-
-      node = node[idx];
-    }
-
-    node.add(o);
-
-    return [x1, x2, y1, y2];
-  }
-
-  /**
-   * @param {number[]} p 
-   * @returns {Set<any>}
-   */
-  find(p) {
-    let node = this.root;
-    let x1 = 0, x2 = this.w;
-    let y1 = 0, y2 = this.h;
-    for (let i = 0; i < this.n; i++) {
-      if (node === null) return EMPTY_SET;
-
-      let x = (x1 + x2)/2;
-      let y = (y1 + y2)/2;
-      let idx = 0;
-      if (p[0] > x) idx |= 2;
-      if (p[1] > y) idx |= 1;
-
-      if (idx & 2) x1 = x;
-      else x2 = x;
-      if (idx & 1) y1 = y;
-      else y2 = y;
-
-      node = node[idx];
-    }
-
-    return node === null ? EMPTY_SET : node;
-  }
-
-  /**
-   * @param {number[]} p 
+   * @param {number[]} p object's center coordinates
+   * @param {number} r effective radius (size) of the object
    * @param {any} o 
    */
-  remove(p, o) {
-    let node = this.find(p);
-    node.delete(o);
+  remove(p, r, o) {
+    let i1 = Math.floor((p[0] - r) / this.w * this.n);
+    let i2 = Math.floor((p[0] + r) / this.w * this.n);
+    let j1 = Math.floor((p[1] - r) / this.h * this.n);
+    let j2 = Math.floor((p[1] + r) / this.h * this.n);
+
+    for (let i = i1; i <= i2; i++) {
+      for (let j = j1; j <= j2; j++) {
+        let jmap = this.map.get(i);
+        if (!jmap) return;
+
+        let set = jmap.get(j);
+        if (!set) return;
+
+        set.delete(o);
+      }
+    }
   }
 
 }
