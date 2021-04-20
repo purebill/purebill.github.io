@@ -20,6 +20,21 @@ class Gauge extends Metric {
   }
 }
 
+class Maximum extends Gauge {
+  constructor() {
+    super();
+    this.reset();
+  }
+  
+  update(value) {
+    if (value > this.v) this.v = value;
+  }
+
+  reset() {
+    this.v = -Infinity;
+  }
+}
+
 class Counter extends Gauge {
   increment() {
     this.update(this.value() + 1);
@@ -29,6 +44,9 @@ class Counter extends Gauge {
 class SlidingMean extends Gauge {
   p;
 
+  /**
+   * @param {number|void} p 
+   */
   constructor(p) {
     super();
     this.p = p || 0.1;
@@ -40,6 +58,9 @@ class SlidingMean extends Gauge {
 }
 
 class Timer extends SlidingMean {
+  /**
+   * @param {number|void} p 
+   */
   constructor(p) {
     super(p);
   }
@@ -69,48 +90,46 @@ function metric(name, con) {
   return m;
 }
 
-/**
- * @param {string} name 
- * @returns {SlidingMean}
- */
-function slidingMean(name, p) {
-  return metric(name, () => new SlidingMean(p));
-}
-
-function values() {
-  let result = new Map();
-  metrics.forEach((m, name) => result.set(name, m.value()));
-  return result;
-}
-
-/**
- * @param {string} name 
- * @returns {Timer}
- */
-function timer(name, p) {
-  return metric(name, () => new Timer(p));
-}
-
-/**
- * @param {string} name 
- * @returns {Gauge}
- */
-function gauge(name) {
-  return metric(name, () => new Gauge());
-}
-
-/**
- * @param {string} name 
- * @returns {Counter}
- */
-function counter(name) {
-  return metric(name, () => new Counter());
-}
 
 export default {
-  gauge,
-  counter,
-  slidingMean,
-  all: values,
-  timer
+  /**
+   * @param {string} name 
+   * @returns {Gauge}
+   */
+  gauge: name => metric(name, () => new Gauge()),
+
+  /**
+   * @param {string} name 
+   * @returns {Counter}
+   */
+  counter: name => metric(name, () => new Counter()),
+
+  /**
+   * @param {string} name 
+   * @param {number|void} p
+   * @returns {SlidingMean}
+   */
+  slidingMean: (name, p) => metric(name, () => new SlidingMean(p)),
+
+  /**s
+   * @returns {Map<String, number>}
+   */
+  all: () => {
+    let result = new Map();
+    metrics.forEach((m, name) => result.set(name, m.value()));
+    return result;
+  },
+
+  /**
+   * @param {string} name 
+   * @param {number|void} p
+   * @returns {Timer}
+   */
+  timer: (name, p) => metric(name, () => new Timer(p)),
+
+  /**
+   * @param {string} name 
+   * @returns {Maximum}
+   */
+  max: name => metric(name, () => new Maximum())
 };

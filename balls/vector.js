@@ -1,5 +1,7 @@
 import { Random } from "./random.js";
 
+const epsilon = 1e-6;
+
 const V = {};
 
 V.add = (v1, v2) => v1.map((e, idx) => e + v2[idx]);
@@ -10,7 +12,11 @@ V.subtract = (v1, v2) => V.add(v1, V.negate(v2));
 
 V.length = v => Math.sqrt(v.map(e => e*e).reduce((acc, e) => acc+e, 0));
 
-V.normalize = v => V.mulByScalar(v, 1/V.length(v));
+V.normalize = v => {
+  const l = V.length(v);
+  if (l < epsilon) return v;
+  return V.mulByScalar(v, 1/l);
+}
 
 V.mulByScalar = (v, scalar) => v.map(e => e*scalar);
 
@@ -96,7 +102,7 @@ V.project = (v, toV) => V.dotProduct(v, toV) / V.length(toV);
  */
 V.behind = (v1, point1, point2) => {
   const n = V.normal(v1);
-  if (Math.abs(n[0]) < 1e-6) return point2[1] < Math.sign(n[1])*point1[1];
+  if (Math.abs(n[0]) < epsilon) return point2[1] < Math.sign(n[1])*point1[1];
 
   const x2 = point2[0];
   const y2 = n[1] * (x2 - point1[0]) / n[0] + point1[1];
