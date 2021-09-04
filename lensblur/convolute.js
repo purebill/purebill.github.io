@@ -39,6 +39,14 @@ function convolute(img, kernel, tile) {
       var rcol = col - tile.left;
 
       let baseIndex = (rcol + rrow * tile.width) * 4;
+      // let baseSrcIndex = (col + row * img.width) * 4;
+      // let vm = Math.round(Math.max(
+      //     Math.abs(img.data[baseSrcIndex] - r2),
+      //     Math.abs(img.data[baseSrcIndex + 1] - g2),
+      //     Math.abs(img.data[baseSrcIndex + 2] - b2)));
+      // result.data[baseIndex]     = 255-vm;
+      // result.data[baseIndex + 1] = 255-vm;
+      // result.data[baseIndex + 2] = 255-vm;
       result.data[baseIndex]     = Math.round(r2);
       result.data[baseIndex + 1] = Math.round(g2);
       result.data[baseIndex + 2] = Math.round(b2);
