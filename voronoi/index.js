@@ -61,9 +61,17 @@ shadowCanvas.width = w;
 shadowCanvas.height = h;
 const shadowCtx = shadowCanvas.getContext("2d");
 
-function repaint() {
+function repaint(force) {
+  if (working) {
+    if (!force) return;
+
+    workers.forEach(w => w.reset());
+  }
+
+  working = true;
   drawVoronoiDiagram(shadowCtx, seeds, distFuns[distIdx])
-  .then(() => requestAnimationFrame(t => ctx.drawImage(shadowCanvas, 0, 0)));
+  .then(() => requestAnimationFrame(t => ctx.drawImage(shadowCanvas, 0, 0)))
+  .then(() => working = false);
 }
 
 repaint();
@@ -98,7 +106,7 @@ canvas.onmouseleave = e => {
   seeds.pop();
   newIdx = -1;
 
-  repaint();
+  repaint(true);
 };
 
 window.onkeydown = e => {
@@ -155,9 +163,6 @@ function createVoronoiNodes(w, h, N) {
  * @returns 
  */
 async function drawVoronoiDiagram(ctx, nodes, distFun) {
-  if (working) return;
-  working = true;
-
   const w = ctx.canvas.width;
   const h = ctx.canvas.height;
 
@@ -185,8 +190,6 @@ async function drawVoronoiDiagram(ctx, nodes, distFun) {
       ctx.fill();
     }
   }
-
-  working = false;
 }
 
 /**

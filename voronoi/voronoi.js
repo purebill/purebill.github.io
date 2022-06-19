@@ -17,6 +17,35 @@ export function distanceChebyshev(sx, sy, x, y, w, h) {
 }
 
 export function distanceFlatTorus(sx, sy, x, y, w, h) {
+    //  +-----------+ +-----------+ +-----------+ 
+    //  |6        x | | 2       x | |7        x | 
+    //  |           | |           | |           | 
+    //  |           | |           | |           | 
+    //  +-----------+ +-----------+ +-----------+ 
+    //  +-----------+ +-----------+ +-----------+
+    //  |5        x | | 1       x | | 3       x |
+    //  |           | |           | |           |
+    //  |           | | o         | |           |
+    //  +-----------+ +-----------+ +-----------+
+    //  +-----------+ +-----------+ +-----------+ 
+    //  |9        x | | 4       x | |8        x | 
+    //  |           | |           | |           | 
+    //  |           | |           | |           | 
+    //  +-----------+ +-----------+ +-----------+ 
+
+    let d1 = (sx - x)*(sx - x) + (sy - y)*(sy - y);
+    let d2 = (sx - x)*(sx - x) + (sy - y + h)*(sy - y + h);
+    let d3 = (sx - x - w)*(sx - x - w) + (sy - y)*(sy - y);
+    let d4 = (sx - x)*(sx - x) + (sy - y - h)*(sy - y - h);
+    let d5 = (sx - x + w)*(sx - x + w) + (sy - y)*(sy - y);
+    let d6 = (sx - x + w)*(sx - x + w) + (sy - y + h)*(sy - y + h);
+    let d7 = (sx - x - w)*(sx - x - w) + (sy - y + h)*(sy - y + h);
+    let d8 = (sx - x - w)*(sx - x - w) + (sy - y - h)*(sy - y - h);
+    let d9 = (sx - x + w)*(sx - x + w) + (sy - y - h)*(sy - y -h);
+    return Math.min(d1, d2, d3, d4, d5, d6, d7, d8, d9);
+  }
+
+export function distanceFlatTorusOld(sx, sy, x, y, w, h) {
   let d,l;
 
   const dx = x - sx;
